@@ -45,5 +45,8 @@ extension SpeechRecognitionError: LocalizedError {
 
 func recognitionError(_ error: any Error) -> any Error {
     if error is CancellationError || error is SpeechRecognitionError { return error }
+    if let error = error as? ModelAssetError, case .verificationFailed = error {
+        return SpeechRecognitionError.assetVerificationFailed(error.localizedDescription)
+    }
     return SpeechRecognitionError.backendFailure(underlying: error)
 }

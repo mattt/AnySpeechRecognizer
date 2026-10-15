@@ -1,0 +1,28 @@
+Parakeet conversion tools for AnySpeechRecognizer
+
+This directory contains code derived from möbius by Fluid Inference
+(https://github.com/FluidInference/mobius), commit
+26f5fa8059d5ab3d34449adce6ff6ed86734e522, licensed under the
+Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Derived files and their sources:
+
+- parakeet.py: component wrappers from
+  models/stt/parakeet-tdt-v3-0.6b/coreml/individual_components.py;
+  parameter name mapping and weight loading from
+  models/stt/parakeet-redux/coreml/redux_weights.py.
+- convert.py: conversion and quantization steps from
+  models/stt/parakeet-tdt-v3-0.6b/coreml/convert-parakeet.py,
+  models/stt/parakeet-redux/coreml/export_decoder_joint.py, and
+  models/stt/parakeet-ultra/coreml/quantize_encoder_int8.py.
+
+The files were modified for AnySpeechRecognizer.
+The modifications are licensed under the Apache License, Version 2.0.
+
+The tools do not contain model weights.
+The models they convert are licensed separately under CC BY 4.0:
+
+- Parakeet TDT 0.6B v3 by NVIDIA
+  (https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
+- Parakeet Ultra by Moondream
+  (https://huggingface.co/moondream/parakeet-ultra)

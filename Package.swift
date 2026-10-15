@@ -8,11 +8,19 @@ let package = Package(
     products: [
         .library(name: "AnySpeechRecognizer", targets: ["AnySpeechRecognizer"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/huggingface/swift-huggingface", from: "1.0.0")
+    ],
     targets: [
-        .target(name: "AnySpeechRecognizer"),
+        .target(
+            name: "AnySpeechRecognizer",
+            dependencies: [.product(name: "HuggingFace", package: "swift-huggingface")]
+        ),
         .testTarget(
             name: "AnySpeechRecognizerTests",
-            dependencies: ["AnySpeechRecognizer"]
+            dependencies: [
+                "AnySpeechRecognizer", .product(name: "HuggingFace", package: "swift-huggingface"),
+            ]
         ),
     ],
     swiftLanguageModes: [.v6]
