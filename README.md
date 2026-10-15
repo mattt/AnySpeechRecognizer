@@ -4,23 +4,27 @@ AnySpeechRecognizer is a Swift package that implements Apple's modern Speech API
 with a choice of recognition engine.
 Code written for `SpeechAnalyzer`, `SpeechTranscriber`, `DictationTranscriber`,
 `SpeechDetector`, and `AssetInventory` builds against this package
-when you change `import Speech` to `import AnySpeechRecognizer`.
+when you change the import statement:
+
+```diff
+- import Speech
++ import AnySpeechRecognizer
+```
 
 The default backend is Apple's Speech framework.
 The package also has its own runtime for NVIDIA's
 [Parakeet TDT](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) models on Core ML,
 with file and live input, volatile results, and word timing.
-To use it, pass a model when you create the transcriber:
+To use it, pass a model instead of a locale when you create the transcriber:
 
-```swift
-import AnySpeechRecognizer
-
-let transcriber = SpeechTranscriber(
-    model: ParakeetSpeechModel(variant: .v3),
-    transcriptionOptions: [],
-    reportingOptions: [.volatileResults],
-    attributeOptions: [.audioTimeRange]
-)
+```diff
+  let transcriber = SpeechTranscriber(
+-     locale: locale,
++     model: ParakeetSpeechModel(variant: .v3),
+      transcriptionOptions: [],
+      reportingOptions: [.volatileResults],
+      attributeOptions: [.audioTimeRange]
+  )
 ```
 
 Asset installation, analysis, and results use the same API for both backends.
