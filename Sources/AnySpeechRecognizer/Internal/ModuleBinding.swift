@@ -9,6 +9,8 @@ struct ModuleBinding: Sendable {
         case native(NativeMember)
         /// A model executor that receives converted input.
         case model(any SpeechRecognitionModel, SpeechRecognitionRequest)
+        /// A speaker diarization executor that receives converted input.
+        case diarization(DiarizationMember)
     }
 
     let id: ObjectIdentifier

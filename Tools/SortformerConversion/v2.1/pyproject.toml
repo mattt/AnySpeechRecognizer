@@ -1,0 +1,28 @@
+[project]
+name = "sortformer-v2-1-conversion"
+version = "0.1.0"
+description = "Convert NVIDIA Streaming Sortformer 4spk v2.1 to Core ML for AnySpeechRecognizer"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = "==3.12.*"
+dependencies = [
+    "coremltools==9.0",
+    "huggingface-hub",
+    "nemo-toolkit[asr]==2.7.3",
+    # coremltools 9.0 converts one-element arrays with int(), which NumPy 2.4 rejects.
+    "numpy==2.3.5",
+    "soundfile",
+    "torch==2.7.0",
+    "torchaudio==2.7.0",
+]
+
+[tool.uv]
+package = false
+override-dependencies = [
+    # NeMo caps hydra-core at 1.3.2 and pins fsspec==2024.12.0; both versions are affected by security advisories.
+    "fsspec[http]>=2026.6.0",
+    "hydra-core>=1.3.6",
+]
+
+[tool.ruff]
+line-length = 120

@@ -1,0 +1,15 @@
+# Two speakers in alternating turns of different lengths, with one long silence.
+# voice	offset seconds	text
+Samantha	0	Good morning. Thanks for joining the planning call today.
+Daniel	0.4	Happy to be here. I read the notes you sent last night.
+Samantha	0.3	Great. Then let's start with the schedule, because the first milestone moved by two weeks, and the team needs to know what that means for the testing plan and for the documentation work that depends on it.
+Daniel	0.5	Right.
+Samantha	0.3	The short version is that testing starts later, but it also ends later, so nothing is lost.
+Daniel	0.6	That makes sense to me. I do worry about the documentation, though. The writers were planning to start next Monday, and they will not have stable screenshots until the interface is finished.
+silence	3
+Samantha	0	Let's ask them whether they can begin with the reference pages instead.
+Daniel	0.4	Good idea. I can send that message after this call.
+Samantha	0.5	Thank you. One more thing about the budget.
+Daniel	0.3	Sure, go ahead.
+Samantha	0.4	We have enough money for the extra contractor, but only if we approve the request before the end of the month.
+Daniel	0.5	Then let's approve it today. I will update the spreadsheet and share it with everyone.

@@ -64,6 +64,12 @@ public enum AssetInventory {
             }
             status = min(status, Status(await model.availability(for: request)))
         }
+        for member in groups.diarizers {
+            guard (try? member.request.validate(for: member.model.capabilities)) != nil else {
+                return .unsupported
+            }
+            status = min(status, Status(await member.model.availability(for: member.request)))
+        }
         return status
     }
 
@@ -86,6 +92,14 @@ public enum AssetInventory {
             requests.append(AssetInstallationRequest(native: native))
         }
         for (model, modelRequests) in groups.requestsByModel {
+            for request in modelRequests { try request.validate(for: model.capabilities) }
+            if let installation = try await model.assetInstallationRequest(
+                supporting: modelRequests)
+            {
+                requests.append(installation)
+            }
+        }
+        for (model, modelRequests) in groups.diarizationRequestsByModel {
             for request in modelRequests { try request.validate(for: model.capabilities) }
             if let installation = try await model.assetInstallationRequest(
                 supporting: modelRequests)
@@ -118,10 +132,11 @@ extension AssetInventory.Status {
     }
 }
 
-/// Package modules split into native modules and model-backed requests.
+/// Package modules split into native modules, model-backed requests, and diarizers.
 struct ModuleGroups {
     var native: [any Speech.SpeechModule] = []
     var models: [(any SpeechRecognitionModel, SpeechRecognitionRequest)] = []
+    var diarizers: [DiarizationMember] = []
 
     init(_ modules: [any SpeechModule]) throws {
         for module in modules {
@@ -132,6 +147,7 @@ struct ModuleGroups {
             switch module.binding.backend {
             case .native(let member): native.append(member.module)
             case .model(let model, let request): models.append((model, request))
+            case .diarization(let member): diarizers.append(member)
             }
         }
     }
@@ -147,6 +163,23 @@ struct ModuleGroups {
             } else {
                 indices[model.modelID] = groups.count
                 groups.append((model, [request]))
+            }
+        }
+        return groups
+    }
+
+    /// The distinct requests of each diarization model, keyed by model identifier.
+    var diarizationRequestsByModel: [(any SpeakerDiarizationModel, [SpeakerDiarizationRequest])] {
+        var groups: [(any SpeakerDiarizationModel, [SpeakerDiarizationRequest])] = []
+        var indices: [String: Int] = [:]
+        for member in diarizers {
+            if let index = indices[member.model.modelID] {
+                if !groups[index].1.contains(member.request) {
+                    groups[index].1.append(member.request)
+                }
+            } else {
+                indices[member.model.modelID] = groups.count
+                groups.append((member.model, [member.request]))
             }
         }
         return groups

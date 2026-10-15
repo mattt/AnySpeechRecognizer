@@ -236,6 +236,8 @@ public final actor SpeechAnalyzer {
             for binding in bindings {
                 switch binding.backend {
                 case .model(let model, let request): try request.validate(for: model.capabilities)
+                case .diarization(let member):
+                    try member.request.validate(for: member.model.capabilities)
                 case .native: break
                 }
             }
@@ -288,6 +290,9 @@ public final actor SpeechAnalyzer {
             case .model(let model, let request):
                 let engine = ExecutorEngine(
                     binding: binding, model: model, request: request, events: events)
+                engines.append((engine, [binding.id]))
+            case .diarization(let member):
+                let engine = DiarizationEngine(binding: binding, member: member, events: events)
                 engines.append((engine, [binding.id]))
             case .native: break
             }
@@ -776,7 +781,7 @@ public final actor SpeechAnalyzer {
         compatibleWith modules: [any SpeechModule], considering naturalFormat: AVAudioFormat?
     ) async -> AVAudioFormat? {
         guard let groups = try? ModuleGroups(modules) else { return nil }
-        if groups.models.isEmpty {
+        if groups.models.isEmpty && groups.diarizers.isEmpty {
             return await Speech.SpeechAnalyzer.bestAvailableAudioFormat(
                 compatibleWith: groups.native, considering: naturalFormat)
         }

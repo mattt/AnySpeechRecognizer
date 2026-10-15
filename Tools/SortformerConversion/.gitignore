@@ -1,0 +1,5 @@
+# Checkpoints, intermediate packages, artifacts, references, and reports
+/build/
+/.venv/
+__pycache__/
+.ruff_cache/

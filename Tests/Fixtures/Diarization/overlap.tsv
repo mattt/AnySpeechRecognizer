@@ -1,0 +1,18 @@
+# Three speakers with frequent backchannels and overlapping turns.
+# voice	offset seconds	text
+Karen	0	So the plan is to move the whole office to the new building over one weekend.
+Daniel	-1.2	Mm hmm.
+Karen	0.3	We'll pack on Friday afternoon, the movers come Saturday morning, and we set up the desks on Sunday.
+Moira	-1.5	What about the servers?
+Karen	0.2	The servers move separately, a week earlier.
+Daniel	0.3	That sounds tight, but I think it can work if everyone labels their boxes clearly.
+Moira	-1	Yeah, labels are important.
+Daniel	0.2	And we should keep a list of anything that breaks.
+Karen	-0.7	Right, right.
+Moira	0.4	Who keeps the list?
+Karen	0.3	I can do it.
+Daniel	-0.5	Thanks, Karen.
+silence	2
+Moira	0	One last question. Is parking included at the new building, or do we need permits?
+Karen	0.4	Parking is included for the first year.
+Daniel	-0.9	Oh, that's great.

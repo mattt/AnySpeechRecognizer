@@ -1,0 +1,19 @@
+Streaming Sortformer v2.1 conversion tools for AnySpeechRecognizer
+
+The code in this directory is licensed under the Apache License, Version 2.0.
+It calls NVIDIA NeMo (https://github.com/NVIDIA/NeMo), Copyright NVIDIA
+CORPORATION & AFFILIATES, licensed under the Apache License, Version 2.0.
+The `pack` function in sortformer.py reimplements, with fixed shapes, the
+behavior of SortformerModules.concat_and_pad in NeMo.
+
+NVIDIA-Open-Model-License.txt is a copy of the NVIDIA Open Model License
+Agreement (version released October 24, 2025), transcribed from
+https://www.nvidia.com/content/dam/en-zz/Solutions/license-agreements/enterprise-software/nvidia-open-model-license-agreements-24-10-2025.pdf.
+It is NVIDIA's text and is not licensed under the Apache License.
+
+The tools do not contain model weights.
+The model they convert, Streaming Sortformer 4spk v2.1 by NVIDIA
+(https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2.1),
+is licensed under the NVIDIA Open Model License Agreement.
+The converted model is a Derivative Model under that agreement:
+Licensed by NVIDIA Corporation under the NVIDIA Open Model License.

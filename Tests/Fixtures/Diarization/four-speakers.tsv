@@ -1,0 +1,22 @@
+# Four speakers with short and long turns, two silences, and two overlaps.
+# voice	offset seconds	text
+Samantha	0	Welcome, everyone. Let's go around the table and share one update each.
+Daniel	0.5	I'll start. The new build is ready for review, and the crash from last week is fixed.
+Karen	0.4	That's good news. Did the fix change the startup time?
+Daniel	0.3	Not that we could measure.
+Moira	0.6	On my side, the survey closed yesterday. We received about four hundred responses, which is twice as many as last year, and most people asked for better search and offline support.
+Samantha	-0.8	Twice as many? That's wonderful.
+Moira	0.4	It is. I'll share the full summary on Friday.
+silence	2.5
+Karen	0	I have a question for Daniel about the review.
+Daniel	0.3	Of course.
+Karen	0.3	Should we test on older phones before we send it out, or is the simulator enough for this round?
+Daniel	0.5	Please test on at least two older phones. The simulator hides memory problems.
+Samantha	0.6	Agreed. Moira, can you lend Karen the test devices?
+Moira	0.3	Yes, they're in the cabinet next to my desk.
+Karen	-0.6	Perfect, thank you.
+silence	3
+Samantha	0	Last item. The offsite is confirmed for the second week of next month, and we'll travel by train.
+Moira	0.4	Will there be a vegetarian option at dinner?
+Samantha	0.3	Yes, I already asked the hotel.
+Daniel	0.5	Then I think we're done. Thanks, everyone.

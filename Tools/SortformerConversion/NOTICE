@@ -1,0 +1,33 @@
+Sortformer conversion tools for AnySpeechRecognizer
+
+This directory contains code derived from möbius by Fluid Inference
+(https://github.com/FluidInference/mobius), commit
+26f5fa8059d5ab3d34449adce6ff6ed86734e522, licensed under the
+Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Derived files and their sources, all under
+models/speaker-diarization/sortformer-streaming/conversion/:
+
+- sortformer.py: fixed_concat_and_pad, PreEncoderWrapper, and HeadWrapper from
+  coreml_wrappers.py (fixed_concat_and_pad, PreEncoderWrapper, and
+  SortformerHeadWrapper).
+- convert.py: conversion settings, pipeline assembly, metadata keys, and
+  compilation from convert_to_coreml.py and build_all_variants.py.
+
+The same scripts are also published, in earlier versions, in the Hugging Face
+repository FluidInference/diar-streaming-sortformer-coreml; this directory
+derives from the möbius versions only.
+
+The wrappers call and follow NVIDIA NeMo (https://github.com/NVIDIA/NeMo),
+Copyright (c) 2025 NVIDIA CORPORATION, licensed under the Apache License,
+Version 2.0: HeadWrapper follows SortformerEncLabelModel.forward_for_export, and
+the streaming loop in verify.py follows forward_streaming_step.
+
+The files were modified for AnySpeechRecognizer.
+The modifications are licensed under the Apache License, Version 2.0.
+
+The tools do not contain model weights.
+The model they convert is licensed separately under CC BY 4.0:
+
+- Streaming Sortformer 4spk v2 by NVIDIA
+  (https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2)
