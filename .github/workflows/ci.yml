@@ -1,0 +1,12 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test without model downloads
+        run: |
+          xcrun swift test
+          bash Tools/check-compatibility.sh

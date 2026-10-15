@@ -1,0 +1,39 @@
+# Swift comes from Xcode, not from mise. No task downloads models unless its name says so.
+
+[tasks.setup]
+description = "Resolve Swift package dependencies without downloading models"
+run = "xcrun swift package resolve"
+
+[tasks.build]
+description = "Build the library"
+run = "xcrun swift build"
+
+[tasks."build:ios"]
+description = "Compile the library for iOS without code signing"
+run = "xcodebuild -scheme AnySpeechRecognizer -destination 'generic/platform=iOS' -derivedDataPath .build/ios CODE_SIGNING_ALLOWED=NO build -quiet"
+
+[tasks.test]
+description = "Run the tests without model downloads"
+run = "xcrun swift test"
+
+[tasks."test:compatibility"]
+description = "Build the compatibility fixtures against Speech and AnySpeechRecognizer"
+run = "bash Tools/check-compatibility.sh"
+
+[tasks."test:integration"]
+description = "Run opt-in recognition tests with local audio and installed assets"
+run = '''
+#!/usr/bin/env bash
+# ANYSPEECH_INTEGRATION_AUDIO=<speech file>
+set -euo pipefail
+filters=()
+if [ -n "${ANYSPEECH_INTEGRATION_AUDIO:-}" ]; then
+    filters+=(--filter AppleIntegration)
+fi
+if [ "${#filters[@]}" -eq 0 ]; then
+    echo "error: Set ANYSPEECH_INTEGRATION_AUDIO." >&2
+    exit 1
+fi
+exec xcrun swift test --no-parallel "${filters[@]}"
+'''
+
