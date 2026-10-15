@@ -80,15 +80,15 @@ final class StubModelServer: Sendable {
         let path = Self.filePath(of: request.url)
         let revision = Self.revision(of: request.url)
         let range = request.value(forHTTPHeaderField: "Range")
-        let respond: @Sendable () -> Void = { [self] in
+        let response: @Sendable () -> Void = { [self] in
             respond(method: method, path: path, revision: revision, range: range, stub)
         }
         let deferred = state.withLock { state in
             state.requests.append(Request(method: method, path: path, range: range))
-            if state.holding { state.held.append(respond) }
+            if state.holding { state.held.append(response) }
             return state.holding
         }
-        if !deferred { respond() }
+        if !deferred { response() }
     }
 
     private func respond(

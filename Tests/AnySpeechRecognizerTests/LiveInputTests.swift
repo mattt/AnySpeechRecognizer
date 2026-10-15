@@ -29,12 +29,12 @@ private func time(_ frames: Int64) -> CMTime { CMTime(value: frames, timescale: 
     let executor = FakeExecutor(deferred: [snapshot("Late.", start: 0, end: 8_000)])
     let transcriber = SpeechTranscriber(model: FakeModel(executor: executor))
     let analyzer = SpeechAnalyzer(modules: [transcriber])
-    let input = AsyncStream<AnalyzerInput> { continuation in
+    let audio = AsyncStream<AnalyzerInput> { continuation in
         continuation.yield(input(frames: 16_000))
         continuation.finish()
     }
     async let results = collect(transcriber)
-    _ = try await analyzer.analyzeSequence(input)
+    _ = try await analyzer.analyzeSequence(audio)
     try await analyzer.finalize(through: nil)
     #expect(await executor.finalizeTimes == [time(16_000)])
     try await analyzer.finalizeAndFinishThroughEndOfInput()
@@ -67,13 +67,13 @@ private func time(_ frames: Int64) -> CMTime { CMTime(value: frames, timescale: 
     let executor = FakeExecutor()
     let analyzer = SpeechAnalyzer(modules: [SpeechTranscriber(model: FakeModel(executor: executor))]
     )
-    let input = AsyncStream<AnalyzerInput> { continuation in
+    let audio = AsyncStream<AnalyzerInput> { continuation in
         continuation.yield(input(frames: 1_600, start: time(16_000)))
         continuation.yield(input(frames: 1_600, start: time(32_000)))
         continuation.yield(input(frames: 1_600))
         continuation.finish()
     }
-    let last = try await analyzer.analyzeSequence(input)
+    let last = try await analyzer.analyzeSequence(audio)
     #expect(last == time(35_199))
     try await analyzer.finalizeAndFinishThroughEndOfInput()
     #expect(await executor.pulled.map(\.startTime) == [time(16_000), time(32_000), time(33_600)])
@@ -83,12 +83,12 @@ private func time(_ frames: Int64) -> CMTime { CMTime(value: frames, timescale: 
     let analyzer = SpeechAnalyzer(modules: [
         SpeechTranscriber(model: FakeModel(executor: FakeExecutor()))
     ])
-    let input = AsyncStream<AnalyzerInput> { continuation in
+    let audio = AsyncStream<AnalyzerInput> { continuation in
         continuation.yield(input(frames: 16_000, start: .zero))
         continuation.yield(input(frames: 1_600, start: time(8_000)))
         continuation.finish()
     }
-    await #expect(throws: SpeechRecognitionError.self) { try await analyzer.analyzeSequence(input) }
+    await #expect(throws: SpeechRecognitionError.self) { try await analyzer.analyzeSequence(audio) }
     #expect(await analyzer.state == .failed)
 }
 
@@ -169,11 +169,11 @@ private actor Ranges {
     let transcriber = SpeechTranscriber(model: FakeModel(executor: executor))
     let analyzer = SpeechAnalyzer(modules: [transcriber])
     async let results = collect(transcriber)
-    let input = AsyncStream<AnalyzerInput> { continuation in
+    let audio = AsyncStream<AnalyzerInput> { continuation in
         continuation.yield(input(frames: 16_000))
         continuation.finish()
     }
-    _ = try await analyzer.analyzeSequence(input)
+    _ = try await analyzer.analyzeSequence(audio)
     try await analyzer.finish(after: time(8_000))
     #expect(try await results.isEmpty)
     #expect(await executor.finalizeTimes.isEmpty)
