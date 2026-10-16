@@ -456,6 +456,23 @@ def deletion_runs(reference: list, hypothesis: list, minimum: int = 8) -> int:
     return runs
 
 
+def insertion_runs(reference: list, hypothesis: list, minimum: int = 3) -> tuple[int, int]:
+    """The runs of at least `minimum` consecutive inserted words, and the words in them.
+
+    Repeated filler, such as "and the other thing and the other thing", shows as such runs.
+    """
+    runs = words = streak = 0
+    for operation, _, _ in align(reference, hypothesis) + [("C", None, None)]:
+        if operation == "I":
+            streak += 1
+            continue
+        if streak >= minimum:
+            runs += 1
+            words += streak
+        streak = 0
+    return runs, words
+
+
 def errors(reference: list, hypothesis: list) -> dict:
     counts = {"N": len(reference), "S": 0, "D": 0, "I": 0}
     for operation, _, _ in align(reference, hypothesis):
@@ -504,9 +521,10 @@ def score(args) -> None:
     report.append("## ASR\n")
     report.append(
         "| Label | Set | Files | Words | WER, basic (S/D/I) | WER, Whisper normalizer "
-        "| Runs of 8+ deleted words | Analysis RTF | Mean preparation | Peak RSS |"
+        "| Runs of 8+ deleted words | Runs of 3+ inserted words (words) | Analysis RTF "
+        "| Mean preparation | Peak RSS |"
     )
-    report.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    report.append("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
     for label in labels:
         for subset in asr_sets:
             directory = root / "runs" / label / subset
@@ -517,13 +535,16 @@ def score(args) -> None:
             whisper = {"N": 0, "S": 0, "D": 0, "I": 0}
             analysis = duration = preparation = 0.0
             peak = 0
-            files = runs = 0
+            files = runs = inserted_runs = inserted_words = 0
             for path in sorted(directory.glob("*.jsonl")):
                 run = load_run(path)
                 item = items[path.stem]
                 if not item["reference"]:
                     continue
                 runs += deletion_runs(basic_words(item["reference"]), basic_words(run["text"]))
+                inserted = insertion_runs(basic_words(item["reference"]), basic_words(run["text"]))
+                inserted_runs += inserted[0]
+                inserted_words += inserted[1]
                 english = not subset.startswith("fleurs")
                 for total, counts in [
                     (basic, errors(basic_words(item["reference"]), basic_words(run["text"]))),
@@ -552,6 +573,8 @@ def score(args) -> None:
                 "files": files,
                 "basic": basic,
                 "deletionRuns": runs,
+                "insertionRuns": inserted_runs,
+                "insertionRunWords": inserted_words,
                 "whisper": whisper,
                 "analysisRTF": analysis / duration,
                 "meanPreparation": preparation / files,
@@ -560,7 +583,8 @@ def score(args) -> None:
             report.append(
                 f"| {label} | {subset} | {files} | {basic['N']} | {rate(basic):.2%} "
                 f"({basic['S']}/{basic['D']}/{basic['I']}) | {rate(whisper):.2%} | {runs} "
-                f"| {analysis / duration:.4f} | {preparation / files:.2f} s | {peak / 1e6:.0f} MB |"
+                f"| {inserted_runs} ({inserted_words}) | {analysis / duration:.4f} "
+                f"| {preparation / files:.2f} s | {peak / 1e6:.0f} MB |"
             )
     report += live_drops(root, labels, asr_sets)
     report += diarization(root, labels)
