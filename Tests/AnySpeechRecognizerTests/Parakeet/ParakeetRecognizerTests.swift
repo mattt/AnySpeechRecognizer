@@ -261,6 +261,29 @@ struct ParakeetRecognizerTests {
         expectTokens(try run(recognizer, samples, block: 640).committed, tokens)
     }
 
+    /// A pause that a second window does not recover can come before a gap after a sentence
+    /// end that a second window does recover. Here a pause precedes the period in the same
+    /// window.
+    @Test func recoversGapsAfterAnUnrecoveredPause() throws {
+        let tokens = [(1, 2), (5, 5), (3, 12), (ToneSpeech.sentenceEnd, 15), (9, 18), (2, 21)]
+        let samples = toneAudio(tokens, frames: 40)
+        var configuration = Self.file
+        configuration.blankRecoveryFrames = 2
+        configuration.recoversGapsAfterAFailure = true
+        let recognizer = try ParakeetRecognizer(
+            engine: FakeParakeetEngine(tokenDuration: 3, blanksAfterSentenceEnd: true),
+            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+        expectTokens(try run(recognizer, samples, block: 640).committed, tokens)
+
+        configuration.recoversGapsAfterAFailure = false
+        let stopping = try ParakeetRecognizer(
+            engine: FakeParakeetEngine(tokenDuration: 3, blanksAfterSentenceEnd: true),
+            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+        // Otherwise a later window enters the tones after the period inside the first one.
+        let stopped = try run(stopping, samples, block: 640).committed
+        #expect(stopped.map(\.startSample) != tokens.map { $0.1 * 1280 })
+    }
+
     /// In live and fast modes on long LibriSpeech files, Parakeet inserted filler such as
     /// "and the other thing and the other thing" as zero-duration tokens, up to the symbol
     /// limit at each of a few frames. Here every pause after a tone starts with such a frame.
@@ -348,6 +371,9 @@ struct ParakeetRecognizerTests {
         // NeMo's behavior.
         #expect(live.discardsFramesAtSymbolLimit && fast.discardsFramesAtSymbolLimit)
         #expect(!Configuration.file.discardsFramesAtSymbolLimit)
+        // Only file mode keeps recovering gaps after an unrecovered one.
+        #expect(Configuration.file.recoversGapsAfterAFailure)
+        #expect(!live.recoversGapsAfterAFailure && !fast.recoversGapsAfterAFailure)
     }
 
     @Test func rejectsWindowsWithoutRoomForAChunk() {

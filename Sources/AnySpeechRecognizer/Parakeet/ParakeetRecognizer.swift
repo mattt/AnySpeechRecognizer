@@ -65,7 +65,8 @@ struct ParakeetUpdate: Sendable, Equatable {
 /// received audio, is not decoded again; see ``speechLevel``. Otherwise the recognizer
 /// keeps the new tokens when they outnumber the tokens that the first decoding committed
 /// after the gap and their mean probability is at least 0.8, and then looks for a later gap
-/// in the window.
+/// in the window. In file mode, it also looks for a later gap after a gap that it does not
+/// recover; see ``Configuration/recoversGapsAfterAFailure``.
 ///
 /// NeMo's PyTorch model decodes the same blanks from the same window samples, and NeMo's
 /// buffered streaming inference loses even more words on such audio, so the behavior belongs
@@ -132,12 +133,21 @@ final class ParakeetRecognizer {
         /// NeMo's PyTorch model alike, and decoded repeated filler such as "and the other
         /// thing". In live mode, the same search moved the filler to other windows.
         var quietStartFrames: ClosedRange<Int>? = nil
+        /// Whether a window keeps looking for later gaps after a gap that a second window did
+        /// not recover, or that has no speech-level audio, when a token ends that gap.
+        /// Otherwise the first such gap, often a pause, ends recovery in the window.
+        ///
+        /// In file mode, this recovered speech that windows lost after an unrecovered pause:
+        /// on four AMI test meetings, v3 deleted 2,925 reference words instead of 3,116.
+        /// In live mode, it left every transcript of the evaluation unchanged.
+        var recoversGapsAfterAFailure = false
 
         /// The largest chunk the window allows: 2 s of right context, and 0.64 to 4 s of left
         /// context that starts at the quietest frame, for chunks of 8.96 to 12.32 s.
         static let file = Configuration(
             leftContextFrames: 25, chunkFrames: .max, rightContextFrames: 25,
-            reportsVolatileResults: false, quietStartFrames: 8...50)
+            reportsVolatileResults: false, quietStartFrames: 8...50,
+            recoversGapsAfterAFailure: true)
         /// Commits 0.96 s chunks after 2 s of right context, with 12 s of left context.
         static let live = Configuration(
             leftContextFrames: 150, chunkFrames: 12, rightContextFrames: 25,
@@ -563,8 +573,7 @@ final class ParakeetRecognizer {
             hasSpeech(
                 in: from..<(commit - 1 + longestDuration + Self.speechMarginFrames))
         else {
-            recoveryFrame = commit
-            return nil
+            return failure(gap: gap, in: decoding, commit: commit)
         }
         // The window starts at the gap. It still reaches its right context past the commit
         // frame, and it holds at least that much audio, because a window of a fraction of a
@@ -597,12 +606,25 @@ final class ParakeetRecognizer {
             recovered.committed.map(\.probability).reduce(0, +)
                 >= Self.minimumRecoveryProbability * Float(recovered.committed.count)
         else {
-            recoveryFrame = commit
-            return nil
+            return failure(gap: gap, in: decoding, commit: commit)
         }
         let next = recovered.committed[0].frame
         recovered.committed = Array(decoding.committed.prefix(gap.kept)) + recovered.committed
         return (recovered, next)
+    }
+
+    /// The result of a gap that is not decoded again or not recovered: with
+    /// ``Configuration/recoversGapsAfterAFailure``, the unchanged decoding and the frame of the
+    /// token that ends the gap, from which to look for the next gap; otherwise `nil`, and later
+    /// windows measure gaps from the commit frame.
+    private func failure(
+        gap: (start: Int, kept: Int), in decoding: ParakeetWindowDecoding, commit: Int
+    ) -> (decoding: ParakeetWindowDecoding, next: Int)? {
+        if configuration.recoversGapsAfterAFailure, gap.kept < decoding.committed.count {
+            return (decoding, decoding.committed[gap.kept].frame)
+        }
+        recoveryFrame = commit
+        return nil
     }
 
     /// Whether an encoder frame in `frames` has speech-level power: more than
