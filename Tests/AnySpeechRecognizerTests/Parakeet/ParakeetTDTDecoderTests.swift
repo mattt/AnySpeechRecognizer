@@ -97,6 +97,28 @@ struct ParakeetTDTDecoderTests {
         #expect(stop == 3)
     }
 
+    /// Parakeet emitted repeated filler such as "and the other thing and the other thing"
+    /// as zero-duration tokens, up to the symbol limit at each of a few frames.
+    @Test func discardsFramesAtTheSymbolLimit() throws {
+        let encoder = ScriptedEngine.frames([(1, 1), (5, 0), (7, 0), (2, 1), (3, 1), (-1, 1)])
+        var decoder = ParakeetTDTDecoder(maxSymbolsPerFrame: 3)
+        decoder.discardsFramesAtSymbolLimit = true
+        var context = try ParakeetDecoderContext.initial(engine: engine)
+        var tokens: [ParakeetDecodedToken] = []
+        let stop = try decoder.decode(
+            encoder, from: 0, to: 6, context: &context, engine: engine, into: &tokens)
+        // Frames 1 and 2 reach the limit, and the context returns to the one after token 1.
+        #expect(tokens.map(\.id) == [1, 2, 3])
+        #expect(tokens.map(\.frame) == [0, 3, 4])
+        #expect(stop == 6)
+        var expected = try ParakeetDecoderContext.initial(engine: engine)
+        for token in [1, 2, 3] {
+            try engine.predict(token: token, state: &expected.state, output: &expected.output)
+            expected.lastToken = token
+        }
+        #expect(context == expected)
+    }
+
     @Test func keepsTheCommitContextFreeOfLookaheadTokens() throws {
         let encoder = ScriptedEngine.frames([
             (1, 1), (-1, 1), (2, 3), (-1, 1), (-1, 1), (3, 1), (4, 1), (-1, 1),

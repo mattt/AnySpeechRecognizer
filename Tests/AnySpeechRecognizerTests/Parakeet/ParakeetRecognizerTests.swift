@@ -261,6 +261,27 @@ struct ParakeetRecognizerTests {
         expectTokens(try run(recognizer, samples, block: 640).committed, tokens)
     }
 
+    /// In live and fast modes on long LibriSpeech files, Parakeet inserted filler such as
+    /// "and the other thing and the other thing" as zero-duration tokens, up to the symbol
+    /// limit at each of a few frames. Here every pause after a tone starts with such a frame.
+    @Test(arguments: [false, true])
+    func discardsFramesAtTheSymbolLimit(live: Bool) throws {
+        let script = ToneSpeech.script(count: 20)
+        var configuration = live ? Self.live : Self.file
+        configuration.discardsFramesAtSymbolLimit = true
+        let recognizer = try ParakeetRecognizer(
+            engine: FakeParakeetEngine(fillerToken: 9), vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration)
+        expectTokens(try run(recognizer, script.samples, block: 640).committed, script.tokens)
+
+        configuration.discardsFramesAtSymbolLimit = false
+        let keeping = try ParakeetRecognizer(
+            engine: FakeParakeetEngine(fillerToken: 9), vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration)
+        let committed = try run(keeping, script.samples, block: 640).committed
+        #expect(committed.filter { $0.id == 9 }.count >= 10 * (script.tokens.count - 1))
+    }
+
     /// Tone audio of `frames` encoder frames with three-frame tokens at their onset frames.
     func toneAudio(_ tokens: [(id: Int, frame: Int)], frames: Int) -> [Float] {
         var samples = [Float](repeating: 0, count: frames * 1280)
@@ -323,6 +344,10 @@ struct ParakeetRecognizerTests {
         #expect(Configuration.live(windowFrames: 125).leftContextFrames == 63)
         #expect(Configuration.live(windowFrames: 75).leftContextFrames == 38)
         #expect(Configuration.file.reusesMelFrames == false)
+        // Live and fast decoding discard frames that reach the symbol limit; file mode keeps
+        // NeMo's behavior.
+        #expect(live.discardsFramesAtSymbolLimit && fast.discardsFramesAtSymbolLimit)
+        #expect(!Configuration.file.discardsFramesAtSymbolLimit)
     }
 
     @Test func rejectsWindowsWithoutRoomForAChunk() {

@@ -17,6 +17,7 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     let blanksAfterSentenceEnd: Bool
     let blanksAfterSpeechStart: Bool
     let silenceToken: Int?
+    let fillerToken: Int?
     private let bins: [Int: Int]
     private(set) var encodeCount = 0
     private(set) var forcedCommitEncodeCount = 0
@@ -43,6 +44,9 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     ///   - blanksAfterSpeechStart: Whether a window that starts inside a tone encodes all its
     ///     audio as silence. Windows that started inside speech lost words far more often
     ///     than windows that started in a pause on natural speech.
+    ///   - fillerToken: A token that the joint network emits with zero duration at the first
+    ///     silent frame after a tone, whatever the context, or `nil` for blank. Parakeet emitted
+    ///     filler such as "and the other thing" as zero-duration tokens, up to the symbol limit.
     ///   - silenceToken: A token that the joint network emits with high probability at a
     ///     silent frame when the decoder context is the initial one, or `nil` for blank.
     ///     In a pause, Parakeet decoded text that the audio does not contain from the
@@ -50,7 +54,7 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     init(
         tokenDuration: Int = 1, forcedCommitWindow: Bool = false, innerBlankDuration: Int? = nil,
         blanksAfterSentenceEnd: Bool = false, blanksAfterSpeechStart: Bool = false,
-        silenceToken: Int? = nil
+        silenceToken: Int? = nil, fillerToken: Int? = nil
     ) {
         model = Self.description
         forcedCommitModel = forcedCommitWindow ? Self.longDescription : nil
@@ -59,6 +63,7 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
         self.blanksAfterSentenceEnd = blanksAfterSentenceEnd
         self.blanksAfterSpeechStart = blanksAfterSpeechStart
         self.silenceToken = silenceToken
+        self.fillerToken = fillerToken
         // Learn the strongest mel bin of each tone from the real frontend.
         let frontend = ParakeetMelFrontend(windowSamples: model.windowSamples)
         var bins: [Int: Int] = [:]
@@ -159,6 +164,9 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
         let previous = Int(encoderFrame[1])
         if current != 0 && current != previous {
             return ParakeetJointDecision(token: current, probability: 0.9, duration: tokenDuration)
+        }
+        if let fillerToken, current == 0, previous != 0 {
+            return ParakeetJointDecision(token: fillerToken, probability: 0.9, duration: 0)
         }
         if let silenceToken, current == 0, Int(decoderOutput[0]) == model.blankID {
             return ParakeetJointDecision(token: silenceToken, probability: 0.95, duration: 1)

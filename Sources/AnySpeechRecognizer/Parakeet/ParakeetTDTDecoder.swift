@@ -47,11 +47,19 @@ struct ParakeetWindowDecoding: Sendable {
 /// frame with the prediction network output for the last token. A blank token advances by
 /// its duration, at least one frame, without updating the prediction network. Another token
 /// is emitted at the current frame, updates the prediction network, and advances by its
-/// duration. After `maxSymbolsPerFrame` tokens at one frame, decoding advances one frame.
+/// duration. After `maxSymbolsPerFrame` tokens at one frame, decoding advances one frame,
+/// and with ``discardsFramesAtSymbolLimit`` it first discards those tokens.
 /// The duration classes map to frames through ``ParakeetModelDescription/durations``,
 /// `[0, 1, 2, 3, 4]` for v3, as FluidAudio's `TdtDecoderV3` maps them.
 struct ParakeetTDTDecoder {
     var maxSymbolsPerFrame = 10
+    /// Whether the tokens of a frame that reaches `maxSymbolsPerFrame` are discarded, and the
+    /// context returns to the one before them, instead of being kept.
+    ///
+    /// Parakeet rarely emits more than one token at a frame of speech. Where it emitted
+    /// repeated filler such as "and the other thing and the other thing", it emitted the
+    /// tokens with zero duration, up to the limit at each of a few frames.
+    var discardsFramesAtSymbolLimit = false
     /// Contexts that replace the context after a sentence-final token, keyed by the token.
     ///
     /// Each holds only the blank start token and the sentence-final token. After a long
@@ -79,6 +87,8 @@ struct ParakeetTDTDecoder {
         let blank = engine.model.blankID
         var frame = start
         var symbols = 0
+        // The context before the first token at the current frame.
+        var frameContext = context
         while frame < end {
             let decision = try encoder.withFrame(frame) { features in
                 try context.output.withUnsafeBufferPointer { output in
@@ -91,6 +101,7 @@ struct ParakeetTDTDecoder {
                 symbols = 0
                 continue
             }
+            if discardsFramesAtSymbolLimit, symbols == 0 { frameContext = context }
             tokens.append(
                 ParakeetDecodedToken(
                     id: decision.token, frame: frame + frameOffset, duration: decision.duration,
@@ -107,6 +118,10 @@ struct ParakeetTDTDecoder {
                 frame += decision.duration
                 symbols = 0
             } else if symbols >= maxSymbolsPerFrame {
+                if discardsFramesAtSymbolLimit {
+                    tokens.removeLast(symbols)
+                    context = frameContext
+                }
                 frame += 1
                 symbols = 0
             }

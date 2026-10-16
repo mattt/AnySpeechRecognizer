@@ -73,6 +73,12 @@ struct ParakeetUpdate: Sendable, Equatable {
 /// inside speech lost words far more often than windows that started in a pause. File-mode
 /// windows therefore start at the quietest frame within ``Configuration/quietStartFrames``.
 ///
+/// In live and fast modes on long recordings, Parakeet inserted repeated filler, such as
+/// "and the other thing and the other thing", mostly in pauses. It emitted the filler as
+/// zero-duration tokens, often up to ``Configuration/maxSymbolsPerFrame`` at each of a few
+/// frames, so these modes discard the tokens of a frame that reaches the limit; see
+/// ``Configuration/discardsFramesAtSymbolLimit``.
+///
 /// The recognizer retains at most one window of audio before the commit point, plus the
 /// uncommitted audio. One owner uses it at a time.
 final class ParakeetRecognizer {
@@ -103,6 +109,9 @@ final class ParakeetRecognizer {
         /// and kept every sentence end of a 10-minute repetitive clip.
         var sentenceScopedHistory = true
         var maxSymbolsPerFrame = 10
+        /// Whether the decoder discards the tokens of a frame that reaches
+        /// `maxSymbolsPerFrame`; see ``ParakeetTDTDecoder/discardsFramesAtSymbolLimit``.
+        var discardsFramesAtSymbolLimit = false
         /// Whether windows reuse the mel features of frames that earlier windows computed.
         /// Live windows overlap almost completely, so they compute only new frames.
         var reusesMelFrames = false
@@ -132,12 +141,14 @@ final class ParakeetRecognizer {
         /// Commits 0.96 s chunks after 2 s of right context, with 12 s of left context.
         static let live = Configuration(
             leftContextFrames: 150, chunkFrames: 12, rightContextFrames: 25,
-            reportsVolatileResults: true, reusesMelFrames: true)
+            reportsVolatileResults: true, discardsFramesAtSymbolLimit: true,
+            reusesMelFrames: true)
         /// Commits 0.96 s chunks after 0.96 s of right context, for lower latency.
         /// In testing, 1 s of right context caused occasional inserted words.
         static let fast = Configuration(
             leftContextFrames: 150, chunkFrames: 12, rightContextFrames: 12,
-            reportsVolatileResults: true, reusesMelFrames: true)
+            reportsVolatileResults: true, discardsFramesAtSymbolLimit: true,
+            reusesMelFrames: true)
 
         /// The left context of a window shorter than ``live`` needs: 63 frames (5.04 s).
         /// With the 8 s encoder, 63 frames had the lowest error in the conversion tool's
@@ -163,6 +174,10 @@ final class ParakeetRecognizer {
         /// ``shortWindowLeftContextFrames`` of left context, or what remains of a window
         /// shorter than 8 s, and replays ``shortWindowDecoderHistoryFrames`` of tokens.
         /// These settings were tested with 8 s windows only.
+        ///
+        /// Fast windows therefore hold 87 frames of audio in the 100 frames of the 8 s encoder.
+        /// Filling them with 76 frames of left context lowered the WER of fast mode in 21 of 30
+        /// evaluation results and raised it in 8, five of them on German and French FLEURS.
         private func fitted(to windowFrames: Int) -> Configuration {
             guard leftContextFrames + chunkFrames + rightContextFrames > windowFrames else {
                 return self
@@ -276,7 +291,9 @@ final class ParakeetRecognizer {
         self.configuration = configuration
         primary = EncoderWindow(model)
         forcedCommitWindow = engine.forcedCommitModel.map(EncoderWindow.init)
-        decoder = ParakeetTDTDecoder(maxSymbolsPerFrame: configuration.maxSymbolsPerFrame)
+        decoder = ParakeetTDTDecoder(
+            maxSymbolsPerFrame: configuration.maxSymbolsPerFrame,
+            discardsFramesAtSymbolLimit: configuration.discardsFramesAtSymbolLimit)
         initialContext = try .initial(engine: engine)
         for id in 0..<vocabulary.count
         where configuration.sentenceScopedHistory && vocabulary.isSentenceFinal(id) {
