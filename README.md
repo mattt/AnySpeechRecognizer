@@ -215,7 +215,7 @@ or the OS 27 capture and asset input providers.
 | Alternatives, etiquette replacement | Yes | No |
 | Word timing | Yes | Yes, in 80 ms frames |
 | Confidence | Yes | Yes, the geometric mean of token probabilities |
-| Language | Selected by locale | Detected automatically, not reported |
+| Language | Selected by locale | Detected automatically, not reported; English only for `.unified` |
 | Assets | Apple's inventory | Pinned files in the Hugging Face cache |
 
 Requests for an unsupported module or option fail before the analyzer reads audio.
@@ -229,7 +229,7 @@ including locale reservations.
 
 ### Parakeet
 
-`ParakeetSpeechModel` has two variants:
+`ParakeetSpeechModel` has three variants:
 
 - `.v3` is NVIDIA's
   [Parakeet TDT 0.6B v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3),
@@ -237,11 +237,22 @@ including locale reservations.
 - `.ultra` is Moondream's
   [Parakeet Ultra](https://huggingface.co/moondream/parakeet-ultra),
   a post-trained version of v3 that is more accurate in most of our measurements.
+- `.unified` is NVIDIA's
+  [Parakeet Unified EN 0.6B](https://huggingface.co/nvidia/parakeet-unified-en-0.6b),
+  which recognizes English only.
+  It is the most accurate variant on English read speech,
+  especially in live mode, but not on meetings.
+  It is licensed under the NVIDIA Open Model License (see [License](#license)).
+
+> [!NOTE]
+> The `.unified` case is a source-breaking change.
+> A `switch` over `ParakeetSpeechModel.Variant` without a `default` case
+> does not compile until it handles `.unified`.
 
 Creating a model does not download or load weights.
 `AssetInventory` downloads pinned files from Hugging Face
 and verifies the size and SHA-256 digest of each one.
-Each variant needs about 632 MB.
+`.v3` and `.ultra` need about 632 MB each, and `.unified` about 614 MB.
 Modules with volatile or fast results also use an 8-second live encoder,
 about 591 MB more, which makes live transcription faster.
 Until it is installed, those modules use the 15-second encoder,
@@ -446,17 +457,18 @@ Each LibriSpeech row has about 30 minutes of audio,
 each FLEURS row the first 100 test files,
 and the AMI row four test meetings (1.5 hours).
 Word error rates are computed after lowercasing and removing punctuation.
+Parakeet Unified recognizes English only, so it was not run on FLEURS.
 Apple's transcriber was not run on FLEURS.
 
-| Test set | Parakeet v3, file | v3, live | Ultra, file | Ultra, live | Apple, file |
-| --- | --- | --- | --- | --- | --- |
-| LibriSpeech test-clean, utterances | 2.57% | 3.87% | 2.27% | 3.43% | 2.81% |
-| LibriSpeech test-other, utterances | 3.51% | 4.31% | 3.53% | 4.60% | 4.54% |
-| LibriSpeech test-clean, 3–8 min files | 1.55% | 5.41% | 1.66% | 3.88% | 2.12% |
-| LibriSpeech test-other, 3–8 min files | 2.82% | 5.62% | 2.55% | 5.14% | 3.97% |
-| FLEURS German | 4.90% | 7.30% | 4.22% | 4.39% | |
-| FLEURS French | 6.55% | 9.13% | 5.62% | 5.82% | |
-| AMI meetings, headset mix | 27.89% | 23.97% | 25.49% | 23.56% | 29.24% |
+| Test set | Parakeet v3, file | v3, live | Ultra, file | Ultra, live | Unified, file | Unified, live | Apple, file |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| LibriSpeech test-clean, utterances | 2.57% | 3.28% | 2.27% | 2.51% | 2.07% | 2.24% | 2.81% |
+| LibriSpeech test-other, utterances | 3.51% | 4.19% | 3.53% | 3.92% | 3.09% | 3.23% | 4.54% |
+| LibriSpeech test-clean, 3–8 min files | 1.55% | 4.73% | 1.66% | 2.65% | 1.43% | 1.45% | 2.12% |
+| LibriSpeech test-other, 3–8 min files | 2.78% | 4.29% | 2.55% | 3.28% | 2.19% | 2.42% | 3.97% |
+| FLEURS German | 4.90% | 7.30% | 4.22% | 4.39% | | | |
+| FLEURS French | 6.55% | 9.13% | 5.62% | 5.82% | | | |
+| AMI meetings, headset mix | 26.72% | 23.95% | 25.17% | 23.56% | 25.25% | 25.41% | 29.24% |
 
 Parakeet file mode processes an hour of audio in 20 to 40 seconds,
 and live mode in about 2 minutes.
@@ -527,26 +539,57 @@ See [LICENSE](LICENSE) for details.
 
 The package downloads model weights at run time
 and does not include them.
-Applications must show the `attribution` text of each model they use:
+If an app downloads or bundles a model,
+list the model in the app's acknowledgments
+with its license and any required notice.
+The `attribution` property of each model has this text.
+If the app distributes the model files, for example in an app bundle,
+also include the license text and the notice file from the model's repository.
 
-- Parakeet v3 is licensed under
-  [CC BY 4.0](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
-  by NVIDIA, and Parakeet Ultra under
-  [CC BY 4.0](https://huggingface.co/moondream/parakeet-ultra) by Moondream.
-  The Core ML conversions are published at
-  [mattt/parakeet-tdt-0.6b-v3-coreml](https://huggingface.co/mattt/parakeet-tdt-0.6b-v3-coreml)
-  and [mattt/parakeet-ultra-coreml](https://huggingface.co/mattt/parakeet-ultra-coreml).
-- Sortformer v2 is licensed under
-  [CC BY 4.0](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2) by NVIDIA.
-  The Core ML conversion is published at
-  [mattt/diar-streaming-sortformer-4spk-v2-coreml](https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2-coreml).
-- Sortformer v2.1 is licensed under the
-  [NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/).
-  Use must be consistent with NVIDIA's
-  [Trustworthy AI terms](https://www.nvidia.com/en-us/agreements/trustworthy-ai/terms/).
-  If you distribute the model files, for example in an app bundle,
-  include the agreement and the notice file from
-  [mattt/diar-streaming-sortformer-4spk-v2.1-coreml](https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2.1-coreml).
+These models are licensed under CC BY 4.0:
+
+- Parakeet v3 by NVIDIA
+  ([source](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3),
+  [Core ML conversion](https://huggingface.co/mattt/parakeet-tdt-0.6b-v3-coreml)).
+- Parakeet Ultra by Moondream
+  ([source](https://huggingface.co/moondream/parakeet-ultra),
+  [Core ML conversion](https://huggingface.co/mattt/parakeet-ultra-coreml)).
+- Sortformer v2 by NVIDIA
+  ([source](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2),
+  [Core ML conversion](https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2-coreml)).
+
+These models are licensed under the
+[NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/):
+
+- Parakeet Unified by NVIDIA
+  ([source](https://huggingface.co/nvidia/parakeet-unified-en-0.6b),
+  [Core ML conversion](https://huggingface.co/mattt/parakeet-unified-en-0.6b-coreml)).
+- Sortformer v2.1 by NVIDIA
+  ([source](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2.1),
+  [Core ML conversion](https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2.1-coreml)).
+
+<details>
+<summary>NVIDIA Open Model License conditions</summary>
+
+The Core ML conversions are Derivative Models under the
+NVIDIA Open Model License Agreement, version released October 24, 2025.
+Section 3.1 of the agreement requires this notice
+in a `Notice` text file with every copy of the model files:
+
+```text
+Licensed by NVIDIA Corporation under the NVIDIA Open Model License
+```
+
+Each conversion's repository has the agreement in its `LICENSE` file
+and the notice in its `NOTICE` file.
+Each model's `attribution` text also contains the notice.
+Use must be consistent with NVIDIA's
+[Trustworthy AI terms](https://www.nvidia.com/en-us/agreements/trustworthy-ai/terms/),
+which prohibit use in violation of applicable law,
+such as illegal surveillance
+or illegal collection or processing of biometric information.
+
+</details>
 
 ## Acknowledgments
 

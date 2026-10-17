@@ -1,6 +1,7 @@
 # Parakeet conversion
 
-This maintainer tool converts NVIDIA's Parakeet TDT checkpoints to Core ML
+This maintainer tool converts NVIDIA's Parakeet TDT checkpoints
+and the Parakeet Unified RNN-T checkpoint to Core ML
 for AnySpeechRecognizer's Parakeet runtime.
 It produces package-owned replacements for the files that the runtime loads
 from FluidInference's Hugging Face repositories,
@@ -13,6 +14,7 @@ The tool is not part of the Swift package products.
 | --- | --- | --- | --- |
 | `v3` | [nvidia/parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3) at `541d1f99c6b0c3cd0b11a95167540bb8edefd82b` | Same | `mattt/parakeet-tdt-0.6b-v3-coreml` |
 | `ultra` | [moondream/parakeet-ultra](https://huggingface.co/moondream/parakeet-ultra) at `73175eb7aeb0d82f1e2a6b53b3aabc10a90bcd0b` | NVIDIA v3, same revision | `mattt/parakeet-ultra-coreml` |
+| `unified` | [nvidia/parakeet-unified-en-0.6b](https://huggingface.co/nvidia/parakeet-unified-en-0.6b) at `fe53cd885760c96b6a5f51a0bfd362cb4584a98b` | Same | `mattt/parakeet-unified-en-0.6b-coreml` |
 
 Moondream publishes Parakeet Ultra as a Hugging Face transformers checkpoint
 (`model.safetensors`, float16 and float32 tensors), not as a `.nemo` file.
@@ -688,6 +690,101 @@ live mode was word for word the same, and file mode differed in 10 words
 File mode took 17.6 s with the new encoders and 17.3 s with the published ones;
 live mode took 93.1 s and 90.3 s, with peaks of 87 to 93 MB.
 
+## Parakeet Unified
+
+NVIDIA's [Parakeet Unified EN 0.6B](https://huggingface.co/nvidia/parakeet-unified-en-0.6b)
+is an English model with one set of weights for offline and streaming recognition.
+Compared with v3, its checkpoint has:
+
+- the same 24-layer, 1,024-dimension FastConformer encoder and 8× subsampling,
+- the same preprocessor: `mel_reference.py` with the Unified checkpoint
+  gives the same 260 values as the v3 checkpoint,
+- an RNN-T joint (no durations) and a two-layer, 640-unit LSTM prediction network, and
+- a SentencePiece vocabulary of 1,024 pieces, so the blank token is 1,024.
+
+The converter exports it with the same file names and tensor interface.
+The RNN-T joint decision outputs `duration` 0 for every frame,
+so the runtime's greedy decoder stays on a frame after a token and advances after a blank
+or after 10 tokens, as NeMo's greedy RNN-T decoding (`max_symbols` 10) does.
+The runtime selects the 1,024-token contract by variant (`ParakeetSpeechModel.Variant.unified`).
+
+NVIDIA trained the encoder with full attention (offline mode) and with chunked attention masks
+(`att_context_style: chunked_limited_with_rc`, 5.6 s of left context).
+In the checkpoint, full attention is `att_context_size` [-1, -1, -1],
+and NeMo 3.0.0 does not use the configured `conv_context_style: dcc` at inference.
+The converted encoders use full attention.
+NeMo 3.0.0's `transcribe()` fails on the checkpoint's null `validation_ds`,
+so `load_model` sets it to an empty configuration.
+
+```sh
+PARAKEET_BUILD_DIR=/tmp/parakeet-unified-build \
+    uv run python convert.py --variant unified --encoder-windows 8
+PARAKEET_BUILD_DIR=/tmp/parakeet-unified-build \
+    uv run python verify.py --variant unified --compute-units CPU_AND_NE CPU_ONLY
+```
+
+### Verification
+
+Observed on October 16, 2026, on an M4 Max with macOS 27.0.1, NeMo 3.0.0.
+The conversion took 113 s; `Encoder.mlmodelc` is 596 MB and `Encoder8s.mlmodelc` 592 MB.
+FluidInference's Core ML port has other file names and interfaces, so there is no comparison.
+
+| Compute units | Encoder max / mean abs error | Encoder cosine | Lowest fixture cosine | Joint token agreement | WER vs NeMo, raw / normalized |
+| --- | --- | --- | --- | --- | --- |
+| `CPU_AND_NE` | 0.042 / 0.00139 | 0.99971 | 0.9994 | 1,241 / 1,242 | 0% / 0% |
+| `CPU_ONLY` | 0.049 / 0.00119 | 0.99980 | 0.9997 | 1,241 / 1,242 | 0.49% / 0% |
+
+- The mean absolute value of the reference encoder output is 0.0620.
+- The prediction network's output differs from PyTorch by at most 0.024; its state by 0.074.
+- The vocabulary matches NeMo's tokenizer.
+  The German and French fixtures decode to English-like text, as in NeMo.
+
+`verify_live.py --encoder-check 8 --configs file 8:63:h75`
+with `long.wav`, `long2.wav`, and the 180 s LibriSpeech test-other file
+`other-7018-75789-long.wav`:
+
+- The Core ML 8 s encoder against PyTorch has a mean frame cosine of 0.99978
+  and a minimum of 0.974 (v3: 0.99486 and 0.382).
+- Frames of an 8 s window differ little from the same frames of a 15 s window
+  that starts at the same sample: mean cosine 0.973 for the last two frames,
+  0.996 for frames 2 to 5 before the end, and 0.997 for frames 13 to 25.
+  For v3 these were 0.15, 0.30, and 0.81 (see [Encoder windows](#encoder-windows)).
+- The simulated file mode and 8 s live mode transcribe `long.wav`, `long2.wav`,
+  and `en-us-long` with exactly NeMo's full-context words.
+
+### Chunked attention in streaming
+
+NVIDIA's streaming script, `speech_to_text_streaming_infer_rnnt.py`, encodes a buffer of
+left context, chunk, and right context for each chunk.
+With `att_context_size_as_chunk=true`, its default, it also sets the encoder's
+`att_context_size` to [left, chunk, right] in encoder frames,
+which masks attention as in streaming training;
+the model card calls this important for extra-low latency.
+With `false`, the buffer has full attention, as the converted 8 s encoder has.
+
+The script at NeMo v3.0.0, float32 on the GPU (MPS), greedy decoding,
+on the LibriSpeech 3–8 minute files of the [natural-speech evaluation](../natural-speech-eval.py),
+word error rate after lowercasing and removing punctuation:
+
+| Left / chunk / right | Latency (chunk + right) | test-clean, mask / full attention | test-other, mask / full attention |
+| --- | --- | --- | --- |
+| 5.04 / 0.96 / 2.00 s (the runtime's live windows) | 2.96 s | 1.43% / 1.53% | 2.26% / 2.34% |
+| 5.6 / 1.04 / 1.04 s | 2.08 s | 1.55% / 1.66% | 2.28% / 2.30% |
+| 5.6 / 0.56 / 0.56 s | 1.12 s | 1.64% / 1.55% | 2.59% / 2.59% |
+| 5.6 / 0.16 / 0.40 s | 0.56 s | | 2.72% / 2.59% |
+
+Each set has about 5,200 words, so 0.1 percentage points is about 5 words.
+The mask changed the WER by at most 0.13 points, in both directions,
+so at these latencies the model does not need it.
+Latencies below 0.56 s, where the model card recommends it, were not measured.
+
+An 8 s encoder traced with the mask for the runtime's live windows
+(`att_context_size` [63, 12, 25], 0.9996 mean frame cosine against PyTorch)
+did not help the Swift live mode either:
+2.25%, 3.30%, 1.39%, 2.26%, and 25.48% on the five natural-speech sets,
+against 2.24%, 3.23%, 1.45%, 2.42%, and 25.41% with full attention.
+The converter therefore exports full attention only.
+
 ## License and attribution
 
 The code in this directory is licensed under the Apache License, Version 2.0.
@@ -723,6 +820,20 @@ Ultra:
 
 Applications that ship or download these models must show the same attribution
 to their users, for example in an acknowledgments screen.
+
+Parakeet Unified is licensed under the
+[NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/),
+not CC BY 4.0.
+The converter writes the agreement to `LICENSE`
+(the October 24, 2025 text from `Tools/SortformerConversion/v2.1`)
+and a `NOTICE` file with the notice that Section 3.1 requires with every copy,
+the source revision, and the modifications.
+The model card has `license: other` metadata with the license name and link,
+and the attribution contains the notice.
+`upload_dry_run.py` checks the `LICENSE` and `NOTICE` files and the card metadata.
+The conversion is published at
+[mattt/parakeet-unified-en-0.6b-coreml](https://huggingface.co/mattt/parakeet-unified-en-0.6b-coreml)
+at revision `a2f32b4bdf3062c32d1668b2bba2354ebfe6b06d`.
 
 ## Upload
 

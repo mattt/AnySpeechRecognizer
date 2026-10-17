@@ -25,11 +25,22 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
         case v3
         /// Moondream's Parakeet Ultra, a post-trained Parakeet TDT 0.6B v3.
         case ultra
+        /// NVIDIA Parakeet Unified EN 0.6B, an RNN-T model that recognizes English only,
+        /// licensed under the NVIDIA Open Model License.
+        case unified
 
         var manifest: ParakeetModelManifest {
             switch self {
             case .v3: .v3
             case .ultra: .ultra
+            case .unified: .unified
+            }
+        }
+
+        var modelDescription: ParakeetModelDescription {
+            switch self {
+            case .v3, .ultra: .v3
+            case .unified: .unified
             }
         }
     }
@@ -326,12 +337,14 @@ actor ParakeetExecutor: SpeechRecognitionExecutor {
         // Without it, they use the regular encoder, and the window sets the live settings.
         let selection = model.encoderSelection(live: live)
         let units = model.computeUnits.coreML
+        let description = model.variant.modelDescription
         let (engine, vocabulary) = try await Task.detached {
             var options = CoreMLParakeetEngine.Configuration()
             options.encoderComputeUnits = units
             options.encoderName = selection.encoder
             options.forcedCommitEncoderName = selection.forcedCommitEncoder
-            let engine = try CoreMLParakeetEngine(directory: directory, configuration: options)
+            let engine = try CoreMLParakeetEngine(
+                directory: directory, configuration: options, model: description)
             let vocabulary = try ParakeetVocabulary(
                 contentsOf: directory.appending(path: manifest.components.vocabulary))
             return (UncheckedEngine(engine), vocabulary)
