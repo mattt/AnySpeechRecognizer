@@ -352,6 +352,11 @@ Each model version needs about 246 MB.
   It has the same architecture and latency,
   and is licensed under the NVIDIA Open Model License (see [License](#license)).
 
+> [!NOTE]
+> `SortformerDiarizationModel.Version` is a structure, not an enumeration,
+> so a new version does not break source compatibility.
+> A `switch` over a version needs a `default` case.
+
 The default compute units are `cpuAndNeuralEngine`.
 `cpuAndGPU` runs about three times faster
 but uses about 530 MB of memory instead of about 135 MB.

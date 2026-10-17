@@ -39,8 +39,17 @@ struct SortformerManifestTests {
         #expect(SortformerDiarizationModel.Version.allCases == [.v2, .v2_1])
         #expect(SortformerDiarizationModel.Version(rawValue: "v2.1") == .v2_1)
         #expect(SortformerDiarizationModel.Version.v2_1.rawValue == "v2.1")
+        #expect(SortformerDiarizationModel.Version(rawValue: "v3") == nil)
+        #expect(Set(SortformerDiarizationModel.Version.allCases).count == 2)
         let encoded = try JSONEncoder().encode(SortformerDiarizationModel.Version.v2_1)
         #expect(String(decoding: encoded, as: UTF8.self) == "\"v2.1\"")
+        let decoder = JSONDecoder()
+        #expect(
+            try decoder.decode(SortformerDiarizationModel.Version.self, from: Data("\"v2\"".utf8))
+                == .v2)
+        #expect(throws: DecodingError.self) {
+            try decoder.decode(SortformerDiarizationModel.Version.self, from: Data("\"v3\"".utf8))
+        }
 
         // v2 stays the default.
         let v2 = SortformerDiarizationModel()
