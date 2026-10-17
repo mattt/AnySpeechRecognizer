@@ -97,8 +97,10 @@ class LiveConfig:
 class Models:
     """Core ML models with the Swift engine's per-call interface."""
 
-    def __init__(self, directory: Path, units: str) -> None:
+    def __init__(self, directory: Path, units: str, variant: pk.Variant) -> None:
         self.directory = directory
+        self.variant = variant
+        self.blank = variant.blank_id
         self.units = COMPUTE_UNITS[units]
         self.encoders: dict[int, Any] = {}
         self.load_seconds: dict[str, float] = {}
@@ -147,7 +149,7 @@ class Models:
         self.counts["joint"] += 1
         token = int(np.asarray(out["token_id"]).reshape(-1)[0])
         probability = float(np.asarray(out["token_prob"]).reshape(-1)[0])
-        return token, probability, pk.TDT_DURATIONS[int(np.asarray(out["duration"]).reshape(-1)[0])]
+        return token, probability, self.variant.duration_frames[int(np.asarray(out["duration"]).reshape(-1)[0])]
 
     def context(self, history: tuple[int, ...]) -> np.ndarray:
         """The prediction network output after the blank token and `history`, from a zero state.
@@ -165,7 +167,7 @@ class Models:
                 known -= 1
             if known == 0 and () not in cache:
                 zero = np.zeros((pk.DECODER_LAYERS, 1, pk.DECODER_DIM), dtype=np.float32)
-                cache[()] = self.predict(pk.BLANK_ID, zero, zero)
+                cache[()] = self.predict(self.blank, zero, zero)
             state = cache[history[:known]]
             chain = {history[:i]: cache[history[:i]] for i in range(known + 1)}
             for i in range(known, len(history)):
@@ -280,7 +282,7 @@ class LiveRecognizer:
             self.retained_start += drop
 
     def decode(self, encoded, start, end, decoder_out, h, c, frame_offset) -> list[Committed]:
-        """Greedy TDT decoding from `start` while the frame is before `end` (ParakeetTDTDecoder.decode)."""
+        """Greedy TDT or RNN-T decoding from `start` while the frame is before `end` (ParakeetTDTDecoder.decode)."""
         tokens: list[Committed] = []
         frame = start
         symbols = 0
@@ -290,7 +292,7 @@ class LiveRecognizer:
             self.stats["joint_calls"] += 1
             self.stats["joint_runs"] += int(new_run)
             new_run = False
-            if token == pk.BLANK_ID:
+            if token == self.models.blank:
                 frame += max(1, duration)
                 symbols = 0
                 continue
@@ -609,7 +611,7 @@ def main() -> None:
     for f in fixtures:
         f["nemo"] = nemo_cache.get(file_key(Path(f["path"])), {}).get("text")
 
-    models = Models(artifacts, args.compute_units)
+    models = Models(artifacts, args.compute_units, variant)
     if pending:
         coreml_encoder_check(models, pending, report["encoder_check"])
 

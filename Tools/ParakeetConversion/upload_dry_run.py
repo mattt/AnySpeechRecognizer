@@ -58,6 +58,18 @@ def main() -> int:
     for required in (pk.ENCODER_FILE, *windows, pk.DECODER_FILE, pk.JOINT_FILE, pk.VOCAB_FILE):
         if not (artifacts / required).exists():
             problems.append(f"missing {required}")
+    if variant.license_text and (
+        not (artifacts / pk.LICENSE_FILE).is_file()
+        or (artifacts / pk.LICENSE_FILE).read_bytes() != variant.license_text.read_bytes()
+    ):
+        problems.append(f"{pk.LICENSE_FILE} is not a copy of {variant.license_text.name}")
+    if variant.required_notice:
+        notice = artifacts / pk.NOTICE_FILE
+        if not notice.is_file() or variant.required_notice not in notice.read_text():
+            problems.append(f"{pk.NOTICE_FILE} does not contain the required notice")
+        card = (artifacts / pk.MODEL_CARD_FILE).read_text() if (artifacts / pk.MODEL_CARD_FILE).is_file() else ""
+        if variant.card_license not in card:
+            problems.append(f"{pk.MODEL_CARD_FILE} does not have the license metadata")
 
     print(f"Artifacts: {artifacts}")
     print(

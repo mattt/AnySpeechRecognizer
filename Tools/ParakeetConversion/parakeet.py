@@ -13,7 +13,7 @@
 # The modifications are Copyright AnySpeechRecognizer contributors and are
 # licensed under the same terms. See NOTICE in this directory.
 
-"""Shared definitions for converting and verifying Parakeet TDT Core ML models."""
+"""Shared definitions for converting and verifying Parakeet TDT and RNN-T Core ML models."""
 
 from __future__ import annotations
 
@@ -62,6 +62,8 @@ JOINT_FILE = "JointDecisionv3.mlmodelc"
 VOCAB_FILE = "parakeet_vocab.json"
 CONVERSION_FILE = "conversion.json"
 MODEL_CARD_FILE = "README.md"
+LICENSE_FILE = "LICENSE"
+NOTICE_FILE = "NOTICE"
 
 # Input and output names, data types, and shapes of each component.
 CONTRACT: dict[str, dict[str, dict[str, tuple[str, tuple[int, ...]]]]] = {
@@ -194,6 +196,10 @@ class Source:
         return f"https://huggingface.co/{self.repo}/tree/{self.revision}"
 
 
+V3_LANGUAGES = "en, de, fr, es, it, pt, ru, uk, hr, sl, lv, lt, et, fi, sv, da, nl, pl, cs, sk, hu, ro, bg, el, mt"
+CC_BY_4_0_URL = "https://creativecommons.org/licenses/by/4.0/"
+
+
 @dataclass(frozen=True)
 class Variant:
     name: str
@@ -202,13 +208,45 @@ class Variant:
     base: Source
     # Optional replacement weights in Hugging Face transformers layout.
     weights: Source | None
-    # FluidInference's published artifacts with the same contract, for comparison.
-    reference: Source
+    # FluidInference's published artifacts with the same contract, for comparison,
+    # or None when no such artifacts exist.
+    reference: Source | None
     reference_components: dict[str, str]
     upload_repo: str
     license: str
     attribution: str
     notes: tuple[str, ...] = field(default_factory=tuple)
+    # SentencePiece pieces before the blank token, which has the next ID.
+    vocab_size: int = VOCAB_SIZE
+    # TDT duration classes in frames, or () for an RNN-T joint, which predicts no durations.
+    durations: tuple[int, ...] = TDT_DURATIONS
+    languages: str = V3_LANGUAGES
+    # The Hugging Face model card's license metadata and the license's name and link.
+    card_license: str = "license: cc-by-4.0"
+    license_name: str = "CC BY 4.0"
+    license_url: str = CC_BY_4_0_URL
+    # For licenses that require them with every copy: the agreement, which the output
+    # directory gets as LICENSE, the notice for its NOTICE file, and the modifications.
+    license_text: Path | None = None
+    required_notice: str | None = None
+    modifications: str | None = None
+
+    @property
+    def blank_id(self) -> int:
+        return self.vocab_size
+
+    @property
+    def is_tdt(self) -> bool:
+        return bool(self.durations)
+
+    @property
+    def duration_frames(self) -> tuple[int, ...]:
+        """Frames to advance for each value of the joint decision's `duration` output.
+
+        An RNN-T joint decision always outputs class 0, which advances no frames, so greedy
+        decoding emits tokens at a frame until a blank or the symbol limit, as RNN-T does.
+        """
+        return self.durations or (0,)
 
 
 NVIDIA_V3 = Source(
@@ -216,6 +254,15 @@ NVIDIA_V3 = Source(
     revision="541d1f99c6b0c3cd0b11a95167540bb8edefd82b",
     files=("parakeet-tdt-0.6b-v3.nemo",),
 )
+
+NVIDIA_OPEN_MODEL_LICENSE_URL = "https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/"
+# The agreement released October 24, 2025, which the Sortformer v2.1 conversion also publishes.
+NVIDIA_OPEN_MODEL_LICENSE_TEXT = TOOL_DIR.parent / "SortformerConversion" / "v2.1" / "NVIDIA-Open-Model-License.txt"
+NVIDIA_OPEN_MODEL_LICENSE_VERSION = "October 24, 2025"
+NVIDIA_TRUSTWORTHY_AI_URL = "https://www.nvidia.com/en-us/agreements/trustworthy-ai/terms/"
+# Section 3.1 of the agreement requires this sentence in a "Notice" text file with every copy.
+NVIDIA_REQUIRED_NOTICE = "Licensed by NVIDIA Corporation under the NVIDIA Open Model License"
+UNIFIED_REVISION = "fe53cd885760c96b6a5f51a0bfd362cb4584a98b"
 
 VARIANTS: dict[str, Variant] = {
     "v3": Variant(
@@ -294,6 +341,58 @@ VARIANTS: dict[str, Variant] = {
                 "preprocessor; Moondream's weights replace every model parameter."
             ),
             "Moondream's vad_head tensors are not exported.",
+        ),
+    ),
+    "unified": Variant(
+        name="unified",
+        title="Parakeet Unified EN 0.6B",
+        base=Source(
+            repo="nvidia/parakeet-unified-en-0.6b",
+            revision=UNIFIED_REVISION,
+            files=("parakeet-unified-en-0.6b.nemo",),
+        ),
+        weights=None,
+        # FluidInference's parakeet-unified-en-0.6b-coreml has other file names and interfaces.
+        reference=None,
+        reference_components={},
+        upload_repo="mattt/parakeet-unified-en-0.6b-coreml",
+        license="LicenseRef-NVIDIA-Open-Model-License",
+        attribution=(
+            "Parakeet Unified EN 0.6B by NVIDIA (https://huggingface.co/nvidia/parakeet-unified-en-0.6b). "
+            f"{NVIDIA_REQUIRED_NOTICE} ({NVIDIA_OPEN_MODEL_LICENSE_URL}). "
+            "Converted to Core ML with an int8 encoder for AnySpeechRecognizer "
+            "(https://huggingface.co/mattt/parakeet-unified-en-0.6b-coreml)."
+        ),
+        notes=(
+            "Recognizes English speech only, with punctuation and capitalization.",
+            (
+                "An RNN-T model: the joint decision's duration output is always 0, so greedy decoding "
+                "stays on a frame after each token and advances after a blank or after 10 tokens."
+            ),
+            (
+                "The encoders use full attention, the model's offline mode; "
+                "NeMo's chunked attention masks for streaming are not exported."
+            ),
+        ),
+        vocab_size=1_024,
+        durations=(),
+        languages="en",
+        card_license=(
+            f"license: other\nlicense_name: nvidia-open-model-license\nlicense_link: {NVIDIA_OPEN_MODEL_LICENSE_URL}"
+        ),
+        license_name="NVIDIA Open Model License Agreement",
+        license_url=NVIDIA_OPEN_MODEL_LICENSE_URL,
+        license_text=NVIDIA_OPEN_MODEL_LICENSE_TEXT,
+        required_notice=NVIDIA_REQUIRED_NOTICE,
+        modifications=(
+            f"The NeMo checkpoint (revision {UNIFIED_REVISION}) was converted to Core ML "
+            "and split into encoder, prediction network, and joint decision components. "
+            "The encoders, for 15-second and 8-second windows, use full attention and have int8 weights "
+            "(linear symmetric quantization, one scale per output channel); the other components have "
+            "float16 weights, and all components compute in float16. "
+            "The joint decision outputs the most likely token, its probability, the 64 highest token "
+            "logits, and a duration that is always 0. "
+            "The weights were not trained, fine-tuned, or pruned."
         ),
     ),
 }
@@ -491,6 +590,12 @@ def load_model(variant: Variant, cache_dir: Path) -> tuple[Any, list[dict[str, A
     ]
     model = nemo_asr.models.EncDecRNNTBPEModel.restore_from(str(base_dir / base_file), map_location="cpu")
     model.eval()
+    # NeMo 3.0.0's transcribe() reads validation_ds, which the unified checkpoint sets to null.
+    if model.cfg.get("validation_ds") is None:
+        from omegaconf import open_dict
+
+        with open_dict(model.cfg):
+            model.cfg.validation_ds = {}
 
     details: dict[str, Any] = {}
     if variant.weights is not None:
@@ -519,7 +624,8 @@ def tokenizer_pieces_match(model: Any, tokenizer_json: Path) -> bool:
         pieces = [piece for piece, _ in sorted(vocab.items(), key=lambda item: item[1])]
     else:
         return False
-    return pieces[:VOCAB_SIZE] == vocabulary_pieces(model)
+    model_pieces = vocabulary_pieces(model)
+    return pieces[: len(model_pieces)] == model_pieces
 
 
 def vocabulary_pieces(model: Any) -> list[str]:
@@ -592,6 +698,7 @@ class JointDecisionSingleStep(torch.nn.Module):
 
     Outputs the argmax token over the vocabulary and blank, its softmax probability,
     the argmax duration class index, and the top-K token logits and indices.
+    An RNN-T joint (`num_durations` 0) has no duration logits, and its duration is always 0.
     """
 
     def __init__(self, joint: JointWrapper, vocab_size: int, num_durations: int, top_k: int = TOP_K) -> None:
@@ -604,11 +711,14 @@ class JointDecisionSingleStep(torch.nn.Module):
     def forward(self, encoder_step: torch.Tensor, decoder_step: torch.Tensor):
         logits = self.joint(encoder_step, decoder_step)  # [1, 1, 1, V + 1 + durations]
         token_logits = logits[..., : self.vocab_with_blank]
-        duration_logits = logits[..., -self.num_durations :]
         token_id = torch.argmax(token_logits, dim=-1).to(dtype=torch.int32)
         token_probs_all = torch.softmax(token_logits, dim=-1)
         token_prob = torch.gather(token_probs_all, dim=-1, index=token_id.long().unsqueeze(-1)).squeeze(-1)
-        duration = torch.argmax(duration_logits, dim=-1).to(dtype=torch.int32)
+        if self.num_durations:
+            duration_logits = logits[..., -self.num_durations :]
+            duration = torch.argmax(duration_logits, dim=-1).to(dtype=torch.int32)
+        else:
+            duration = torch.zeros_like(token_id)
         top_k_logits, top_k_ids = torch.topk(token_logits, k=min(self.top_k, token_logits.shape[-1]), dim=-1)
         return token_id, token_prob, duration, top_k_ids.to(dtype=torch.int32), top_k_logits
 

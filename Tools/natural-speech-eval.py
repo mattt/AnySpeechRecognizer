@@ -21,6 +21,9 @@ nothing is added to the repository.
         --cli .build/release/hear --set ls-clean-long --system v3-live
     uv run Tools/natural-speech-eval.py score --root /tmp/natural-eval
 
+Parakeet Unified has no built-in assets, so its systems need `--model-directory` with a
+conversion from Tools/ParakeetConversion.
+
 `run` writes one JSON-lines file per audio file under `runs/<label>/<set>/` and skips
 files that already have output, so an interrupted run continues where it stopped.
 Run one process at a time.
@@ -89,6 +92,8 @@ SYSTEMS = {
     "ultra-file": ["--backend", "parakeet", "--version", "ultra"],
     "ultra-live": ["--backend", "parakeet", "--version", "ultra", "--live"],
     "ultra-fast": ["--backend", "parakeet", "--version", "ultra", "--live", "--fast"],
+    "unified-file": ["--backend", "parakeet", "--version", "unified"],
+    "unified-live": ["--backend", "parakeet", "--version", "unified", "--live"],
     "apple-file": ["--backend", "apple", "--locale", "en-US"],
     "apple-live": ["--backend", "apple", "--locale", "en-US", "--live"],
 }
@@ -361,6 +366,10 @@ def run(args) -> None:
     output = root / "runs" / (args.label or args.system) / args.set
     output.mkdir(parents=True, exist_ok=True)
     arguments = list(SYSTEMS[args.system])
+    if args.model_directory:
+        arguments += ["--model-directory", args.model_directory]
+    elif args.system.startswith("unified"):
+        sys.exit(f"{args.system} needs --model-directory")
     started = time.monotonic()
     for index, item in enumerate(items):
         destination = output / f"{item['id']}.jsonl"
@@ -604,7 +613,7 @@ def live_drops(root: Path, labels: list[str], sets: list[str]) -> list[str]:
     lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
     runs_of_deletions = []
     for label in labels:
-        match = re.match(r"(.*?)(v3|ultra)-(live|fast)$", label)
+        match = re.match(r"(.*?)(v3|ultra|unified)-(live|fast)$", label)
         if not match:
             continue
         file_label = f"{match[1]}{match[2]}-file"
@@ -829,6 +838,9 @@ def main() -> None:
             command.add_argument("--system", required=True, choices=sorted(SYSTEMS))
             command.add_argument("--label", help="The output directory name; the system's name.")
             command.add_argument("--limit", type=int, help="Only the first files of the subset.")
+            command.add_argument(
+                "--model-directory", help="A staged Parakeet directory, passed to the CLI."
+            )
             command.add_argument(
                 "--warm-up", action="store_true", help="Run the first file once more, unrecorded."
             )

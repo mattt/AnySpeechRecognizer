@@ -7,7 +7,7 @@
 # 26f5fa8059d5ab3d34449adce6ff6ed86734e522), Copyright Fluid Inference,
 # licensed under the Apache License, Version 2.0. See NOTICE in this directory.
 
-"""Convert a Parakeet TDT checkpoint into AnySpeechRecognizer's Core ML artifacts.
+"""Convert a Parakeet TDT or RNN-T checkpoint into AnySpeechRecognizer's Core ML artifacts.
 
 Usage:
     uv run python convert.py --variant v3
@@ -139,9 +139,14 @@ def set_encoder_attention(model: Any, window: pk.EncoderWindow) -> None:
 
     The model keeps its weights. Windows of up to 256 encoder frames (20.48 s) give the same
     result either way, so the attention changes only when a longer window is exported.
+    A unified model's chunked attention style describes full attention as [-1, -1, -1].
     """
-    context = list(pk.LOCAL_ATTENTION_CONTEXT) if window.uses_local_attention else [-1, -1]
-    if list(model.encoder.att_context_size) != context:
+    current = list(model.encoder.att_context_size)
+    if len(current) == 3 and window.uses_local_attention:
+        raise SystemExit("windows longer than 15 seconds need two-sided local attention, which this model lacks")
+    full = [-1] * len(current)
+    context = list(pk.LOCAL_ATTENTION_CONTEXT) if window.uses_local_attention else full
+    if current != context:
         model.change_attention_model(self_attention_model="rel_pos", att_context_size=context)
         model.eval()
     # NeMo extends its positional encoding when the input has more than 5,000 mel frames.
@@ -213,12 +218,61 @@ def window_record(window: pk.EncoderWindow) -> dict[str, Any]:
     }
 
 
-LANGUAGES = "en, de, fr, es, it, pt, ru, uk, hr, sl, lv, lt, et, fi, sv, da, nl, pl, cs, sk, hu, ro, bg, el, mt"
+def notice_text(variant: pk.Variant) -> str:
+    """Return the NOTICE file of a variant whose license requires a notice with every copy.
+
+    The only such license is the NVIDIA Open Model License; Section 3.1 requires the notice.
+    """
+    return f"""{variant.title} for Core ML
+
+{variant.required_notice}.
+
+This repository contains a Derivative Model of {variant.title} by NVIDIA
+(https://huggingface.co/{variant.base.repo}, revision {variant.base.revision}).
+Use, reproduction, and distribution are governed by the {variant.license_name}
+in the LICENSE file ({variant.license_url}, version released {pk.NVIDIA_OPEN_MODEL_LICENSE_VERSION}).
+Use must be consistent with NVIDIA's Trustworthy AI terms ({pk.NVIDIA_TRUSTWORTHY_AI_URL}).
+
+Modifications: {variant.modifications}
+
+The conversion was made with AnySpeechRecognizer's conversion tool
+(https://github.com/mattt/AnySpeechRecognizer, Tools/ParakeetConversion),
+which is licensed under the Apache License, Version 2.0.
+If you distribute these files, give recipients a copy of the LICENSE file
+and include this NOTICE file.
+"""
+
+
+def license_section(variant: pk.Variant) -> str:
+    """Return the model card's license and attribution text."""
+    if not variant.required_notice:
+        return f"""{variant.attribution}
+
+This repository is licensed under
+[{variant.license_name}]({variant.license_url}), the license of the
+base model. Redistributions must keep this attribution."""
+    return f"""{variant.required_notice}.
+
+This model is a Derivative Model of {variant.title} by NVIDIA and is governed by the
+[{variant.license_name}]({variant.license_url}).
+The `LICENSE` file is a copy of the agreement (version released {pk.NVIDIA_OPEN_MODEL_LICENSE_VERSION}),
+and the `NOTICE` file contains the notice that Section 3.1 of the agreement requires.
+If you redistribute these files, give recipients a copy of the agreement and include the notice.
+Use must be consistent with [NVIDIA's Trustworthy AI terms]({pk.NVIDIA_TRUSTWORTHY_AI_URL}),
+which prohibit use in violation of applicable law, such as illegal surveillance or illegal
+collection or processing of biometric information.
+
+Applications that use this model should show this attribution:
+
+> {variant.attribution}
+
+Modifications: {variant.modifications}"""
 
 
 def model_card(variant: pk.Variant, record: dict[str, Any]) -> str:
     """Return a Hugging Face model card for the output directory."""
     base_model = variant.weights.repo if variant.weights else variant.base.repo
+    decision = "TDT" if variant.is_tdt else "RNN-T"
     tools = record["tools"]
     sources = "\n".join(
         f"  - `{s['repo']}` at revision `{s['revision']}`: `{s['file']}` (SHA-256 `{s['sha256']}`), {s['role']}."
@@ -240,11 +294,22 @@ def model_card(variant: pk.Variant, record: dict[str, Any]) -> str:
                 for window in record["conversion"]["components"].get("encoder_windows", [])
             ),
             (pk.DECODER_FILE, "Prediction network (two-layer LSTM), one step with explicit state."),
-            (pk.JOINT_FILE, "Joint network and greedy TDT decision for one encoder frame, with the top 64 tokens."),
+            (
+                pk.JOINT_FILE,
+                f"Joint network and greedy {decision} decision for one encoder frame, with the top 64 tokens.",
+            ),
             (pk.VOCAB_FILE, "Token ID to SentencePiece piece, with the word-boundary marker written as a space."),
             (pk.CONVERSION_FILE, "Sources, tool versions, settings, and SHA-256 digests of every file."),
+            *(((pk.LICENSE_FILE, f"The {variant.license_name}."),) if variant.license_text else ()),
+            *(
+                ((pk.NOTICE_FILE, "The required notice, the source, and the modifications."),)
+                if variant.required_notice
+                else ()
+            ),
         )
     )
+    notes = "".join(f"- {note}\n" for note in variant.notes)
+    notes = f"\n## Notes\n\n{notes}" if notes else ""
     shorter_windows = ""
     if record["conversion"]["components"].get("encoder_windows"):
         shorter_windows = (
@@ -258,12 +323,12 @@ def model_card(variant: pk.Variant, record: dict[str, Any]) -> str:
                 "(20.48 s) on each side, as NeMo's `rel_pos_local_attn` attention with context [256, 256] does.\n"
             )
     return f"""---
-license: cc-by-4.0
+{variant.card_license}
 base_model: {base_model}
 base_model_relation: quantized
-language: [{LANGUAGES}]
+language: [{variant.languages}]
 pipeline_tag: automatic-speech-recognition
-tags: [coreml, parakeet, tdt, speech-recognition, apple-silicon]
+tags: [coreml, parakeet, {decision.lower()}, speech-recognition, apple-silicon]
 ---
 
 # {variant.title} for Core ML
@@ -273,12 +338,8 @@ for [AnySpeechRecognizer](https://github.com/mattt/AnySpeechRecognizer).
 
 ## Attribution and license
 
-{variant.attribution}
-
-This repository is licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), the license of the
-base model. Redistributions must keep this attribution.
-
+{license_section(variant)}
+{notes}
 ## Files
 
 | File | Contents |
@@ -290,6 +351,7 @@ The models take NeMo-compatible 128-bin log-mel features for a 15-second window
 The features follow NeMo 2.5 and later: zero padding at the window ends and
 `floor(samples / 160)` valid frames in `mel_length`.
 The encoder masks frames after `mel_length` between its subsampling convolutions.
+The vocabulary has {variant.vocab_size:,} pieces, and the blank token is {variant.blank_id:,}.
 The tensor interface matches FluidInference's `Encoder_v2.mlmodelc`,
 `Decoder.mlmodelc`, and `JointDecisionv3.mlmodelc` artifacts.
 The preprocessor is not included.
@@ -439,7 +501,8 @@ def main() -> None:
     vocab_size = int(model.tokenizer.vocab_size)
     num_durations = int(model.joint.num_extra_outputs)
     durations = list(model.cfg.model_defaults.get("tdt_durations", []))
-    if (vocab_size, int(model.decoder.blank_idx), tuple(durations)) != (pk.VOCAB_SIZE, pk.BLANK_ID, pk.TDT_DURATIONS):
+    expected = (variant.vocab_size, variant.blank_id, variant.durations, len(variant.durations))
+    if (vocab_size, int(model.decoder.blank_idx), tuple(durations), num_durations) != expected:
         raise RuntimeError(
             f"unexpected model: vocab {vocab_size}, blank {model.decoder.blank_idx}, durations {durations}"
         )
@@ -474,7 +537,7 @@ def main() -> None:
     export_flag = getattr(model.decoder, "_rnnt_export", False)
     model.decoder._rnnt_export = True
     try:
-        targets = torch.full((1, 1), pk.BLANK_ID, dtype=torch.int32)
+        targets = torch.full((1, 1), variant.blank_id, dtype=torch.int32)
         target_length = torch.tensor([1], dtype=torch.int32)
         zero_state = torch.zeros(pk.DECODER_LAYERS, 1, pk.DECODER_DIM)
         with torch.inference_mode():
@@ -495,7 +558,8 @@ def main() -> None:
     decoder_step = decoder_ref[:, :, :1].contiguous()
     traced = torch.jit.trace(joint_decision, (encoder_step, decoder_step), strict=False).eval()
     joint_model = convert_traced(traced, input_types("joint"), output_types("joint"))
-    describe(joint_model, variant, "joint network and greedy TDT decision for one frame (top-K 64)")
+    decision = "TDT" if variant.is_tdt else "RNN-T"
+    describe(joint_model, variant, f"joint network and greedy {decision} decision for one frame (top-K 64)")
     check_interface(joint_model, "joint")
     packages["joint"] = work_dir / "JointDecisionv3.mlpackage"
     joint_model.save(str(packages["joint"]))
@@ -507,6 +571,10 @@ def main() -> None:
     t = mark("compile", t)
 
     (output_dir / pk.VOCAB_FILE).write_text(pk.vocabulary_json(model), encoding="utf-8")
+    if variant.license_text:
+        shutil.copyfile(variant.license_text, output_dir / pk.LICENSE_FILE)
+    if variant.required_notice:
+        (output_dir / pk.NOTICE_FILE).write_text(notice_text(variant), encoding="utf-8")
 
     record: dict[str, Any] = {
         "format_version": 1,
@@ -515,6 +583,17 @@ def main() -> None:
         "created": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "license": variant.license,
         "attribution": variant.attribution,
+        "license_files": {
+            "license": pk.LICENSE_FILE,
+            "name": variant.license_name,
+            "url": variant.license_url,
+            "version": pk.NVIDIA_OPEN_MODEL_LICENSE_VERSION,
+            "notice": pk.NOTICE_FILE,
+            "required_notice": variant.required_notice,
+            "modifications": variant.modifications,
+        }
+        if variant.license_text
+        else None,
         "notes": list(variant.notes),
         "sources": sources,
         "weight_loading": weight_details or None,
@@ -527,7 +606,9 @@ def main() -> None:
             "repo": variant.reference.repo,
             "revision": variant.reference.revision,
             "components": variant.reference_components,
-        },
+        }
+        if variant.reference
+        else None,
         "tools": pk.tool_versions(),
         "conversion": {
             "source_dialect": "TorchScript (torch.jit.trace)",
@@ -552,7 +633,7 @@ def main() -> None:
                 },
                 "decoder": {"file": pk.DECODER_FILE, "weights": "float16"},
                 "joint": {"file": pk.JOINT_FILE, "weights": "float16", "top_k": pk.TOP_K},
-                "vocabulary": {"file": pk.VOCAB_FILE, "pieces": vocab_size, "blank_id": pk.BLANK_ID},
+                "vocabulary": {"file": pk.VOCAB_FILE, "pieces": vocab_size, "blank_id": variant.blank_id},
             },
             "contract": {
                 component: {
@@ -561,7 +642,8 @@ def main() -> None:
                 }
                 for component, parts in pk.CONTRACT.items()
             },
-            "tdt_durations": list(pk.TDT_DURATIONS),
+            "decoder_type": "TDT" if variant.is_tdt else "RNN-T",
+            "tdt_durations": list(variant.durations),
             "timings_seconds": timings,
         },
     }
