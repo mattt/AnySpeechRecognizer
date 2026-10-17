@@ -19,30 +19,51 @@ import Speech
 /// Until the live encoder is installed and verified, those requests run with the
 /// 15-second encoder instead.
 public struct ParakeetSpeechModel: SpeechRecognitionModel {
-    /// Parakeet model variants with built-in, pinned assets.
-    public enum Variant: String, Sendable, Codable, CaseIterable {
+    /// A Parakeet model variant with built-in, pinned assets.
+    ///
+    /// `Variant` is a structure, not an enumeration,
+    /// so a new variant does not break source compatibility.
+    /// A `switch` over a variant needs a `default` case.
+    public struct Variant: RawRepresentable, CaseIterable, Sendable, Hashable, Codable {
         /// NVIDIA Parakeet TDT 0.6B v3, which recognizes 25 European languages.
-        case v3
+        public static let v3 = Self(rawValue: "v3", manifest: .v3, modelDescription: .v3)
         /// Moondream's Parakeet Ultra, a post-trained Parakeet TDT 0.6B v3.
-        case ultra
+        public static let ultra = Self(rawValue: "ultra", manifest: .ultra, modelDescription: .v3)
         /// NVIDIA Parakeet Unified EN 0.6B, an RNN-T model that recognizes English only,
         /// licensed under the NVIDIA Open Model License.
-        case unified
+        public static let unified = Self(
+            rawValue: "unified", manifest: .unified, modelDescription: .unified)
 
-        var manifest: ParakeetModelManifest {
-            switch self {
-            case .v3: .v3
-            case .ultra: .ultra
-            case .unified: .unified
+        /// Every variant with built-in assets.
+        public static let allCases: [Self] = [.v3, .ultra, .unified]
+
+        /// The variant's name, such as `v3`, which is also its coded form.
+        public let rawValue: String
+        /// The pinned files of the variant's built-in assets.
+        let manifest: ParakeetModelManifest
+        /// The tensor contract of the variant's models.
+        let modelDescription: ParakeetModelDescription
+
+        /// Returns the variant with a name, or `nil` if no built-in variant has that name.
+        public init?(rawValue: String) {
+            guard let variant = Self.allCases.first(where: { $0.rawValue == rawValue }) else {
+                return nil
             }
+            self = variant
         }
 
-        var modelDescription: ParakeetModelDescription {
-            switch self {
-            case .v3, .ultra: .v3
-            case .unified: .unified
-            }
+        private init(
+            rawValue: String, manifest: ParakeetModelManifest,
+            modelDescription: ParakeetModelDescription
+        ) {
+            self.rawValue = rawValue
+            self.manifest = manifest
+            self.modelDescription = modelDescription
         }
+
+        public static func == (lhs: Self, rhs: Self) -> Bool { lhs.rawValue == rhs.rawValue }
+
+        public func hash(into hasher: inout Hasher) { hasher.combine(rawValue) }
     }
 
     /// The source of model files.

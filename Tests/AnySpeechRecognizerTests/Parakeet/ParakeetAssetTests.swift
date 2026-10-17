@@ -74,6 +74,24 @@ struct ParakeetAssetTests {
         #expect(manifest.totalByteCount == 1_205_820_227)
     }
 
+    @Test func variantsSelectTheirAssetsAndCodeAsTheirNames() throws {
+        typealias Variant = ParakeetSpeechModel.Variant
+        #expect(Variant.allCases.map(\.rawValue) == ["v3", "ultra", "unified"])
+        #expect(Variant(rawValue: "ultra") == .ultra)
+        #expect(Variant(rawValue: "v4") == nil)
+        #expect(Variant.v3.manifest == .v3)
+        #expect(Variant.ultra.manifest == .ultra)
+        #expect(Variant.ultra.modelDescription == .v3)
+        #expect(Set(Variant.allCases).count == 3)
+
+        let encoded = try JSONEncoder().encode(Variant.unified)
+        #expect(String(decoding: encoded, as: UTF8.self) == "\"unified\"")
+        #expect(try JSONDecoder().decode(Variant.self, from: Data("\"ultra\"".utf8)) == .ultra)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(Variant.self, from: Data("\"v4\"".utf8))
+        }
+    }
+
     @Test func manifestValidationRejectsUnsafeEntries() throws {
         let valid = Fixture.manifest()
         try valid.validate()

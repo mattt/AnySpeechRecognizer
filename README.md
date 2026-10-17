@@ -245,9 +245,9 @@ including locale reservations.
   It is licensed under the NVIDIA Open Model License (see [License](#license)).
 
 > [!NOTE]
-> The `.unified` case is a source-breaking change.
-> A `switch` over `ParakeetSpeechModel.Variant` without a `default` case
-> does not compile until it handles `.unified`.
+> `ParakeetSpeechModel.Variant` is a structure, not an enumeration,
+> so a new variant does not break source compatibility.
+> A `switch` over a variant needs a `default` case.
 
 Creating a model does not download or load weights.
 `AssetInventory` downloads pinned files from Hugging Face
