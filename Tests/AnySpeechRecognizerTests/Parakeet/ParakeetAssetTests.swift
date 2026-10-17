@@ -51,6 +51,47 @@ struct ParakeetAssetTests {
                 + "4038b9e5eced45b04703afb1dab0d30e5dc162b4")
     }
 
+    @Test func unifiedManifestPinsFilesUnderTheNVIDIALicense() throws {
+        let manifest = ParakeetModelManifest.unified
+        try manifest.validate()
+        #expect(ParakeetSpeechModel.Variant.unified.manifest == manifest)
+        #expect(ParakeetSpeechModel.Variant.unified.modelDescription.blankID == 1024)
+        #expect(manifest.repository == "mattt/parakeet-unified-en-0.6b-coreml")
+        #expect(manifest.revision == "a2f32b4bdf3062c32d1668b2bba2354ebfe6b06d")
+        #expect(manifest.license == "LicenseRef-NVIDIA-Open-Model-License")
+        // Section 3.1 of the NVIDIA Open Model License requires this notice.
+        #expect(
+            manifest.attribution.contains(
+                "Licensed by NVIDIA Corporation under the NVIDIA Open Model License"))
+        #expect(manifest.contractVersion == 1)
+        #expect(manifest.components.encoder == "Encoder.mlmodelc")
+        #expect(manifest.components.liveEncoder == "Encoder8s.mlmodelc")
+        #expect(manifest.parts == [.base, .liveEncoder])
+        #expect(manifest.files.count == 21)
+        #expect(manifest.files(in: .liveEncoder).count == 5)
+        #expect(manifest.byteCount(of: .base) == 614_094_723)
+        #expect(manifest.byteCount(of: .liveEncoder) == 591_725_504)
+        #expect(manifest.totalByteCount == 1_205_820_227)
+    }
+
+    @Test func variantsSelectTheirAssetsAndCodeAsTheirNames() throws {
+        typealias Variant = ParakeetSpeechModel.Variant
+        #expect(Variant.allCases.map(\.rawValue) == ["v3", "ultra", "unified"])
+        #expect(Variant(rawValue: "ultra") == .ultra)
+        #expect(Variant(rawValue: "v4") == nil)
+        #expect(Variant.v3.manifest == .v3)
+        #expect(Variant.ultra.manifest == .ultra)
+        #expect(Variant.ultra.modelDescription == .v3)
+        #expect(Set(Variant.allCases).count == 3)
+
+        let encoded = try JSONEncoder().encode(Variant.unified)
+        #expect(String(decoding: encoded, as: UTF8.self) == "\"unified\"")
+        #expect(try JSONDecoder().decode(Variant.self, from: Data("\"ultra\"".utf8)) == .ultra)
+        #expect(throws: DecodingError.self) {
+            try JSONDecoder().decode(Variant.self, from: Data("\"v4\"".utf8))
+        }
+    }
+
     @Test func manifestValidationRejectsUnsafeEntries() throws {
         let valid = Fixture.manifest()
         try valid.validate()

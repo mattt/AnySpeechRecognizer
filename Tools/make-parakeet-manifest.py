@@ -92,6 +92,29 @@ PRESETS = {
             "following FluidInference's conversion (https://github.com/FluidInference/mobius)."
         ),
     ),
+    "unified": Preset(
+        swift_name="unified",
+        summary="The package's Core ML conversion of NVIDIA's parakeet-unified-en-0.6b "
+        "with an int8 encoder. The attribution contains the notice that the NVIDIA Open "
+        "Model License requires.",
+        identifier="parakeet-unified-en-0.6b",
+        repository="mattt/parakeet-unified-en-0.6b-coreml",
+        contract_version=1,
+        encoder="Encoder.mlmodelc",
+        decoder="Decoder.mlmodelc",
+        joint="JointDecisionv3.mlmodelc",
+        vocabulary="parakeet_vocab.json",
+        live_encoder="Encoder8s.mlmodelc",
+        license="LicenseRef-NVIDIA-Open-Model-License",
+        attribution=(
+            "parakeet-unified-en-0.6b by NVIDIA "
+            "(https://huggingface.co/nvidia/parakeet-unified-en-0.6b). "
+            "Licensed by NVIDIA Corporation under the NVIDIA Open Model License "
+            "(https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/). "
+            "Converted to Core ML with an int8 encoder by AnySpeechRecognizer "
+            "(https://huggingface.co/mattt/parakeet-unified-en-0.6b-coreml)."
+        ),
+    ),
 }
 
 

@@ -9,11 +9,12 @@ The checks:
    on the same NeMo mel features (valid frames only).
 3. Decoder and joint parity: the Core ML prediction network and joint decision
    versus PyTorch on the inputs that occur during greedy decoding.
-4. Transcripts: NeMo's own transcribe() versus greedy TDT decoding in Python over
-   the Core ML models (MLModel predictions), reported as word error rate.
+4. Transcripts: NeMo's own transcribe() versus greedy TDT or RNN-T decoding in Python
+   over the Core ML models (MLModel predictions), reported as word error rate.
    The same windowed decoder also runs over the PyTorch modules, which separates
    conversion error from the effect of 15-second windows on long clips.
-5. The same checks for FluidInference's published artifacts at a pinned revision.
+5. The same checks for FluidInference's published artifacts at a pinned revision,
+   for variants that have them.
 
 Usage:
     uv run python verify.py --variant v3
@@ -121,13 +122,13 @@ class Backend:
 class TorchBackend(Backend):
     """NeMo's float32 PyTorch modules behind the same interface as the Core ML models."""
 
-    def __init__(self, model: Any) -> None:
+    def __init__(self, model: Any, variant: pk.Variant) -> None:
         self.name = "pytorch"
         self.model = model
         self.encoder = pk.EncoderWrapper(model.encoder.eval())
         self.decoder = pk.DecoderWrapper(model.decoder.eval())
         self.joint_decision = pk.JointDecisionSingleStep(
-            pk.JointWrapper(model.joint.eval()), pk.VOCAB_SIZE, len(pk.TDT_DURATIONS)
+            pk.JointWrapper(model.joint.eval()), variant.vocab_size, len(variant.durations)
         )
         model.decoder._rnnt_export = True  # Do not prepend a start symbol in forward().
 
@@ -194,11 +195,13 @@ class CoreMLBackend(Backend):
         return {key: np.asarray(value) for key, value in out.items()}
 
 
-def check_interface(backend: CoreMLBackend, mel: np.ndarray, mel_length: np.ndarray) -> dict[str, Any]:
+def check_interface(
+    backend: CoreMLBackend, variant: pk.Variant, mel: np.ndarray, mel_length: np.ndarray
+) -> dict[str, Any]:
     """Run each model once and compare output names, types, and shapes with the contract."""
     encoded, _ = backend.encode(mel, mel_length)
     zeros = np.zeros((pk.DECODER_LAYERS, 1, pk.DECODER_DIM), dtype=np.float32)
-    decoded, _, _ = backend.decode(pk.BLANK_ID, zeros, zeros)
+    decoded, _, _ = backend.decode(variant.blank_id, zeros, zeros)
     backend.joint(np.ascontiguousarray(encoded[:, :, :1]), decoded)
     result: dict[str, Any] = {}
     for component, outputs in (
@@ -215,7 +218,7 @@ def check_interface(backend: CoreMLBackend, mel: np.ndarray, mel_length: np.ndar
     return result
 
 
-# MARK: - Greedy TDT decoding
+# MARK: - Greedy TDT and RNN-T decoding
 
 
 @dataclass
@@ -227,6 +230,7 @@ class Token:
 
 def greedy_tdt(
     backend: Backend,
+    variant: pk.Variant,
     mel_for: Callable[[np.ndarray, int], tuple[np.ndarray, np.ndarray]],
     audio: np.ndarray,
     record: list | None = None,
@@ -236,10 +240,12 @@ def greedy_tdt(
     Tokens decoded before the right context of each window are committed.
     The next window starts LEFT_CONTEXT_FRAMES before the first uncommitted frame.
     Decoder state carries across windows. Returns the tokens and the window count.
+    An RNN-T joint's duration is always 0, which makes this greedy RNN-T decoding.
     """
+    blank = variant.blank_id
     h = np.zeros((pk.DECODER_LAYERS, 1, pk.DECODER_DIM), dtype=np.float32)
     c = np.zeros_like(h)
-    decoder_out, h_next, c_next = backend.decode(pk.BLANK_ID, h, c)
+    decoder_out, h_next, c_next = backend.decode(blank, h, c)
     h, c = h_next, c_next
     tokens: list[Token] = []
     next_frame = 0
@@ -261,12 +267,12 @@ def greedy_tdt(
             if record is not None:
                 record.append((step, decoder_out, out))
             token = int(np.asarray(out["token_id"]).reshape(-1)[0])
-            duration = pk.TDT_DURATIONS[int(np.asarray(out["duration"]).reshape(-1)[0])]
-            if token != pk.BLANK_ID:
+            duration = variant.duration_frames[int(np.asarray(out["duration"]).reshape(-1)[0])]
+            if token != blank:
                 tokens.append(Token(token, window_start + t, float(np.asarray(out["token_prob"]).reshape(-1)[0])))
                 decoder_out, h, c = backend.decode(token, h, c)
                 symbols += 1
-            if token == pk.BLANK_ID and duration == 0:
+            if token == blank and duration == 0:
                 duration = 1
             if duration == 0 and symbols >= pk.MAX_SYMBOLS_PER_FRAME:
                 duration = 1
@@ -376,7 +382,7 @@ def main() -> None:
 
     model, sources, _ = pk.load_model(variant, args.cache_dir.resolve())
     assert_eval(model)
-    torch_backend = TorchBackend(model)
+    torch_backend = TorchBackend(model, variant)
 
     def mel_for(window: np.ndarray, valid: int):
         return pk.nemo_mel(model, window, valid)
@@ -389,14 +395,16 @@ def main() -> None:
             args.compare_artifacts.resolve(),
             {"encoder": pk.ENCODER_FILE, "decoder": pk.DECODER_FILE, "joint": pk.JOINT_FILE},
         )
-    if not args.skip_reference:
+    if not args.skip_reference and variant.reference is not None:
         reference_dir = pk.download(variant.reference, args.cache_dir.resolve())
         artifact_sets["fluidinference"] = (reference_dir, variant.reference_components)
 
     report: dict[str, Any] = {
         "variant": variant.name,
         "artifacts": str(artifacts),
-        "reference": {"repo": variant.reference.repo, "revision": variant.reference.revision},
+        "reference": {"repo": variant.reference.repo, "revision": variant.reference.revision}
+        if variant.reference
+        else None,
         "sources": sources,
         "tools": pk.tool_versions(),
         "decoding": {
@@ -433,7 +441,7 @@ def main() -> None:
             reference_vocab_path.read_bytes() == converted_vocab_path.read_bytes()
         )
 
-    # NeMo reference transcripts (full context, NeMo's own greedy batched TDT decoder).
+    # NeMo reference transcripts (full context, NeMo's own greedy batched decoder).
     t = time.time()
     nemo_results = nemo_transcribe(model, [f["path"] for f in fixtures])
     report["nemo_transcribe_seconds"] = round(time.time() - t, 1)
@@ -443,7 +451,7 @@ def main() -> None:
     torch_texts = []
     joint_records: list = []
     for fixture in fixtures:
-        tokens, _ = greedy_tdt(torch_backend, mel_for, fixture["audio"], record=joint_records)
+        tokens, _ = greedy_tdt(torch_backend, variant, mel_for, fixture["audio"], record=joint_records)
         torch_texts.append(detokenize(tokens, vocab))
 
     # Per-fixture first-window mel and PyTorch encoder output.
@@ -455,7 +463,7 @@ def main() -> None:
         first_windows.append((mel, mel_length, encoded, encoded_length))
 
     # Decoder inputs: NeMo's tokens for every fixture, fed in order.
-    decoder_sequences = [[pk.BLANK_ID] + ids for _, ids in nemo_results]
+    decoder_sequences = [[variant.blank_id] + ids for _, ids in nemo_results]
 
     report["results"] = {}
     for units in args.compute_units:
@@ -469,7 +477,7 @@ def main() -> None:
                 "compute_units": units,
                 "load_seconds": round(backend.load_seconds, 1),
             }
-            result["interface"] = check_interface(backend, first_windows[0][0], first_windows[0][1])
+            result["interface"] = check_interface(backend, variant, first_windows[0][0], first_windows[0][1])
 
             # Encoder parity on valid frames.
             per_fixture = []
@@ -529,7 +537,7 @@ def main() -> None:
             t = time.time()
             texts, windows = [], []
             for fixture in fixtures:
-                tokens, n_windows = greedy_tdt(backend, mel_for, fixture["audio"])
+                tokens, n_windows = greedy_tdt(backend, variant, mel_for, fixture["audio"])
                 texts.append(detokenize(tokens, vocab))
                 windows.append(n_windows)
             decode_seconds = time.time() - t

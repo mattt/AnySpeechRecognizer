@@ -23,6 +23,9 @@ struct ParakeetModelDescription: Sendable, Equatable {
 
     /// Parakeet TDT 0.6B v3 and models with the same contract.
     static let v3 = ParakeetModelDescription()
+    /// Parakeet Unified EN 0.6B: an RNN-T model with 1,024 tokens. Its joint decision always
+    /// reports duration class 0, so a token keeps the frame and only a blank advances it.
+    static let unified = ParakeetModelDescription(vocabularySize: 1024, durations: [0])
 
     /// The blank token, which also starts the prediction network.
     var blankID: Int { vocabularySize }
