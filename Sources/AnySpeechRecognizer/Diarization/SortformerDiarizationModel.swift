@@ -19,14 +19,14 @@ import Foundation
 ///
 /// This is a package extension; Apple's Speech framework has no diarization module.
 public struct SortformerDiarizationModel: SpeakerDiarizationModel {
-    /// Streaming Sortformer versions with built-in, pinned assets.
+    /// A Streaming Sortformer version with built-in, pinned assets.
     ///
     /// Both versions have the same architecture, streaming configuration, and Core ML
     /// interface; they differ in their trained weights and licenses.
     /// Each version has its own license; see ``attribution``.
-    public enum Version: String, Sendable, Codable, CaseIterable {
+    public struct Version: RawRepresentable, CaseIterable, Sendable, Hashable, Codable {
         /// NVIDIA's diar_streaming_sortformer_4spk-v2, licensed under CC BY 4.0.
-        case v2
+        public static let v2 = Self(rawValue: "v2", manifest: .builtIn)
         /// NVIDIA's diar_streaming_sortformer_4spk-v2.1,
         /// licensed under the NVIDIA Open Model License Agreement.
         ///
@@ -37,14 +37,32 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
         /// and that use is consistent with NVIDIA's Trustworthy AI terms.
         // The underscore stands for the version's period; `v21` would read as version 21.
         // swift-format-ignore: AlwaysUseLowerCamelCase
-        case v2_1 = "v2.1"
+        public static let v2_1 = Self(rawValue: "v2.1", manifest: .v2_1)
 
-        var manifest: SortformerModelManifest {
-            switch self {
-            case .v2: .builtIn
-            case .v2_1: .v2_1
+        /// Every version with built-in assets.
+        public static let allCases: [Self] = [.v2, .v2_1]
+
+        /// The version's name, such as `v2.1`, which is also its coded form.
+        public let rawValue: String
+        /// The pinned files of the version's built-in assets.
+        let manifest: SortformerModelManifest
+
+        /// Returns the version with a name, or `nil` if no built-in version has that name.
+        public init?(rawValue: String) {
+            guard let version = Self.allCases.first(where: { $0.rawValue == rawValue }) else {
+                return nil
             }
+            self = version
         }
+
+        private init(rawValue: String, manifest: SortformerModelManifest) {
+            self.rawValue = rawValue
+            self.manifest = manifest
+        }
+
+        public static func == (lhs: Self, rhs: Self) -> Bool { lhs.rawValue == rhs.rawValue }
+
+        public func hash(into hasher: inout Hasher) { hasher.combine(rawValue) }
     }
 
     /// The source of the compiled model.

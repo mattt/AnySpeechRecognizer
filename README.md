@@ -244,11 +244,6 @@ including locale reservations.
   especially in live mode, but not on meetings.
   It is licensed under the NVIDIA Open Model License (see [License](#license)).
 
-> [!NOTE]
-> `ParakeetSpeechModel.Variant` is a structure, not an enumeration,
-> so a new variant does not break source compatibility.
-> A `switch` over a variant needs a `default` case.
-
 Creating a model does not download or load weights.
 `AssetInventory` downloads pinned files from Hugging Face
 and verifies the size and SHA-256 digest of each one.
