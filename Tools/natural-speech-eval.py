@@ -21,9 +21,6 @@ nothing is added to the repository.
         --cli .build/release/hear --set ls-clean-long --system v3-live
     uv run Tools/natural-speech-eval.py score --root /tmp/natural-eval
 
-Parakeet Unified has no built-in assets, so its systems need `--model-directory` with a
-conversion from Tools/ParakeetConversion.
-
 `run` writes one JSON-lines file per audio file under `runs/<label>/<set>/` and skips
 files that already have output, so an interrupted run continues where it stopped.
 Run one process at a time.
@@ -368,8 +365,6 @@ def run(args) -> None:
     arguments = list(SYSTEMS[args.system])
     if args.model_directory:
         arguments += ["--model-directory", args.model_directory]
-    elif args.system.startswith("unified"):
-        sys.exit(f"{args.system} needs --model-directory")
     started = time.monotonic()
     for index, item in enumerate(items):
         destination = output / f"{item['id']}.jsonl"
