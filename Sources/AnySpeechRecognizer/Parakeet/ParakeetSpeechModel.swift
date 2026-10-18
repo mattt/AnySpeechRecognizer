@@ -4,7 +4,7 @@ import CoreMedia
 import Foundation
 import Speech
 
-/// A Parakeet TDT model run by the package's own runtime on Core ML.
+/// A Parakeet TDT or RNN-T model run by the package's own runtime on Core ML.
 ///
 /// Parakeet selects the language automatically and reports no detected language,
 /// so the model has no locale parameter.

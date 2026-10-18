@@ -2,7 +2,8 @@ import Accelerate
 import CoreML
 import Foundation
 
-/// Runs the encoder, prediction network, and joint network of a Parakeet TDT model with Core ML.
+/// Runs the encoder, prediction network, and joint network of a Parakeet TDT or RNN-T model
+/// with Core ML.
 ///
 /// The engine loads `Encoder_v2.mlmodelc` when it exists and `Encoder.mlmodelc` otherwise,
 /// or the encoder that the configuration names, with `Decoder.mlmodelc` and
