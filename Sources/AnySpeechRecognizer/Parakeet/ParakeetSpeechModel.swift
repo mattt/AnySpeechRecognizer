@@ -4,7 +4,7 @@ import CoreMedia
 import Foundation
 import Speech
 
-/// A Parakeet TDT model run by the package's own runtime on Core ML.
+/// A Parakeet TDT or RNN-T model run by the package's own runtime on Core ML.
 ///
 /// Parakeet selects the language automatically and reports no detected language,
 /// so the model has no locale parameter.
@@ -358,16 +358,25 @@ actor ParakeetExecutor: SpeechRecognitionExecutor {
         // Without it, they use the regular encoder, and the window sets the live settings.
         let selection = model.encoderSelection(live: live)
         let units = model.computeUnits.coreML
-        let description = model.variant.modelDescription
+        let variant = model.variant
+        let description = variant.modelDescription
         let (engine, vocabulary) = try await Task.detached {
+            // A staged directory for a different variant fails here, before the encoder loads,
+            // instead of decoding with the wrong blank token.
+            let vocabulary = try ParakeetVocabulary(
+                contentsOf: directory.appending(path: manifest.components.vocabulary))
+            guard vocabulary.count == description.vocabularySize else {
+                throw SpeechRecognitionError.unsupportedConfiguration(
+                    "The Parakeet vocabulary in \(directory.path) has \(vocabulary.count) tokens, "
+                        + "but the \(variant.rawValue) variant has "
+                        + "\(description.vocabularySize). Select the variant of the model files.")
+            }
             var options = CoreMLParakeetEngine.Configuration()
             options.encoderComputeUnits = units
             options.encoderName = selection.encoder
             options.forcedCommitEncoderName = selection.forcedCommitEncoder
             let engine = try CoreMLParakeetEngine(
                 directory: directory, configuration: options, model: description)
-            let vocabulary = try ParakeetVocabulary(
-                contentsOf: directory.appending(path: manifest.components.vocabulary))
             return (UncheckedEngine(engine), vocabulary)
         }.value
         try Task.checkCancellation()

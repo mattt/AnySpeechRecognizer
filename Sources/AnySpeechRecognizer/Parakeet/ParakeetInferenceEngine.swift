@@ -1,6 +1,6 @@
 import Foundation
 
-/// The tensor contract of a Parakeet TDT model.
+/// The tensor contract of a Parakeet TDT or RNN-T model.
 struct ParakeetModelDescription: Sendable, Equatable {
     /// The audio samples in one encoder window, 15 seconds for the published encoder.
     /// ``CoreMLParakeetEngine`` derives the window from the encoder it loads.
@@ -100,7 +100,7 @@ struct ParakeetJointDecision: Sendable, Equatable {
     var duration: Int
 }
 
-/// Runs the neural networks of a Parakeet TDT model.
+/// Runs the neural networks of a Parakeet TDT or RNN-T model.
 ///
 /// Implementations convert their outputs to plain Swift values, so the decoder does not
 /// depend on a framework's tensor types. An engine that produces raw logits takes the

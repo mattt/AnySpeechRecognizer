@@ -1,7 +1,7 @@
 import Accelerate
 import Foundation
 
-/// Computes Parakeet TDT log-mel features for one encoder window with Accelerate.
+/// Computes Parakeet log-mel features for one encoder window with Accelerate.
 ///
 /// The features follow NeMo's `AudioToMelSpectrogramPreprocessor` from NeMo 2.5 on
 /// (checked against NeMo 3.0.0): pre-emphasis 0.97 over the valid samples, with zeros
