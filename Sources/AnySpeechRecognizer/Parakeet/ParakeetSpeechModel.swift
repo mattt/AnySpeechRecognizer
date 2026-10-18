@@ -20,10 +20,6 @@ import Speech
 /// 15-second encoder instead.
 public struct ParakeetSpeechModel: SpeechRecognitionModel {
     /// A Parakeet model variant with built-in, pinned assets.
-    ///
-    /// `Variant` is a structure, not an enumeration,
-    /// so a new variant does not break source compatibility.
-    /// A `switch` over a variant needs a `default` case.
     public struct Variant: RawRepresentable, CaseIterable, Sendable, Hashable, Codable {
         /// NVIDIA Parakeet TDT 0.6B v3, which recognizes 25 European languages.
         public static let v3 = Self(rawValue: "v3", manifest: .v3, modelDescription: .v3)

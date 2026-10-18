@@ -24,10 +24,6 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
     /// Both versions have the same architecture, streaming configuration, and Core ML
     /// interface; they differ in their trained weights and licenses.
     /// Each version has its own license; see ``attribution``.
-    ///
-    /// `Version` is a structure, not an enumeration,
-    /// so a new version does not break source compatibility.
-    /// A `switch` over a version needs a `default` case.
     public struct Version: RawRepresentable, CaseIterable, Sendable, Hashable, Codable {
         /// NVIDIA's diar_streaming_sortformer_4spk-v2, licensed under CC BY 4.0.
         public static let v2 = Self(rawValue: "v2", manifest: .builtIn)
