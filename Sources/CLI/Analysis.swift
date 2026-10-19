@@ -4,6 +4,7 @@ import CoreMedia
 import Darwin
 import Foundation
 import Speech
+import Synchronization
 
 /// The transcript and speaker timeline from one local audio file.
 struct Analysis {
@@ -53,10 +54,14 @@ struct Analysis {
                         diarizer: await diarizer?.model.diagnostics()
                     ))
             }
-            async let transcript = consume(transcriber, json: json, printsText: diarizer == nil)
+            let clock = ResultClock(
+                started: .now, live: results.live, sampleRate: properties.sampleRate)
+            async let transcript = consume(
+                transcriber, json: json, printsText: diarizer == nil, clock: clock)
             async let timeline = consume(diarizer, json: json)
             if results.live {
-                _ = try await analyzer.analyzeSequence(try liveBlocks(path))
+                _ = try await analyzer.analyzeSequence(
+                    try liveBlocks(path, pacedFrom: results.realTime ? clock.started : nil))
                 try await analyzer.finalizeAndFinishThroughEndOfInput()
             } else if let time = try await analyzer.analyzeSequence(from: file) {
                 try await analyzer.finalizeAndFinish(through: time)
@@ -73,13 +78,13 @@ struct Analysis {
     }
 
     @concurrent private static func consume(
-        _ transcriber: SpeechTranscriber, json: Bool, printsText: Bool
+        _ transcriber: SpeechTranscriber, json: Bool, printsText: Bool, clock: ResultClock
     ) async throws -> AttributedString {
         var text = AttributedString()
         for try await result in transcriber.results {
             try Task.checkCancellation()
             if json {
-                try writeJSON(ResultRecord(result))
+                try writeJSON(ResultRecord(result, clock: clock))
             } else if result.isFinal, printsText {
                 FileHandle.standardOutput.write(Data(String(result.text.characters).utf8))
             }
@@ -105,11 +110,17 @@ struct Analysis {
 
     /// Reads a file as 100 ms Int16 blocks on demand, as a live source would deliver them.
     /// Apple's `AnalyzerInput` accepts Int16 buffers; it traps on Float32 on macOS 27.0.1.
-    private static func liveBlocks(_ path: String) throws -> LiveBlocks {
+    ///
+    /// - Parameter pacedFrom: When set, each block waits until this instant plus the end time
+    ///   of its audio, as a capture source would deliver it.
+    private static func liveBlocks(_ path: String, pacedFrom: ContinuousClock.Instant?) throws
+        -> LiveBlocks
+    {
         LiveBlocks(
             file: try AVAudioFile(
                 forReading: URL(fileURLWithPath: path), commonFormat: .pcmFormatInt16,
-                interleaved: true))
+                interleaved: true),
+            pacedFrom: pacedFrom)
     }
 
     private static func hardware() -> String {
@@ -180,13 +191,21 @@ private struct ResultRecord: Encodable {
     let startSeconds: Double
     let endSeconds: Double
     let finalizationSeconds: Double
+    /// Seconds since the analyzer started reading input.
+    let elapsedSeconds: Double
+    /// With `--live`, the seconds of audio that the input had supplied when the result arrived.
+    let inputSeconds: Double?
     let words: [Word]
-    init(_ result: SpeechTranscriber.Result) {
+    init(_ result: SpeechTranscriber.Result, clock: ResultClock) {
         text = String(result.text.characters)
         isFinal = result.isFinal
         startSeconds = result.range.start.seconds
         endSeconds = result.range.end.seconds
         finalizationSeconds = result.resultsFinalizationTime.seconds
+        elapsedSeconds = elapsed(since: clock.started)
+        inputSeconds =
+            clock.live
+            ? Double(liveInputFrames.load(ordering: .relaxed)) / clock.sampleRate : nil
         words = result.text.runs.compactMap { run in
             guard let range = run[AttributeScopes.SpeechAttributes.TimeRangeAttribute.self] else {
                 return nil
@@ -198,24 +217,43 @@ private struct ResultRecord: Encodable {
     }
 }
 
+/// The audio frames that the live input has read, for the latency of results.
+private let liveInputFrames = Atomic<Int64>(0)
+
+/// When the analyzer started reading input, and how to report the live input position.
+private struct ResultClock: Sendable {
+    let started: ContinuousClock.Instant
+    let live: Bool
+    let sampleRate: Double
+}
+
 /// File blocks read only when the analyzer asks for more input.
 /// The analyzer reads one input sequence at a time, so the file has one reader.
 private struct LiveBlocks: AsyncSequence, @unchecked Sendable {
     typealias Element = AnalyzerInput
     let file: AVAudioFile
+    let pacedFrom: ContinuousClock.Instant?
 
-    func makeAsyncIterator() -> Iterator { Iterator(file: file) }
+    func makeAsyncIterator() -> Iterator { Iterator(file: file, pacedFrom: pacedFrom) }
 
     struct Iterator: AsyncIteratorProtocol {
         let file: AVAudioFile
+        let pacedFrom: ContinuousClock.Instant?
         mutating func next() async throws -> AnalyzerInput? {
             guard file.framePosition < file.length else { return nil }
-            let frames = AVAudioFrameCount(file.processingFormat.sampleRate / 10)
+            let rate = file.processingFormat.sampleRate
+            let frames = AVAudioFrameCount(rate / 10)
             guard
                 let buffer = AVAudioPCMBuffer(
                     pcmFormat: file.processingFormat, frameCapacity: frames)
             else { throw CLIError("Cannot allocate an audio block.") }
             try file.read(into: buffer, frameCount: frames)
+            if let pacedFrom {
+                try await Task.sleep(
+                    until: pacedFrom + .seconds(Double(file.framePosition) / rate),
+                    clock: .continuous)
+            }
+            liveInputFrames.store(file.framePosition, ordering: .relaxed)
             return AnalyzerInput(buffer: buffer)
         }
     }
