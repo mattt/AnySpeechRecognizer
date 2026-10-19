@@ -315,13 +315,17 @@ Another speech pipeline used the GPU during most of these runs.
 
 ## Package and upload
 
-The 1.7B conversion is packaged for the public repository `mattt/qwen3-asr-1.7b-coreml`.
-The 0.6B conversion is not published; the runtime loads it only from a staged directory.
+The 1.7B conversion is packaged for the public repository `mattt/qwen3-asr-1.7b-coreml`,
+and the 0.6B conversion for `mattt/qwen3-asr-0.6b-coreml`.
 
 ```sh
 uv run python package.py --variant 1.7b --trace-dtype float16 --output /tmp/qwen-1.7b-publish \
     --verification-note 'The two differing transcripts differ only in word spacing in Korean ("마무리되었으며" for "마무리 되었으며", "북발트해" for "북 발트해").'
 uv run python upload_dry_run.py --variant 1.7b --package /tmp/qwen-1.7b-publish
+
+uv run python package.py --variant 0.6b --trace-dtype float32 --output /tmp/qwen-0.6b-publish \
+    --verification-note 'The three differing transcripts differ in near-tied words: in Japanese, "カタルーニャを好み" for "カタルーニャがお好み" and "カタルーニャと" for "カタルーニャ語と"; in Korean, "일만" for "1만"; and in English, commas for dashes.'
+uv run python upload_dry_run.py --variant 0.6b --package /tmp/qwen-0.6b-publish
 ```
 
 `package.py` copies the compiled models, `vocab.json`, and `qwen3_asr_config.json`
@@ -338,14 +342,15 @@ It adds:
 
 The card's evaluation comes from `evaluation/<variant>.json`,
 whose fields follow the `score` command's `results/asr.json`.
-`evaluation/1.7b.json` holds the counts that the command printed for the October 17, 2026 runs;
+`evaluation/0.6b.json` and `evaluation/1.7b.json` hold the counts that the command printed
+for the October 16 and 17, 2026 runs;
 the run files were in `/tmp` and no longer exist.
-To measure again, run `Tools/natural-speech-eval.py` with the system `qwen-1.7b-file`
-and pass the new `results/asr.json` to `package.py --evaluation`.
+To measure again, run `Tools/natural-speech-eval.py` with the system `qwen-0.6b-file`
+or `qwen-1.7b-file` and pass the new `results/asr.json` to `package.py --evaluation`.
 The verification table comes from `build/reports/verify-<variant>-wrapper.json`
 and `verify-<variant>-natural.json`.
 `--trace-dtype` records how the artifacts were traced,
-because `convert.py` began to record it after the 1.7B conversion.
+because `convert.py` began to record it after both conversions.
 
 `upload_dry_run.py` re-hashes every listed file, rejects unlisted files,
 compares the model files with `build/<variant>/conversion.json`,
@@ -353,18 +358,20 @@ checks the license digest, the notice's source, credit, and changes,
 and the card's metadata and sections, then prints the `hf` commands for a maintainer to run.
 
 After the upload, pin the runtime's manifest to the uploaded commit
-from the repository root:
+from the repository root.
+Pass every published size, because the generator replaces the whole file;
+the dry run prints the command with the sizes that are already pinned.
 
 ```sh
-hf models info mattt/qwen3-asr-1.7b-coreml
-uv run Tools/make-qwen-manifest.py 1.7b@<commit> \
+hf models info mattt/qwen3-asr-0.6b-coreml
+uv run Tools/make-qwen-manifest.py 0.6b@<commit> 1.7b@<commit> \
     > Sources/AnySpeechRecognizer/Qwen/QwenModelManifest+BuiltIn.swift
 ```
 
 The generator reads sizes and digests from the Hugging Face API without downloading weights.
 It pins the compiled models, the vocabulary, the configuration, `LICENSE`, and `NOTICE`.
-With the manifest, `QwenSpeechModel(variant: .large)` installs through `AssetInventory`,
-which verifies every file, as Parakeet does.
+With the manifests, `QwenSpeechModel(variant: .small)` and `QwenSpeechModel(variant: .large)`
+install through `AssetInventory`, which verifies every file, as Parakeet does.
 Without arguments, the generator writes a table without manifests,
 which is the state before the upload.
 

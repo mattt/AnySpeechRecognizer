@@ -14,11 +14,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shlex
 import sys
 from pathlib import Path
 
 import qwen
+
+# The generated manifests, whose header records the sizes and commits that they pin.
+BUILT_IN_MANIFESTS = qwen.TOOL_DIR.parent.parent / "Sources/AnySpeechRecognizer/Qwen/QwenModelManifest+BuiltIn.swift"
 
 REQUIRED = (
     qwen.ENCODER_FILE,
@@ -92,6 +96,14 @@ def check(package: Path, variant: qwen.Variant, artifacts: Path | None) -> tuple
     return problems, record
 
 
+def pinned_sizes() -> dict[str, str]:
+    """The sizes and commits that the checked-in built-in manifests pin."""
+    if not BUILT_IN_MANIFESTS.is_file():
+        return {}
+    header = BUILT_IN_MANIFESTS.read_text().splitlines()[1]
+    return dict(re.findall(r"(\d+\.\d+b)@([0-9a-f]{40})", header))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--variant", choices=sorted(qwen.VARIANTS), required=True)
@@ -148,8 +160,11 @@ def main() -> int:
     )
     print("\nAfter the upload, record the commit and pin the runtime manifest from the repository root:")
     print(shlex.join(["hf", "models", "info", repo]))
+    # Keep the sizes that are already pinned.
+    pins = pinned_sizes() | {variant.name: "<commit>"}
+    arguments = " ".join(f"{size}@{commit}" for size, commit in sorted(pins.items()))
     print(
-        f"uv run Tools/make-qwen-manifest.py {variant.name}@<commit> "
+        f"uv run Tools/make-qwen-manifest.py {arguments} "
         "> Sources/AnySpeechRecognizer/Qwen/QwenModelManifest+BuiltIn.swift"
     )
     return 0

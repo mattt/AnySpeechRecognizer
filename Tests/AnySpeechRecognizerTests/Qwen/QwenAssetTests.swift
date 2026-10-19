@@ -44,8 +44,7 @@ struct QwenAssetTests {
             #expect(manifest.license == "Apache-2.0")
             #expect(manifest.files.contains { $0.path == "LICENSE" })
         }
-        // Qwen3-ASR 0.6B is not published, so it loads only from a staged directory.
-        #expect(QwenModelManifest.builtIn[.small] == nil)
+        #expect(Set(QwenModelManifest.builtIn.keys) == [.small, .large])
     }
 
     /// The default model is the larger size with built-in assets.

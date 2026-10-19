@@ -23,8 +23,7 @@ nothing is added to the repository.
     uv run Tools/natural-speech-eval.py score --root /tmp/natural-eval
 
 Parakeet Unified has no built-in assets, so its systems need `--model-directory` with a
-conversion from Tools/ParakeetConversion. Qwen3-ASR 0.6B has none either, and needs a
-conversion from Tools/QwenConversion; Qwen3-ASR 1.7B installs like Parakeet v3.
+conversion from Tools/ParakeetConversion. Both Qwen3-ASR sizes install like Parakeet v3.
 
 `run` writes one JSON-lines file per audio file under `runs/<label>/<set>/` and skips
 files that already have output, so an interrupted run continues where it stopped.

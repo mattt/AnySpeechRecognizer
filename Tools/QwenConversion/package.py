@@ -41,6 +41,8 @@ SET_NAMES = {
     "ls-other-utt": "LibriSpeech test-other",
 }
 APP_REPOSITORY = "https://github.com/mattt/AnySpeechRecognizer"
+# The `QwenSpeechModel.Variant` case of each size.
+SWIFT_CASES = {"0.6b": "small", "1.7b": "large"}
 
 
 def check_artifacts(artifacts: Path, record: dict[str, Any]) -> list[str]:
@@ -178,7 +180,9 @@ def model_card(
         sizes[top] = sizes.get(top, 0) + entry["size"]
     total = sum(sizes.values())
     results = [r for key, r in evaluation["results"].items() if key.startswith(f"{label}/")]
-    peak = max(r["peakMB"] for r in results) / 1000
+    peaks = sorted(r["peakMB"] / 1000 for r in results)
+    peak = f"{peaks[0]:.2f} GB" if peaks[0] == peaks[-1] else f"{peaks[0]:.2f} to {peaks[-1]:.2f} GB"
+    swift_case = SWIFT_CASES[variant.name]
     rtf = sorted(r["analysisRTF"] for r in results)
     languages = sorted(qwen.LANGUAGES)
     names = ", ".join(sorted(qwen.LANGUAGES.values()))
@@ -226,7 +230,7 @@ This conversion was evaluated on Mandarin, Japanese, Korean, Cantonese, and Engl
 
 ```swift
 let transcriber = SpeechTranscriber(
-    model: QwenSpeechModel(variant: .large),
+    model: QwenSpeechModel(variant: .{swift_case}),
     transcriptionOptions: [],
     reportingOptions: [],
     attributeOptions: []
@@ -235,7 +239,7 @@ let transcriber = SpeechTranscriber(
 
 A version of AnySpeechRecognizer that pins this repository downloads and verifies these files
 through `AssetInventory`. Other versions can load a local copy of this repository with
-`QwenSpeechModel(variant: .large, assets: .directory(url))`.
+`QwenSpeechModel(variant: .{swift_case}, assets: .directory(url))`.
 
 ## Limitations
 
@@ -248,15 +252,15 @@ through `AssetInventory`. Other versions can load a local copy of this repositor
 - The language that the model identifies is not reported.
 - The decoder runs on the GPU or the CPU. On macOS 27.0.1, Core ML cannot build it
   for the Neural Engine.
-- The conversion was tested on a Mac with an M4 Max and macOS 27.0.1 only.
-  It was not tested on iPhone or iPad.
+- This conversion was tested on a Mac with an M4 Max and macOS 27.0.1 only.
+  It has not been tested on an iPhone or iPad.
 
 ## Size and resources
 
 | Item | Value |
 | --- | --- |
 | Files | {total / 1e9:.2f} GB |
-| Peak memory while transcribing | {peak:.1f} GB |
+| Peak memory while transcribing on a Mac | {peak} |
 | Real-time factor (processing time divided by audio duration) | {rtf[0]:.2f} to {rtf[-1]:.2f} |
 | Core ML specification | iOS 18 and macOS 15 (stateful ML programs) |
 

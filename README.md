@@ -216,7 +216,7 @@ or the OS 27 capture and asset input providers.
 | Word timing | Yes | Yes, in 80 ms frames | No; each result has its segment's range |
 | Confidence | Yes | Yes, the geometric mean of token probabilities | No |
 | Language | Selected by locale | Detected automatically, not reported; English only for `.unified` | Detected automatically, not reported, or forced |
-| Assets | Apple's inventory | Pinned files in the Hugging Face cache | Pinned files for 1.7B; a directory that you convert for 0.6B |
+| Assets | Apple's inventory | Pinned files in the Hugging Face cache | Pinned files in the Hugging Face cache |
 
 Requests for an unsupported module or option fail before the analyzer reads audio.
 
@@ -282,9 +282,10 @@ The runtime does not verify a staged directory.
 for file transcription.
 It recognizes 30 languages and 22 Chinese dialects,
 including Mandarin, Cantonese, Japanese, and Korean, which Parakeet does not cover.
-The 1.7B conversion is published at
-[mattt/qwen3-asr-1.7b-coreml](https://huggingface.co/mattt/qwen3-asr-1.7b-coreml),
-and `AssetInventory` installs and verifies its pinned files as it does Parakeet's:
+The conversions are published at
+[mattt/qwen3-asr-0.6b-coreml](https://huggingface.co/mattt/qwen3-asr-0.6b-coreml)
+and [mattt/qwen3-asr-1.7b-coreml](https://huggingface.co/mattt/qwen3-asr-1.7b-coreml),
+and `AssetInventory` installs and verifies their pinned files as it does Parakeet's:
 
 ```swift
 let transcriber = SpeechTranscriber(
@@ -298,9 +299,8 @@ let transcriber = SpeechTranscriber(
 )
 ```
 
-The 0.6B conversion is not published:
-convert it with [`Tools/QwenConversion`](Tools/QwenConversion)
-and pass the output directory as `assets: .directory(url)`.
+To use a conversion that you make with [`Tools/QwenConversion`](Tools/QwenConversion),
+pass its output directory as `assets: .directory(url)`.
 
 The model transcribes audio in segments of up to 40 seconds,
 cut at the quietest point near 30 seconds, as the original Qwen3-ASR library cuts long audio.
@@ -481,8 +481,8 @@ $ swift run hear transcribe recording.wav --backend apple --locale en-US --json
 ```
 
 Every command requires an explicit `--backend`.
-`--backend qwen` uses the built-in 1.7B assets
-unless `--model-directory` names a staged directory,
+`--backend qwen` uses the built-in assets of the size that `--version` selects
+(default: 1.7b) unless `--model-directory` names a staged directory,
 and its `--locale` forces a language, such as `--locale ja`.
 `prepare` is the only command that downloads;
 `status` checks assets without downloading.
@@ -639,13 +639,15 @@ These models are licensed under CC BY 4.0:
   ([source](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2),
   [Core ML conversion](https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2-coreml)).
 
-This model is licensed under the
+These models are licensed under the
 [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0):
 
+- Qwen3-ASR 0.6B by the Qwen team, Alibaba Cloud
+  ([source](https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf),
+  [Core ML conversion](https://huggingface.co/mattt/qwen3-asr-0.6b-coreml)).
 - Qwen3-ASR 1.7B by the Qwen team, Alibaba Cloud
   ([source](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf),
   [Core ML conversion](https://huggingface.co/mattt/qwen3-asr-1.7b-coreml)).
-  Qwen3-ASR 0.6B has the same license and no published conversion.
 
 These models are licensed under the
 [NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/):
