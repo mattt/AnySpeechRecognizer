@@ -34,9 +34,11 @@ struct Analysis {
             frames: file.length,
             durationSeconds: Double(file.length) / file.processingFormat.sampleRate
         )
+        // Request word timing from models that report it; Qwen3-ASR reports none.
+        let timing = model.capabilities.transcription?.attributeOptions.contains(.audioTimeRange)
         let transcriber = SpeechTranscriber(
             model: model, reportingOptions: results.reportingOptions,
-            attributeOptions: [.audioTimeRange])
+            attributeOptions: timing == true ? [.audioTimeRange] : [])
         let modules: [any SpeechModule] = [transcriber] + (diarizer.map { [$0] } ?? [])
         let analyzer = SpeechAnalyzer(modules: modules)
         let started = ContinuousClock.now

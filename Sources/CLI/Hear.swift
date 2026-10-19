@@ -12,7 +12,8 @@ typealias SpeechModule = AnySpeechRecognizer.SpeechModule
 struct Hear: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "hear",
-        abstract: "Recognize speech in local audio files with Apple or Parakeet models.",
+        abstract:
+            "Recognize speech in local audio files with Apple, Parakeet, or Qwen3-ASR models.",
         discussion: "SIGINT and SIGTERM cancel the operation and wait for analyzer cleanup.",
         subcommands: [Status.self, Prepare.self, Transcribe.self, Evaluate.self]
     )
