@@ -1,0 +1,28 @@
+{
+  "description": "Error counts, real-time factor, and peak memory that `Tools/natural-speech-eval.py score` printed for the runs `final-qwen-1.7b` (the Swift runtime with build/1.7b, file mode) and `transformers-1.7b` (reference_runs.py). The keys and fields follow the score command's results/asr.json, so a new score output can replace this file. The run files were in /tmp and no longer exist.",
+  "date": "2026-10-17",
+  "transformers_date": "2026-10-16",
+  "machine": "Mac16,9 (Apple M4 Max), macOS 27.0.1 (26A434)",
+  "conditions": "Another speech pipeline (Parakeet with diarization on cpuAndGPU) used the GPU during most of the final-qwen-1.7b runs, so real-time factors are high.",
+  "sets": {
+    "fleurs-zh": "FLEURS cmn_hans_cn, first 100 test files, character error rate",
+    "fleurs-ja": "FLEURS ja_jp, first 100 test files, character error rate",
+    "fleurs-ko": "FLEURS ko_kr, first 100 test files, character error rate",
+    "fleurs-yue": "FLEURS yue_hant_hk, first 100 test files, character error rate after OpenCC t2s conversion of both texts",
+    "ls-clean-utt": "LibriSpeech test-clean, 252 utterances (about 30 minutes), word error rate",
+    "ls-other-utt": "LibriSpeech test-other, 281 utterances (about 30 minutes), word error rate"
+  },
+  "results": {
+    "final-qwen-1.7b/fleurs-zh": {"files": 100, "basic": {"N": 3502, "S": 57, "D": 136, "I": 27}, "analysisRTF": 0.3016, "peakMB": 4433},
+    "final-qwen-1.7b/fleurs-ja": {"files": 100, "basic": {"N": 5048, "S": 209, "D": 51, "I": 48}, "analysisRTF": 0.3256, "peakMB": 4432},
+    "final-qwen-1.7b/fleurs-ko": {"files": 100, "basic": {"N": 4426, "S": 73, "D": 94, "I": 7}, "analysisRTF": 0.3614, "peakMB": 4433},
+    "final-qwen-1.7b/fleurs-yue": {"files": 100, "basic": {"N": 3522, "S": 172, "D": 17, "I": 31}, "analysisRTF": 0.3333, "peakMB": 4432},
+    "final-qwen-1.7b/ls-clean-utt": {"files": 252, "basic": {"N": 5369, "S": 85, "D": 16, "I": 5}, "analysisRTF": 0.3573, "peakMB": 4434},
+    "final-qwen-1.7b/ls-other-utt": {"files": 281, "basic": {"N": 5178, "S": 139, "D": 28, "I": 12}, "analysisRTF": 0.3492, "peakMB": 4434},
+    "transformers-1.7b/fleurs-zh": {"files": 100, "basic": {"N": 3502, "S": 59, "D": 136, "I": 24}},
+    "transformers-1.7b/fleurs-ja": {"files": 100, "basic": {"N": 5048, "S": 208, "D": 53, "I": 46}},
+    "transformers-1.7b/fleurs-ko": {"files": 100, "basic": {"N": 4426, "S": 68, "D": 93, "I": 7}},
+    "transformers-1.7b/ls-clean-utt": {"files": 252, "basic": {"N": 5369, "S": 81, "D": 14, "I": 5}},
+    "transformers-1.7b/ls-other-utt": {"files": 281, "basic": {"N": 5178, "S": 138, "D": 24, "I": 14}}
+  }
+}

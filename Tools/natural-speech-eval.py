@@ -2,7 +2,8 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#     "numpy==2.3.5", "rapidfuzz==3.14.6", "soundfile==0.14.0", "whisper-normalizer==0.1.15",
+#     "numpy==2.3.5", "opencc-python-reimplemented==0.1.7", "rapidfuzz==3.14.6", "soundfile==0.14.0",
+#     "whisper-normalizer==0.1.15",
 # ]
 # ///
 """Evaluates the hear CLI on natural speech.
@@ -22,7 +23,8 @@ nothing is added to the repository.
     uv run Tools/natural-speech-eval.py score --root /tmp/natural-eval
 
 Parakeet Unified has no built-in assets, so its systems need `--model-directory` with a
-conversion from Tools/ParakeetConversion.
+conversion from Tools/ParakeetConversion. Qwen3-ASR 0.6B has none either, and needs a
+conversion from Tools/QwenConversion; Qwen3-ASR 1.7B installs like Parakeet v3.
 
 `run` writes one JSON-lines file per audio file under `runs/<label>/<set>/` and skips
 files that already have output, so an interrupted run continues where it stopped.
@@ -69,8 +71,21 @@ AMI_ANNOTATIONS = (
 # google/fleurs (CC BY 4.0), pinned; a subset is the first files of a test or dev archive.
 FLEURS_REVISION = "70bb2e84b976b7e960aa89f1c648e09c59f894dd"
 FLEURS = "https://huggingface.co/datasets/google/fleurs/resolve/" + FLEURS_REVISION + "/data/{}/{}"
-FLEURS_LANGUAGES = {"de": "de_de", "fr": "fr_fr"}
+FLEURS_LANGUAGES = {
+    "de": "de_de",
+    "fr": "fr_fr",
+    "zh": "cmn_hans_cn",
+    "ja": "ja_jp",
+    "ko": "ko_kr",
+    "yue": "yue_hant_hk",
+}
 FLEURS_FILES = 100
+# Subsets scored by character error rate: Chinese and Japanese do not separate words,
+# and Korean spacing varies between transcribers.
+CHARACTER_SETS = ["fleurs-zh", "fleurs-ja", "fleurs-ko", "fleurs-yue"]
+# Subsets whose texts are converted to simplified characters before scoring: the Cantonese
+# references use traditional characters, and recognizers write either script.
+SIMPLIFIED_SETS = ["fleurs-yue"]
 
 # LibriSpeech splits and the subset name prefix of each.
 LIBRISPEECH_SPLITS = {
@@ -96,6 +111,8 @@ SYSTEMS = {
     "unified-live": ["--backend", "parakeet", "--version", "unified", "--live"],
     "apple-file": ["--backend", "apple", "--locale", "en-US"],
     "apple-live": ["--backend", "apple", "--locale", "en-US", "--live"],
+    "qwen-0.6b-file": ["--backend", "qwen", "--version", "0.6b"],
+    "qwen-1.7b-file": ["--backend", "qwen", "--version", "1.7b"],
 }
 for version in ["v2", "v2.1"]:
     for mode in ["file", "live"]:
@@ -144,7 +161,9 @@ def fetch(args) -> None:
     if args.fleurs:
         archives = [("test", "fleurs")] + ([("dev", "fleurs-dev")] if args.held_out else [])
         for (split, directory), language in [
-            (archive, language) for archive in archives for language in FLEURS_LANGUAGES.values()
+            (archive, FLEURS_LANGUAGES[language])
+            for archive in archives
+            for language in args.fleurs_languages
         ]:
             target = data / directory / language
             download(FLEURS.format(language, f"{split}.tsv"), target / f"{split}.tsv")
@@ -423,6 +442,30 @@ def basic_words(text: str) -> list[str]:
     return [word for word in (token.strip("'") for token in text.split()) if word]
 
 
+def characters(text: str) -> list[str]:
+    """Lowercase characters without punctuation, symbols, or spaces, after NFKC normalization."""
+    import unicodedata
+
+    text = unicodedata.normalize("NFKC", text).lower()
+    return [c for c in text if not c.isspace() and unicodedata.category(c)[0] not in "PSZC"]
+
+
+_simplifier = None
+
+
+def units(subset: str, text: str) -> list[str]:
+    """The units that error rates count: characters for CHARACTER_SETS, words otherwise."""
+    global _simplifier
+    subset = subset.removesuffix("-dev")
+    if subset in SIMPLIFIED_SETS:
+        if _simplifier is None:
+            from opencc import OpenCC
+
+            _simplifier = OpenCC("t2s")
+        text = _simplifier.convert(text)
+    return characters(text) if subset in CHARACTER_SETS else basic_words(text)
+
+
 _whisper = None
 
 
@@ -517,6 +560,10 @@ def score(args) -> None:
         "ami",
         "fleurs-de",
         "fleurs-fr",
+        "fleurs-zh",
+        "fleurs-ja",
+        "fleurs-ko",
+        "fleurs-yue",
         "synthetic",
         "ls-dev-clean-utt",
         "ls-dev-other-utt",
@@ -550,13 +597,14 @@ def score(args) -> None:
                 item = items[path.stem]
                 if not item["reference"]:
                     continue
-                runs += deletion_runs(basic_words(item["reference"]), basic_words(run["text"]))
-                inserted = insertion_runs(basic_words(item["reference"]), basic_words(run["text"]))
+                reference, hypothesis = units(subset, item["reference"]), units(subset, run["text"])
+                runs += deletion_runs(reference, hypothesis)
+                inserted = insertion_runs(reference, hypothesis)
                 inserted_runs += inserted[0]
                 inserted_words += inserted[1]
                 english = not subset.startswith("fleurs")
                 for total, counts in [
-                    (basic, errors(basic_words(item["reference"]), basic_words(run["text"]))),
+                    (basic, errors(reference, hypothesis)),
                     (
                         whisper,
                         errors(whisper_words(item["reference"]), whisper_words(run["text"]))
@@ -589,8 +637,11 @@ def score(args) -> None:
                 "meanPreparation": preparation / files,
                 "peakMB": peak / 1e6,
             }
+            unit = " (CER, characters)" if subset.removesuffix("-dev") in CHARACTER_SETS else ""
+            if subset.removesuffix("-dev") in SIMPLIFIED_SETS:
+                unit = " (CER, simplified characters)"
             report.append(
-                f"| {label} | {subset} | {files} | {basic['N']} | {rate(basic):.2%} "
+                f"| {label} | {subset}{unit} | {files} | {basic['N']} | {rate(basic):.2%} "
                 f"({basic['S']}/{basic['D']}/{basic['I']}) | {rate(whisper):.2%} | {runs} "
                 f"| {inserted_runs} ({inserted_words}) | {analysis / duration:.4f} "
                 f"| {preparation / files:.2f} s | {peak / 1e6:.0f} MB |"
@@ -825,7 +876,14 @@ def main() -> None:
                 "--alignments", action="store_true", help="LibriSpeech forced alignments."
             )
             command.add_argument(
-                "--fleurs", action="store_true", help="The FLEURS German and French subsets."
+                "--fleurs", action="store_true", help="The FLEURS subsets of --fleurs-languages."
+            )
+            command.add_argument(
+                "--fleurs-languages",
+                nargs="+",
+                choices=sorted(FLEURS_LANGUAGES),
+                default=["de", "fr"],
+                help="FLEURS languages to fetch (default: de fr).",
             )
             command.add_argument(
                 "--held-out",
@@ -839,7 +897,8 @@ def main() -> None:
             command.add_argument("--label", help="The output directory name; the system's name.")
             command.add_argument("--limit", type=int, help="Only the first files of the subset.")
             command.add_argument(
-                "--model-directory", help="A staged Parakeet directory, passed to the CLI."
+                "--model-directory",
+                help="A staged Parakeet or Qwen3-ASR directory, passed to the CLI.",
             )
             command.add_argument(
                 "--warm-up", action="store_true", help="Run the first file once more, unrecorded."

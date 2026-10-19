@@ -3,33 +3,58 @@ import ArgumentParser
 import Foundation
 
 enum Backend: String, CaseIterable, ExpressibleByArgument {
-    case apple, parakeet
+    case apple, parakeet, qwen
 }
 
 /// Options that select a speech recognition model.
 struct ModelOptions: ParsableArguments {
+    /// The names that `--version` accepts for each backend, such as `v3, ultra, unified`.
+    static let parakeetVariants = ParakeetSpeechModel.Variant.allCases.map(\.rawValue)
+        .joined(separator: ", ")
+    static let qwenSizes = QwenSpeechModel.Variant.allCases.map(\.rawValue)
+        .joined(separator: ", ")
+
     @Option(help: "The speech recognition backend.")
     var backend: Backend
 
     @Option(
-        help: ArgumentHelp("Apple recognition locale (default: en-US).", valueName: "identifier"))
+        help: ArgumentHelp(
+            "Apple recognition locale (default: en-US), or a language that Qwen3-ASR must use "
+                + "(default: automatic).",
+            valueName: "identifier"))
     var locale: String?
-
-    @Option(help: "Parakeet model variant (default: v3).")
-    var version: ParakeetSpeechModel.Variant?
 
     @Option(
         help: ArgumentHelp(
-            "A staged Parakeet directory, used without download.", valueName: "path"))
+            "Parakeet variant (\(Self.parakeetVariants); default: v3) "
+                + "or Qwen3-ASR size (\(Self.qwenSizes); default: 1.7b).",
+            valueName: "version"))
+    var version: String?
+
+    @Option(
+        help: ArgumentHelp(
+            "A staged Parakeet or Qwen3-ASR directory, used without download.",
+            valueName: "path"))
     var modelDirectory: String?
 
     func validate() throws {
-        if backend == .parakeet, locale != nil {
-            throw ValidationError(
-                "Parakeet selects language automatically and does not accept --locale.")
-        }
-        if backend == .apple, modelDirectory != nil || version != nil {
-            throw ValidationError("Model directories and versions apply to Parakeet only.")
+        switch backend {
+        case .apple:
+            if modelDirectory != nil || version != nil {
+                throw ValidationError("Model directories and versions do not apply to Apple.")
+            }
+        case .parakeet:
+            if locale != nil {
+                throw ValidationError(
+                    "Parakeet selects language automatically and does not accept --locale.")
+            }
+            if let version, ParakeetSpeechModel.Variant(rawValue: version) == nil {
+                throw ValidationError("Parakeet variants are \(Self.parakeetVariants).")
+            }
+        case .qwen:
+            if let version, QwenSpeechModel.Variant(rawValue: version) == nil {
+                throw ValidationError("Qwen3-ASR sizes are \(Self.qwenSizes).")
+            }
         }
     }
 
@@ -39,8 +64,13 @@ struct ModelOptions: ParsableArguments {
             SystemSpeechModel(locale: Locale(identifier: locale ?? "en-US"))
         case .parakeet:
             ParakeetSpeechModel(
-                variant: version ?? .v3,
+                variant: version.flatMap(ParakeetSpeechModel.Variant.init(rawValue:)) ?? .v3,
                 assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn)
+        case .qwen:
+            QwenSpeechModel(
+                variant: version.flatMap(QwenSpeechModel.Variant.init(rawValue:)) ?? .large,
+                assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn,
+                language: locale.map { Locale.Language(identifier: $0) })
         }
     }
 }
@@ -127,7 +157,6 @@ enum PostProcessingPreset: String, CaseIterable, ExpressibleByArgument {
     }
 }
 
-extension ParakeetSpeechModel.Variant: ExpressibleByArgument {}
 extension SortformerDiarizationModel.Version: ExpressibleByArgument {}
 extension SortformerDiarizationModel.ComputeUnits: ExpressibleByArgument {
     public static var allValueStrings: [String] {
