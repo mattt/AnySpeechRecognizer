@@ -22,7 +22,8 @@ nothing is added to the repository.
     uv run Tools/natural-speech-eval.py score --root /tmp/natural-eval
 
 Parakeet Unified has no built-in assets, so its systems need `--model-directory` with a
-conversion from Tools/ParakeetConversion.
+conversion from Tools/ParakeetConversion. Nemotron systems need one from
+Tools/NemotronConversion.
 
 `run` writes one JSON-lines file per audio file under `runs/<label>/<set>/` and skips
 files that already have output, so an interrupted run continues where it stopped.
@@ -69,7 +70,9 @@ AMI_ANNOTATIONS = (
 # google/fleurs (CC BY 4.0), pinned; a subset is the first files of a test or dev archive.
 FLEURS_REVISION = "70bb2e84b976b7e960aa89f1c648e09c59f894dd"
 FLEURS = "https://huggingface.co/datasets/google/fleurs/resolve/" + FLEURS_REVISION + "/data/{}/{}"
-FLEURS_LANGUAGES = {"de": "de_de", "fr": "fr_fr"}
+FLEURS_LANGUAGES = {"de": "de_de", "fr": "fr_fr", "ja": "ja_jp", "zh": "cmn_hans_cn"}
+# Languages without spaces between words, scored by character error rate.
+CHARACTER_LANGUAGES = {"ja", "zh"}
 FLEURS_FILES = 100
 
 # LibriSpeech splits and the subset name prefix of each.
@@ -96,6 +99,23 @@ SYSTEMS = {
     "unified-live": ["--backend", "parakeet", "--version", "unified", "--live"],
     "apple-file": ["--backend", "apple", "--locale", "en-US"],
     "apple-live": ["--backend", "apple", "--locale", "en-US", "--live"],
+}
+# Nemotron reads a staged directory (`run --model-directory`). The `nemotron-<ms>-live` systems
+# give the set's language (`SET_LOCALES`, otherwise en-US); `-auto` systems detect it.
+for milliseconds in [80, 160, 320, 560, 1120]:
+    for suffix in ["", "-auto"]:
+        SYSTEMS[f"nemotron-{milliseconds}-live{suffix}"] = [
+            "--backend",
+            "nemotron",
+            "--chunk-size",
+            str(milliseconds),
+            "--live",
+        ]
+SET_LOCALES = {
+    "fleurs-de": "de-DE",
+    "fleurs-fr": "fr-FR",
+    "fleurs-ja": "ja-JP",
+    "fleurs-zh": "zh-CN",
 }
 for version in ["v2", "v2.1"]:
     for mode in ["file", "live"]:
@@ -368,8 +388,12 @@ def run(args) -> None:
     arguments = list(SYSTEMS[args.system])
     if args.model_directory:
         arguments += ["--model-directory", args.model_directory]
-    elif args.system.startswith("unified"):
+    elif args.system.startswith(("unified", "nemotron")):
         sys.exit(f"{args.system} needs --model-directory")
+    if args.system.startswith("nemotron") and not args.system.endswith("-auto"):
+        arguments += ["--locale", SET_LOCALES.get(args.set, "en-US")]
+    if args.real_time:
+        arguments.append("--real-time")
     started = time.monotonic()
     for index, item in enumerate(items):
         destination = output / f"{item['id']}.jsonl"
@@ -395,10 +419,12 @@ def run(args) -> None:
 
 
 def load_run(path: Path) -> dict:
-    run = {"finals": [], "words": []}
+    run = {"finals": [], "words": [], "results": []}
     for line in path.read_text().splitlines():
         record = json.loads(line)
         kind = record["type"]
+        if kind == "result":
+            run["results"].append(record)
         if kind == "result" and record["isFinal"]:
             run["finals"].append(record["text"])
             run["words"] += record["words"]
@@ -421,6 +447,17 @@ def basic_words(text: str) -> list[str]:
     text = re.sub(r"[-‐‑–—/]", " ", text)
     text = re.sub(r"[^\w\s']", " ", text)
     return [word for word in (token.strip("'") for token in text.split()) if word]
+
+
+def characters(text: str) -> list[str]:
+    """The characters of `basic_words`, without spaces, for character error rates."""
+    return list("".join(basic_words(text)))
+
+
+def tokens(subset: str, text: str) -> list[str]:
+    """Words, or characters for a language without spaces between words."""
+    language = subset.removeprefix("fleurs-").split("-")[0] if subset.startswith("fleurs-") else ""
+    return characters(text) if language in CHARACTER_LANGUAGES else basic_words(text)
 
 
 _whisper = None
@@ -517,6 +554,8 @@ def score(args) -> None:
         "ami",
         "fleurs-de",
         "fleurs-fr",
+        "fleurs-ja",
+        "fleurs-zh",
         "synthetic",
         "ls-dev-clean-utt",
         "ls-dev-other-utt",
@@ -550,13 +589,17 @@ def score(args) -> None:
                 item = items[path.stem]
                 if not item["reference"]:
                     continue
-                runs += deletion_runs(basic_words(item["reference"]), basic_words(run["text"]))
-                inserted = insertion_runs(basic_words(item["reference"]), basic_words(run["text"]))
+                reference, hypothesis = (
+                    tokens(subset, item["reference"]),
+                    tokens(subset, run["text"]),
+                )
+                runs += deletion_runs(reference, hypothesis)
+                inserted = insertion_runs(reference, hypothesis)
                 inserted_runs += inserted[0]
                 inserted_words += inserted[1]
                 english = not subset.startswith("fleurs")
                 for total, counts in [
-                    (basic, errors(basic_words(item["reference"]), basic_words(run["text"]))),
+                    (basic, errors(reference, hypothesis)),
                     (
                         whisper,
                         errors(whisper_words(item["reference"]), whisper_words(run["text"]))
@@ -595,12 +638,94 @@ def score(args) -> None:
                 f"| {inserted_runs} ({inserted_words}) | {analysis / duration:.4f} "
                 f"| {preparation / files:.2f} s | {peak / 1e6:.0f} MB |"
             )
+    report.append("\nJapanese and Mandarin sets report character error rates.")
+    report += latency(root, labels, asr_sets)
     report += live_drops(root, labels, asr_sets)
     report += diarization(root, labels)
     report += word_timing(root, labels)
     (results / "report.md").write_text("\n".join(report) + "\n")
     (results / "asr.json").write_text(json.dumps(summary, indent=1) + "\n")
     print("\n".join(report))
+
+
+def latency(root: Path, labels: list[str], sets: list[str]) -> list[str]:
+    """When words first appear in any result, relative to the end of their audio.
+
+    Only runs with `--real-time` measure latency: there, result times are wall-clock times
+    since input started, and input arrives at the audio's rate. A final word is seen in the
+    first result, volatile or final, with the same normalized text that starts within 250 ms.
+    The end of a word's audio is the system's own word end time and, for LibriSpeech
+    utterances with forced alignments, the aligned end of the same reference word.
+    A transducer can emit a word after its audio ends, so its own end times can understate
+    latency.
+    """
+    lines = ["\n## Latency in real-time runs\n"]
+    lines.append(
+        "| Label | Set | Files | Final words | Word latency after own end, median / p90 "
+        "| Aligned words | Word latency after aligned end, median / p90 "
+        "| First word after aligned end, median |"
+    )
+    lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
+    for label in labels:
+        for subset in sets:
+            directory = root / "runs" / label / subset
+            if not directory.exists():
+                continue
+            delays, aligned, firsts, files = [], [], [], 0
+            for path in sorted(directory.glob("*.jsonl")):
+                run = load_run(path)
+                if "--real-time" not in run.get("run", {}).get("command", []):
+                    continue
+                files += 1
+                results = [r for r in run["results"] if r["words"] and "elapsedSeconds" in r]
+                seen_tokens = []
+                for word in run["words"]:
+                    text = basic_words(word["text"])
+                    seen = next(
+                        (
+                            r["elapsedSeconds"]
+                            for r in results
+                            if any(
+                                basic_words(w["text"]) == text
+                                and abs(w["startSeconds"] - word["startSeconds"]) <= 0.25
+                                for w in r["words"]
+                            )
+                        ),
+                        None,
+                    )
+                    if seen is None:
+                        continue
+                    delays.append(seen - word["endSeconds"])
+                    seen_tokens += [(token, seen) for token in text]
+                reference = read_alignment(root, path.stem) if subset.endswith("-utt") else None
+                if not reference:
+                    continue
+                matched = [
+                    seen_tokens[j][1] - reference[i][2]
+                    for operation, i, j in align(
+                        [w[0] for w in reference], [t[0] for t in seen_tokens]
+                    )
+                    if operation == "C"
+                ]
+                aligned += matched
+                if matched:
+                    firsts.append(matched[0])
+            if not files or not delays:
+                continue
+            row = (
+                f"| {label} | {subset} | {files} | {len(delays)} "
+                f"| {statistics.median(delays) * 1000:.0f} / {percentile(delays, 90) * 1000:.0f} ms "
+            )
+            if aligned:
+                row += (
+                    f"| {len(aligned)} | {statistics.median(aligned) * 1000:.0f} / "
+                    f"{percentile(aligned, 90) * 1000:.0f} ms "
+                    f"| {statistics.median(firsts) * 1000:.0f} ms |"
+                )
+            else:
+                row += "| | | |"
+            lines.append(row)
+    return lines
 
 
 def live_drops(root: Path, labels: list[str], sets: list[str]) -> list[str]:
@@ -839,10 +964,16 @@ def main() -> None:
             command.add_argument("--label", help="The output directory name; the system's name.")
             command.add_argument("--limit", type=int, help="Only the first files of the subset.")
             command.add_argument(
-                "--model-directory", help="A staged Parakeet directory, passed to the CLI."
+                "--model-directory",
+                help="A staged Parakeet or Nemotron directory, passed to the CLI.",
             )
             command.add_argument(
                 "--warm-up", action="store_true", help="Run the first file once more, unrecorded."
+            )
+            command.add_argument(
+                "--real-time",
+                action="store_true",
+                help="Feed live blocks at the audio's rate, so result times measure latency.",
             )
     args = parser.parse_args()
     {"fetch": fetch, "build": build, "run": run, "score": score}[args.command](args)

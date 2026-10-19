@@ -35,6 +35,7 @@ If input or result consumption stops early, call
 
 - ``SystemSpeechModel``
 - ``ParakeetSpeechModel``
+- ``NemotronSpeechModel``
 
 ### Custom providers
 

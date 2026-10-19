@@ -36,7 +36,7 @@ The package does not implement the older `SFSpeechRecognizer` API.
 
 - Swift 6.2 or later
 - macOS 26 or later, or iOS 26 or later
-- Apple silicon for the Parakeet and Sortformer models
+- Apple silicon for the Parakeet, Nemotron, and Sortformer models
 
 ## Installation
 
@@ -206,17 +206,17 @@ or the OS 27 capture and asset input providers.
 
 ## Backends
 
-| Capability | Apple | Parakeet |
-| --- | --- | --- |
-| `SpeechTranscriber` | Yes | Yes |
-| `DictationTranscriber`, `SpeechDetector` | Yes | No |
-| Live input and volatile results | Yes | Yes |
-| Fast results | Yes | Yes, with less right context |
-| Alternatives, etiquette replacement | Yes | No |
-| Word timing | Yes | Yes, in 80 ms frames |
-| Confidence | Yes | Yes, the geometric mean of token probabilities |
-| Language | Selected by locale | Detected automatically, not reported; English only for `.unified` |
-| Assets | Apple's inventory | Pinned files in the Hugging Face cache |
+| Capability | Apple | Parakeet | Nemotron (prototype) |
+| --- | --- | --- | --- |
+| `SpeechTranscriber` | Yes | Yes | Yes |
+| `DictationTranscriber`, `SpeechDetector` | Yes | No | No |
+| Live input and volatile results | Yes | Yes | Yes |
+| Fast results | Yes | Yes, with less right context | No; choose a smaller chunk size |
+| Alternatives, etiquette replacement | Yes | No | No |
+| Word timing | Yes | Yes, in 80 ms frames | Yes, in 80 ms frames |
+| Confidence | Yes | Yes, the geometric mean of token probabilities | Yes, the same |
+| Language | Selected by locale | Detected automatically, not reported; English only for `.unified` | Selected by locale, or detected automatically and not reported |
+| Assets | Apple's inventory | Pinned files in the Hugging Face cache | A local directory only |
 
 Requests for an unsupported module or option fail before the analyzer reads audio.
 
@@ -273,6 +273,35 @@ The directory contains `Encoder_v2.mlmodelc` or `Encoder.mlmodelc`,
 `Decoder.mlmodelc`, `JointDecisionv3.mlmodelc`, `parakeet_vocab.json`,
 and optionally the live encoder, `Encoder8s.mlmodelc`.
 The runtime does not verify a staged directory.
+
+### Nemotron (prototype)
+
+`NemotronSpeechModel` runs NVIDIA's
+[Nemotron 3.5 ASR Streaming 0.6B](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b),
+a cache-aware streaming transducer for 40 locales.
+Its encoder keeps the attention and convolution caches of every layer,
+so it encodes each chunk of audio once,
+and every word is final as soon as the model decodes it.
+The chunk size, from 80 ms to 1.12 s, sets the latency:
+
+```swift
+let model = NemotronSpeechModel(
+    language: .locale(Locale(identifier: "de-DE")),
+    chunkSize: .ms560,
+    assets: .directory(URL(fileURLWithPath: "/path/to/nemotron-models"))
+)
+```
+
+With `.automatic`, the model detects the language.
+The model loads from a local directory only:
+no repository publishes the converted models,
+so convert them with [`Tools/NemotronConversion`](Tools/NemotronConversion),
+and `AssetInventory` has nothing to install.
+Nemotron 3.5 ASR Streaming is licensed under the
+[OpenMDW License 1.1](https://openmdw.ai/license/1-1/);
+`NemotronSpeechModel.attribution` has the text.
+The conversion tool's README describes the conversion, its verification against NeMo,
+and an evaluation against Parakeet's live mode.
 
 ## Speaker diarization
 
@@ -512,14 +541,18 @@ Swift comes from the selected Xcode.
 
 Integration tests read their inputs from environment variables:
 `ANYSPEECH_INTEGRATION_AUDIO` selects the Apple tests,
-and `ANYSPEECH_PARAKEET_MODELS` with `ANYSPEECH_PARAKEET_LONG_AUDIO`
-selects the Parakeet tests.
+`ANYSPEECH_PARAKEET_MODELS` with `ANYSPEECH_PARAKEET_LONG_AUDIO`
+selects the Parakeet tests,
+and `ANYSPEECH_NEMOTRON_MODELS`, optionally with `ANYSPEECH_NEMOTRON_AUDIO`,
+selects the Nemotron tests.
 
 The [`Tools`](Tools) directory contains the development tools:
 
 - [`ParakeetConversion`](Tools/ParakeetConversion) and
   [`SortformerConversion`](Tools/SortformerConversion)
   convert NVIDIA's checkpoints to the Core ML models that the package downloads.
+  [`NemotronConversion`](Tools/NemotronConversion) converts Nemotron 3.5 ASR Streaming
+  for the prototype `NemotronSpeechModel`.
 - `make-parakeet-manifest.py` and `make-sortformer-manifest.py`
   generate the pinned model manifests.
 - `natural-speech-eval.py` downloads the test sets

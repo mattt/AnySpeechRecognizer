@@ -3,7 +3,7 @@ import ArgumentParser
 import Foundation
 
 enum Backend: String, CaseIterable, ExpressibleByArgument {
-    case apple, parakeet
+    case apple, parakeet, nemotron
 }
 
 /// Options that select a speech recognition model.
@@ -12,7 +12,10 @@ struct ModelOptions: ParsableArguments {
     var backend: Backend
 
     @Option(
-        help: ArgumentHelp("Apple recognition locale (default: en-US).", valueName: "identifier"))
+        help: ArgumentHelp(
+            "Apple recognition locale (default: en-US), or Nemotron's language "
+                + "(default: automatic detection).",
+            valueName: "identifier"))
     var locale: String?
 
     @Option(help: "Parakeet model variant (default: v3).")
@@ -20,8 +23,14 @@ struct ModelOptions: ParsableArguments {
 
     @Option(
         help: ArgumentHelp(
-            "A staged Parakeet directory, used without download.", valueName: "path"))
+            "A staged Parakeet or Nemotron directory, used without download. "
+                + "Nemotron requires one.",
+            valueName: "path"))
     var modelDirectory: String?
+
+    @Option(
+        help: ArgumentHelp("Nemotron chunk size in milliseconds (default: 560).", valueName: "ms"))
+    var chunkSize: NemotronSpeechModel.ChunkSize?
 
     func validate() throws {
         if backend == .parakeet, locale != nil {
@@ -30,6 +39,15 @@ struct ModelOptions: ParsableArguments {
         }
         if backend == .apple, modelDirectory != nil || version != nil {
             throw ValidationError("Model directories and versions apply to Parakeet only.")
+        }
+        if backend == .nemotron, modelDirectory == nil {
+            throw ValidationError("Nemotron requires --model-directory.")
+        }
+        if backend == .nemotron, version != nil {
+            throw ValidationError("Versions apply to Parakeet only.")
+        }
+        if backend != .nemotron, chunkSize != nil {
+            throw ValidationError("Chunk sizes apply to Nemotron only.")
         }
     }
 
@@ -41,6 +59,11 @@ struct ModelOptions: ParsableArguments {
             ParakeetSpeechModel(
                 variant: version ?? .v3,
                 assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn)
+        case .nemotron:
+            NemotronSpeechModel(
+                language: locale.map { .locale(Locale(identifier: $0)) } ?? .automatic,
+                chunkSize: chunkSize ?? .ms560,
+                assets: .directory(URL(fileURLWithPath: modelDirectory ?? ".")))
         }
     }
 }
@@ -56,6 +79,17 @@ struct ResultOptions: ParsableArguments {
 
     @Flag(help: "Request fast results, which trade accuracy for latency.")
     var fast = false
+
+    @Flag(
+        help: """
+            With --live, read each block when its audio would have been captured, \
+            so result times measure latency.
+            """)
+    var realTime = false
+
+    func validate() throws {
+        if realTime, !live { throw ValidationError("--real-time requires --live.") }
+    }
 
     var reportingOptions: Set<SpeechTranscriber.ReportingOption> {
         var options: Set<SpeechTranscriber.ReportingOption> = live ? [.volatileResults] : []
@@ -128,6 +162,7 @@ enum PostProcessingPreset: String, CaseIterable, ExpressibleByArgument {
 }
 
 extension ParakeetSpeechModel.Variant: ExpressibleByArgument {}
+extension NemotronSpeechModel.ChunkSize: ExpressibleByArgument {}
 extension SortformerDiarizationModel.Version: ExpressibleByArgument {}
 extension SortformerDiarizationModel.ComputeUnits: ExpressibleByArgument {
     public static var allValueStrings: [String] {
