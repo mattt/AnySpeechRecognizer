@@ -23,8 +23,7 @@ struct ModelOptions: ParsableArguments {
 
     @Option(
         help: ArgumentHelp(
-            "A staged Parakeet or Nemotron directory, used without download. "
-                + "Nemotron requires one.",
+            "A staged Parakeet or Nemotron directory, used without download.",
             valueName: "path"))
     var modelDirectory: String?
 
@@ -39,9 +38,6 @@ struct ModelOptions: ParsableArguments {
         }
         if backend == .apple, modelDirectory != nil || version != nil {
             throw ValidationError("Model directories and versions apply to Parakeet only.")
-        }
-        if backend == .nemotron, modelDirectory == nil {
-            throw ValidationError("Nemotron requires --model-directory.")
         }
         if backend == .nemotron, version != nil {
             throw ValidationError("Versions apply to Parakeet only.")
@@ -63,7 +59,7 @@ struct ModelOptions: ParsableArguments {
             NemotronSpeechModel(
                 language: locale.map { .locale(Locale(identifier: $0)) } ?? .automatic,
                 chunkSize: chunkSize ?? .ms560,
-                assets: .directory(URL(fileURLWithPath: modelDirectory ?? ".")))
+                assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn)
         }
     }
 }

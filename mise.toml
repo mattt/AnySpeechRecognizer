@@ -71,3 +71,11 @@ run = '''
 set -euo pipefail
 exec xcrun swift run hear prepare --backend parakeet "$@"
 '''
+
+[tasks."prepare:nemotron"]
+description = "Download, verify, and prepare the pinned Nemotron assets"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+exec xcrun swift run hear prepare --backend nemotron "$@"
+'''

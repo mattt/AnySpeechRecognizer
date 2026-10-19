@@ -36,6 +36,14 @@ CHECKPOINT = "nemotron-3.5-asr-streaming-0.6b.nemo"
 TITLE = "Nemotron 3.5 ASR Streaming 0.6B"
 LICENSE = "OpenMDW-1.1"
 LICENSE_URL = "https://openmdw.ai/license/1-1/"
+# The repository that would publish the package; nothing in this directory uploads.
+UPLOAD_REPO = "mattt/nemotron-3.5-asr-streaming-0.6b-coreml"
+# The canonical license text that a package ships as LICENSE.
+LICENSE_TEXT = TOOL_DIR / "LICENSE-OpenMDW-1.1"
+LICENSE_TEXT_SOURCE = (
+    "https://github.com/OpenMDW/OpenMDW/blob/9067ba54b2f84bc9e15a05734f570ec88e9f445d/1.1/LICENSE.OpenMDW-1.1"
+)
+LICENSE_TEXT_SHA256 = "2ab44b68365473c112f5092211a38f231cb23e50de68b75a13369adbd76a74df"
 ATTRIBUTION = (
     f"{TITLE} by NVIDIA (https://huggingface.co/{REPOSITORY}), "
     f"licensed under the OpenMDW License 1.1 ({LICENSE_URL}). "
@@ -75,6 +83,53 @@ VOCAB_FILE = "vocab.json"
 PROMPTS_FILE = "prompts.json"
 CONVERSION_FILE = "conversion.json"
 MODEL_CARD_FILE = "README.md"
+LICENSE_FILE = "LICENSE"
+NOTICE_FILE = "NOTICE"
+
+# The locales of the upstream model card, by tier. Transcription-ready and broad-coverage
+# locales transcribe without fine-tuning; adaptation-ready locales need it.
+TRANSCRIPTION_READY = {
+    "English": ["en-US", "en-GB"],
+    "Spanish": ["es-US", "es-ES"],
+    "French": ["fr-FR", "fr-CA"],
+    "Italian": ["it-IT"],
+    "Portuguese": ["pt-BR", "pt-PT"],
+    "Dutch": ["nl-NL"],
+    "German": ["de-DE"],
+    "Turkish": ["tr-TR"],
+    "Russian": ["ru-RU"],
+    "Arabic": ["ar-AR"],
+    "Hindi": ["hi-IN"],
+    "Japanese": ["ja-JP"],
+    "Korean": ["ko-KR"],
+    "Vietnamese": ["vi-VN"],
+    "Ukrainian": ["uk-UA"],
+}
+BROAD_COVERAGE = {
+    "Polish": ["pl-PL"],
+    "Swedish": ["sv-SE"],
+    "Czech": ["cs-CZ"],
+    "Norwegian Bokmål": ["nb-NO"],
+    "Danish": ["da-DK"],
+    "Bulgarian": ["bg-BG"],
+    "Finnish": ["fi-FI"],
+    "Croatian": ["hr-HR"],
+    "Slovak": ["sk-SK"],
+    "Mandarin": ["zh-CN"],
+    "Hungarian": ["hu-HU"],
+    "Romanian": ["ro-RO"],
+    "Estonian": ["et-EE"],
+}
+ADAPTATION_READY = {
+    "Greek": ["el-GR"],
+    "Lithuanian": ["lt-LT"],
+    "Latvian": ["lv-LV"],
+    "Maltese": ["mt-MT"],
+    "Slovenian": ["sl-SI"],
+    "Hebrew": ["he-IL"],
+    "Thai": ["th-TH"],
+    "Norwegian Nynorsk": ["nn-NO"],
+}
 
 
 @dataclass(frozen=True)

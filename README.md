@@ -216,7 +216,7 @@ or the OS 27 capture and asset input providers.
 | Word timing | Yes | Yes, in 80 ms frames | Yes, in 80 ms frames |
 | Confidence | Yes | Yes, the geometric mean of token probabilities | Yes, the same |
 | Language | Selected by locale | Detected automatically, not reported; English only for `.unified` | Selected by locale, or detected automatically and not reported |
-| Assets | Apple's inventory | Pinned files in the Hugging Face cache | A local directory only |
+| Assets | Apple's inventory | Pinned files in the Hugging Face cache | Pinned files in the Hugging Face cache |
 
 Requests for an unsupported module or option fail before the analyzer reads audio.
 
@@ -287,19 +287,21 @@ The chunk size, from 80 ms to 1.12 s, sets the latency:
 ```swift
 let model = NemotronSpeechModel(
     language: .locale(Locale(identifier: "de-DE")),
-    chunkSize: .ms560,
-    assets: .directory(URL(fileURLWithPath: "/path/to/nemotron-models"))
+    chunkSize: .ms160
 )
 ```
 
 With `.automatic`, the model detects the language.
-The model loads from a local directory only:
-no repository publishes the converted models,
-so convert them with [`Tools/NemotronConversion`](Tools/NemotronConversion),
-and `AssetInventory` has nothing to install.
-Nemotron 3.5 ASR Streaming is licensed under the
-[OpenMDW License 1.1](https://openmdw.ai/license/1-1/);
-`NemotronSpeechModel.attribution` has the text.
+In our measurements, it is less accurate than Parakeet,
+but its words appear sooner and are final when they appear,
+and it transcribes languages that Parakeet does not, such as Japanese and Mandarin.
+
+`AssetInventory` downloads the pinned files of
+[mattt/nemotron-3.5-asr-streaming-0.6b-coreml](https://huggingface.co/mattt/nemotron-3.5-asr-streaming-0.6b-coreml)
+and verifies the size and SHA-256 digest of each one; they need about 660 MB.
+One encoder has all five chunk sizes.
+To use a directory that [`Tools/NemotronConversion`](Tools/NemotronConversion) writes,
+pass `assets: .directory(url)`.
 The conversion tool's README describes the conversion, its verification against NeMo,
 and an evaluation against Parakeet's live mode.
 
@@ -538,6 +540,7 @@ Swift comes from the selected Xcode.
 | `mise run evaluate` | Run `hear evaluate` on a local recording. |
 | `mise run prepare:apple` | Download and prepare Apple Speech assets. |
 | `mise run prepare:parakeet` | Download and prepare Parakeet assets. |
+| `mise run prepare:nemotron` | Download and prepare Nemotron assets. |
 
 Integration tests read their inputs from environment variables:
 `ANYSPEECH_INTEGRATION_AUDIO` selects the Apple tests,
@@ -618,6 +621,17 @@ such as illegal surveillance
 or illegal collection or processing of biometric information.
 
 </details>
+
+This model is licensed under the
+[OpenMDW License 1.1](https://openmdw.ai/license/1-1/):
+
+- Nemotron 3.5 ASR Streaming by NVIDIA
+  ([source](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b),
+  [Core ML conversion](https://huggingface.co/mattt/nemotron-3.5-asr-streaming-0.6b-coreml)).
+
+The agreement requires a copy of the agreement and the notices of origin
+with every distribution of the model files;
+the conversion's repository has them in its `LICENSE` and `NOTICE` files.
 
 ## Acknowledgments
 

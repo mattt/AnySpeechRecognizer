@@ -16,8 +16,9 @@ import Speech
 /// change, but later tokens can continue the last word. It does not support fast results,
 /// alternatives, etiquette replacement, or dictation.
 ///
-/// No published repository has the converted models yet, so the model loads a staged
-/// directory that `Tools/NemotronConversion` writes.
+/// Built-in assets install on demand from the published conversion through
+/// ``AssetInventory``. A directory that `Tools/NemotronConversion` writes can be used
+/// instead, as ``Assets/directory(_:)``.
 public struct NemotronSpeechModel: SpeechRecognitionModel {
     /// The language prompt.
     public enum Language: Sendable, Hashable {
@@ -43,6 +44,10 @@ public struct NemotronSpeechModel: SpeechRecognitionModel {
 
     /// The source of model files.
     public enum Assets: Sendable, Hashable {
+        /// The pinned files of the published conversion, installed with ``AssetInventory``
+        /// into the Hugging Face cache and loaded from there.
+        /// Without a pinned conversion, the model reports missing assets.
+        case builtIn
         /// A staged directory with `Encoder.mlmodelc`, `Decoder.mlmodelc`,
         /// `JointDecision.mlmodelc`, `vocab.json`, and `prompts.json`.
         /// The directory is used as is, without download or digest verification.
@@ -67,8 +72,14 @@ public struct NemotronSpeechModel: SpeechRecognitionModel {
     public let assets: Assets
     /// The compute units for the encoder.
     public let computeUnits: ComputeUnits
+    /// The pinned files of the published conversion, or `nil` when none is pinned.
+    let manifest: NemotronModelManifest?
+    /// The store that installs and checks built-in assets.
+    let store: ModelAssetStore
 
-    public let modelID = "nvidia/nemotron-3.5-asr-streaming-0.6b"
+    public var modelID: String {
+        manifest?.identifier ?? "nvidia/nemotron-3.5-asr-streaming-0.6b"
+    }
     public let capabilities = SpeechRecognitionCapabilities(
         transcription: .init(
             reportingOptions: [.volatileResults],
@@ -78,13 +89,27 @@ public struct NemotronSpeechModel: SpeechRecognitionModel {
     /// Creates a configuration without loading, inference, or downloads.
     /// - Parameters:
     ///   - language: The language prompt.
-    ///   - chunkSize: The streaming chunk size. The staged encoder must have its function.
+    ///   - chunkSize: The streaming chunk size. The encoder must have its function;
+    ///     the published conversion has every size.
     ///   - assets: The source of model files.
     ///   - computeUnits: The compute units for the encoder.
     public init(
-        language: Language = .automatic, chunkSize: ChunkSize = .ms560, assets: Assets,
-        computeUnits: ComputeUnits = .cpuAndNeuralEngine
+        language: Language = .automatic, chunkSize: ChunkSize = .ms560,
+        assets: Assets = .builtIn, computeUnits: ComputeUnits = .cpuAndNeuralEngine
     ) {
+        self.init(
+            language: language, chunkSize: chunkSize, assets: assets, computeUnits: computeUnits,
+            manifest: NemotronModelManifest.builtIn, store: .shared)
+    }
+
+    /// Creates a configuration with a specific manifest and store, for tests.
+    init(
+        language: Language = .automatic, chunkSize: ChunkSize = .ms560, assets: Assets,
+        computeUnits: ComputeUnits = .cpuAndNeuralEngine, manifest: NemotronModelManifest?,
+        store: ModelAssetStore
+    ) {
+        self.manifest = manifest
+        self.store = store
         self.language = language
         self.chunkSize = chunkSize
         if case .directory(let url) = assets {
@@ -95,44 +120,67 @@ public struct NemotronSpeechModel: SpeechRecognitionModel {
         self.computeUnits = computeUnits
     }
 
-    /// The license and attribution text that applications show.
+    /// The license and attribution text that applications show: the pinned manifest's text
+    /// for built-in assets, and otherwise the text that `Tools/NemotronConversion` records.
     public var attribution: String {
-        "Nemotron 3.5 ASR Streaming 0.6B by NVIDIA "
+        if case .builtIn = assets, let manifest { return manifest.attribution }
+        return "Nemotron 3.5 ASR Streaming 0.6B by NVIDIA "
             + "(https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b), "
             + "licensed under the OpenMDW License 1.1 (https://openmdw.ai/license/1-1/)."
     }
 
-    var directory: URL {
+    /// The directory of model files: the verified snapshot of built-in assets,
+    /// or `nil` for built-in assets without a pinned conversion.
+    var directory: URL? {
         switch assets {
+        case .builtIn: manifest.map { store.directory(for: $0) }
         case .directory(let url): url
         }
     }
 
     public func makeExecutor() -> any SpeechRecognitionExecutor { NemotronExecutor(model: self) }
 
-    /// Reports whether the staged directory has every file.
+    /// Reports the installed or staged files without reading their contents.
     public func availability() async -> SpeechRecognitionAvailability {
         #if !arch(arm64)
             return .unsupportedHardware
         #else
-            let directory = directory
-            return Self.requiredFiles.allSatisfy {
-                FileManager.default.fileExists(atPath: directory.appending(path: $0).path)
-            } ? .ready : .missingAssets
+            switch assets {
+            case .builtIn:
+                guard let manifest else { return .missingAssets }
+                if store.isInstalling(manifest) { return .preparing }
+                return store.status(of: manifest) == .installed ? .ready : .missingAssets
+            case .directory(let url):
+                return Self.requiredFiles.allSatisfy {
+                    FileManager.default.fileExists(atPath: url.appending(path: $0).path)
+                } ? .ready : .missingAssets
+            }
         #endif
     }
 
-    /// Returns `nil` when the staged directory is complete; the model has no installable assets.
+    /// Creates a request that installs the pinned files, or returns `nil` when they are
+    /// installed or staged. Throws for a staged directory without the files, and for built-in
+    /// assets without a pinned conversion.
     public func assetInstallationRequest() async throws -> AssetInstallationRequest? {
         switch await availability() {
         case .ready: return nil
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
                 "The Nemotron runtime requires Apple silicon.")
-        default:
+        default: break
+        }
+        guard case .builtIn = assets, let manifest else {
+            let location = directory.map { " in \($0.path)" } ?? ""
             throw SpeechRecognitionError.missingAssets(
-                "Stage the Nemotron encoder, decoder, joint, vocabulary, and prompts in "
-                    + "\(directory.path).")
+                "Stage the Nemotron encoder, decoder, joint, vocabulary, and prompts\(location); "
+                    + "convert them with Tools/NemotronConversion.")
+        }
+        let store = store
+        // The request owns its progress object, which follows the shared install.
+        let progress = store.summedProgress(for: manifest, parts: [.base])
+        return AssetInstallationRequest(progress: progress.progress) {
+            try await store.install(manifest, parts: [.base])
+            withExtendedLifetime(progress) {}
         }
     }
 
@@ -172,8 +220,10 @@ public struct NemotronSpeechModel: SpeechRecognitionModel {
         return prompts
     }
 
-    /// Reports the staged directory, chunk size, language, and compute units.
+    /// Reports the repository and revision of built-in assets or the staged directory,
+    /// the chunk size, the language, and the compute units.
     public func diagnostics() async -> SpeechRecognitionDiagnostics {
+        let builtIn = assets == .builtIn
         let languageDescription: String
         switch language {
         case .automatic: languageDescription = "automatic language detection"
@@ -183,7 +233,8 @@ public struct NemotronSpeechModel: SpeechRecognitionModel {
         if case .locale(let locale) = language { requestedLocale = locale.identifier }
         return .init(
             provider: "AnySpeechRecognizer Nemotron", modelID: modelID, runtimeVersion: "Core ML",
-            modelRepository: directory.path, modelRevision: nil,
+            modelRepository: builtIn ? manifest?.repository : directory?.path,
+            modelRevision: builtIn ? manifest?.revision : nil,
             computeConfiguration:
                 "encoder \(computeUnits.rawValue); decoder and joint cpuAndNeuralEngine; "
                 + "\(chunkSize.rawValue) ms chunks (\(chunkSize.function)); \(languageDescription)",
@@ -227,7 +278,11 @@ actor NemotronExecutor: SpeechRecognitionExecutor {
             throw SpeechRecognitionError.unsupportedConfiguration(
                 "Nemotron does not support DictationTranscriber.")
         }
-        let directory = model.directory
+        guard let directory = model.directory else {
+            throw SpeechRecognitionError.missingAssets(
+                "No published Nemotron conversion is pinned. Pass a directory that "
+                    + "Tools/NemotronConversion writes.")
+        }
         let prompt = try model.promptSlot(
             in: NemotronSpeechModel.prompts(
                 contentsOf: directory.appending(path: NemotronSpeechModel.promptsName)))

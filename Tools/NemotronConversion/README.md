@@ -3,15 +3,16 @@
 This maintainer tool converts NVIDIA's
 [Nemotron 3.5 ASR Streaming 0.6B](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b)
 to cache-aware Core ML models for AnySpeechRecognizer's `NemotronSpeechModel`.
-The runtime is a prototype:
-no repository publishes the converted models,
-so the runtime loads a directory that this tool writes.
+The runtime is a prototype.
+The tool also packages the conversion for publication;
+see [Package and upload](#package-and-upload).
 The tool is not part of the Swift package products.
 
 | | |
 | --- | --- |
-| Source | [nvidia/nemotron-3.5-asr-streaming-0.6b](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) at `ea30d66debe3740a08b573244286791d423d6b3e`, `nemotron-3.5-asr-streaming-0.6b.nemo` |
+| Source | [nvidia/nemotron-3.5-asr-streaming-0.6b](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) at `ea30d66debe3740a08b573244286791d423d6b3e`, `nemotron-3.5-asr-streaming-0.6b.nemo`. The revision is after NVIDIA changed the license to OpenMDW-1.1 at `41defcb1`. |
 | License | [OpenMDW-1.1](https://openmdw.ai/license/1-1/) |
+| Proposed repository | `mattt/nemotron-3.5-asr-streaming-0.6b-coreml` |
 | Model | NeMo `EncDecRNNTBPEModelWithPrompt`: a 24-layer cache-aware FastConformer encoder, a language prompt projection, a two-layer LSTM prediction network, and an RNN-T joint network over 13,087 tokens and the blank |
 
 The revision, file names, streaming constants, and tensor interface
@@ -196,37 +197,46 @@ The report is `build/reports/verify.json`.
 
 ### Results
 
-Observed on October 16, 2026, on an M4 Max with macOS 27.0.1 (26A434),
+Observed on October 16, 2026, and repeated on October 19, 2026, after a new conversion
+from the same pinned revision, on an M4 Max with macOS 27.0.1 (26A434),
 with the pinned environment, while other jobs used the machine.
+The two runs gave the same figures for every row that both measured.
 
 **Reference against NeMo.** A standalone run of the reference loop, with NeMo's exact
 depthwise convolution, gave the same tokens as NeMo's `conformer_stream_step`
 with `CacheAwareStreamingAudioBuffer` (`pad_and_drop_preencoded=True`)
 for English, German, Japanese, and French (with `auto`) fixtures at 160 and 560 ms,
 8 of 8 cases.
-`verify.py --nemo --fast-reference` on the six fixtures agreed in 11 of 12 cases;
-in the twelfth (`en-daniel`, 160 ms), NeMo's loop omits the clip's final period.
+`verify.py --nemo --fast-reference` on the six fixtures at all five chunk sizes agreed in
+25 of 30 cases. In the other five, the recording's last chunk has fewer than 8 mel frames,
+and NeMo's buffer stops before such a chunk, so NeMo's transcript lacks the last token
+(a final period in four cases, "ng." in one). The reference and the runtime encode it.
 
 **Core ML against the reference**, six fixtures (about 1,200 joint decisions per row),
-from `--fast-reference` runs of the two-function and the five-function encoders:
+from `verify.py --compute-units CPU_AND_NE CPU_ONLY --fast-reference --nemo`:
 
 | Chunk | Compute units | Step max / mean abs error | Step cosine, mean / min | Streaming cosine, mean / min | Decoder max abs | Joint agreement | Fixtures with the same tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 80 ms | `CPU_AND_NE` | 0.282 / 0.00321 | 0.99727 / 0.7758 | 0.99098 / 0.5568 | 0.0171 | 1191 / 1192 | 5 / 6 |
+| 80 ms | `CPU_ONLY` | 0.288 / 0.00293 | 0.99796 / 0.8149 | 0.99474 / 0.6962 | 0.0171 | 1191 / 1192 | 5 / 6 |
 | 160 ms | `CPU_AND_NE` | 5.549 / 0.00370 | 0.99675 / 0.7660 | 0.99274 / 0.7021 | 0.0171 | 1194 / 1195 | 6 / 6 |
 | 160 ms | `CPU_ONLY` | 0.406 / 0.00317 | 0.99740 / 0.7634 | 0.99503 / 0.7494 | 0.0171 | 1194 / 1195 | 6 / 6 |
 | 320 ms | `CPU_AND_NE` | 0.359 / 0.00337 | 0.99691 / 0.7079 | 0.99387 / 0.6116 | 0.0176 | 1199 / 1200 | 5 / 6 |
+| 320 ms | `CPU_ONLY` | 0.406 / 0.00324 | 0.99745 / 0.7958 | 0.99513 / 0.5935 | 0.0176 | 1199 / 1200 | 5 / 6 |
 | 560 ms | `CPU_AND_NE` | 0.299 / 0.00361 | 0.99670 / 0.8037 | 0.99215 / 0.4160 | 0.0136 | 1196 / 1198 | 4 / 6 |
 | 560 ms | `CPU_ONLY` | 0.328 / 0.00341 | 0.99752 / 0.9218 | 0.99620 / 0.6494 | 0.0136 | 1196 / 1198 | 5 / 6 |
 | 1120 ms | `CPU_AND_NE` | 0.504 / 0.00393 | 0.99529 / 0.6347 | 0.99457 / 0.6494 | 0.0163 | 1197 / 1198 | 6 / 6 |
+| 1120 ms | `CPU_ONLY` | 0.454 / 0.00347 | 0.99654 / 0.6538 | 0.99643 / 0.4840 | 0.0163 | 1197 / 1198 | 5 / 6 |
 
 - Cosine similarity is per encoder frame. The minimums are single frames;
   the 160 ms maximum error of 5.5 is one frame of the long clip on the Neural Engine,
   whose tokens still match.
 - Where the tokens differ, the normalized transcripts are identical
-  (a period or a language tag differs), except at 560 ms, where Core ML drops the first
-  word, "The", of a clip whose speech starts at its first sample, with both compute units.
-  NeMo's own streaming loop flips the same "The" between its two first-chunk modes.
+  (a period, a capital, or a language tag differs), with two exceptions:
+  at 560 ms, Core ML drops the first word, "The", of a clip whose speech starts at
+  its first sample, with both compute units
+  (NeMo's own streaming loop flips the same "The" between its two first-chunk modes);
+  and at 80 ms on the CPU, it writes "Chunk" for the reference's "chank" in the long clip.
 
 **On natural speech.** The PyTorch reference and the Swift runtime (live mode, 560 ms)
 on the first files of two evaluation sets (see [Evaluation](#evaluation)):
@@ -323,6 +333,51 @@ because it emits a word after its audio ends.
 Nemotron's words are final when they appear. Parakeet's first appear in volatile results,
 which later windows can revise, and become final after about 2 s of right context.
 
+## Package and upload
+
+```sh
+uv run python package.py
+uv run python upload_dry_run.py
+```
+
+`package.py` checks the sizes and digests of the converted files in `build/nemotron`
+against their `conversion.json` and writes `build/package/`:
+
+| File | Contents |
+| --- | --- |
+| `Encoder.mlmodelc`, `Decoder.mlmodelc`, `JointDecision.mlmodelc`, `vocab.json`, `prompts.json` | The converted files, copied unchanged. |
+| `LICENSE` | The OpenMDW-1.1 text, `LICENSE-OpenMDW-1.1` in this directory. |
+| `NOTICE` | The notices of origin (NVIDIA, the source repository, revision, and file digest) and the modifications. |
+| `README.md` | The model card, with the evaluation in `evaluation.json` and the report of `verify.py`. |
+| `conversion.json` | The conversion record and the size and SHA-256 digest of every file except itself and `README.md`. |
+
+`LICENSE-OpenMDW-1.1` is a copy of
+[`1.1/LICENSE.OpenMDW-1.1`](https://github.com/OpenMDW/OpenMDW/blob/9067ba54b2f84bc9e15a05734f570ec88e9f445d/1.1/LICENSE.OpenMDW-1.1)
+at commit `9067ba54b2f84bc9e15a05734f570ec88e9f445d` of the OpenMDW repository,
+with SHA-256 `2ab44b68365473c112f5092211a38f231cb23e50de68b75a13369adbd76a74df`.
+The agreement requires every distribution to keep a copy of the agreement
+and the notices of origin, which `LICENSE` and `NOTICE` provide.
+The upstream repository has no notice file;
+its model card names NVIDIA as the author and OpenMDW-1.1 as the governing terms.
+
+`evaluation.json` records the results of the [Evaluation](#evaluation) section,
+which the model card reports.
+
+`upload_dry_run.py` re-hashes every file of the package against its `conversion.json`,
+checks that the package has no other files and that its model files match `build/nemotron`,
+checks the license text against the pinned digest,
+checks that `NOTICE` names NVIDIA, the source, the revision, and the modifications,
+and checks the model card's license metadata and sections.
+Then it prints the `hf repo create` and `hf upload` commands for a maintainer to run.
+Nothing in this directory uploads to Hugging Face.
+
+After the upload, pin the published commit in the runtime from the repository root:
+
+```sh
+uv run Tools/make-nemotron-manifest.py <commit> \
+    > Sources/AnySpeechRecognizer/Nemotron/NemotronModelManifest+BuiltIn.swift
+```
+
 ## License and attribution
 
 The code in this directory is licensed under the Apache License, Version 2.0.
@@ -339,4 +394,3 @@ and the Core ML model metadata (`license`) repeats it:
 > encoder step with the language prompt projection, a prediction network, and a joint
 > decision; weights are stored in float16, and encoder weights are quantized to int8.
 
-Nothing in this directory uploads to Hugging Face.

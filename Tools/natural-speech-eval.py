@@ -22,8 +22,7 @@ nothing is added to the repository.
     uv run Tools/natural-speech-eval.py score --root /tmp/natural-eval
 
 Parakeet Unified has no built-in assets, so its systems need `--model-directory` with a
-conversion from Tools/ParakeetConversion. Nemotron systems need one from
-Tools/NemotronConversion.
+conversion from Tools/ParakeetConversion.
 
 `run` writes one JSON-lines file per audio file under `runs/<label>/<set>/` and skips
 files that already have output, so an interrupted run continues where it stopped.
@@ -100,7 +99,7 @@ SYSTEMS = {
     "apple-file": ["--backend", "apple", "--locale", "en-US"],
     "apple-live": ["--backend", "apple", "--locale", "en-US", "--live"],
 }
-# Nemotron reads a staged directory (`run --model-directory`). The `nemotron-<ms>-live` systems
+# Nemotron uses its built-in assets or `run --model-directory`. The `nemotron-<ms>-live` systems
 # give the set's language (`SET_LOCALES`, otherwise en-US); `-auto` systems detect it.
 for milliseconds in [80, 160, 320, 560, 1120]:
     for suffix in ["", "-auto"]:
@@ -388,7 +387,7 @@ def run(args) -> None:
     arguments = list(SYSTEMS[args.system])
     if args.model_directory:
         arguments += ["--model-directory", args.model_directory]
-    elif args.system.startswith(("unified", "nemotron")):
+    elif args.system.startswith("unified"):
         sys.exit(f"{args.system} needs --model-directory")
     if args.system.startswith("nemotron") and not args.system.endswith("-auto"):
         arguments += ["--locale", SET_LOCALES.get(args.set, "en-US")]

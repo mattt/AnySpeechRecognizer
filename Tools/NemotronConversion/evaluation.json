@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-16",
+  "machine": "Mac Studio with an M4 Max, macOS 27.0.1 (26A434)",
+  "tool": "Tools/natural-speech-eval.py run --live",
+  "note": "Other evaluations and conversions ran on the same machine, so real-time factors are unreliable. Error rates are computed after lowercasing and removing punctuation, without number or spelling normalization. Japanese and Mandarin are character error rates. Nemotron received the set's language (en-US for LibriSpeech and AMI) except in the auto column.",
+  "systems": ["v3-live", "ultra-live", "nemotron-160", "nemotron-560", "nemotron-1120", "nemotron-560-auto"],
+  "system_names": {
+    "v3-live": "Parakeet v3, live",
+    "ultra-live": "Parakeet Ultra, live",
+    "nemotron-160": "This model, 160 ms",
+    "nemotron-560": "This model, 560 ms",
+    "nemotron-1120": "This model, 1,120 ms",
+    "nemotron-560-auto": "This model, 560 ms, automatic language"
+  },
+  "sets": [
+    {"name": "LibriSpeech test-clean, 252 utterances", "measure": "WER",
+     "results": {"v3-live": 3.28, "ultra-live": 2.51, "nemotron-160": 3.87, "nemotron-560": 3.37, "nemotron-1120": 3.54}},
+    {"name": "LibriSpeech test-other, 281 utterances", "measure": "WER",
+     "results": {"v3-live": 4.19, "ultra-live": 3.92, "nemotron-160": 8.11, "nemotron-560": 7.15, "nemotron-1120": 6.62}},
+    {"name": "LibriSpeech test-clean, six 3 to 8 minute files", "measure": "WER",
+     "results": {"v3-live": 4.73, "ultra-live": 2.65, "nemotron-160": 3.03, "nemotron-560": 2.53, "nemotron-1120": 2.34}},
+    {"name": "LibriSpeech test-other, six 3 to 8 minute files", "measure": "WER",
+     "results": {"v3-live": 4.29, "ultra-live": 3.28, "nemotron-160": 5.10, "nemotron-560": 4.60, "nemotron-1120": 4.35}},
+    {"name": "AMI meetings, headset mix, 4 meetings (1.5 hours)", "measure": "WER",
+     "results": {"v3-live": 23.95, "ultra-live": 23.56, "nemotron-160": 31.33, "nemotron-560": 31.16}},
+    {"name": "FLEURS German, first 100 test files", "measure": "WER",
+     "results": {"v3-live": 7.30, "ultra-live": 4.39, "nemotron-160": 11.65, "nemotron-560": 10.85, "nemotron-1120": 10.47, "nemotron-560-auto": 10.72}},
+    {"name": "FLEURS French, first 100 test files", "measure": "WER",
+     "results": {"v3-live": 9.13, "ultra-live": 5.82, "nemotron-160": 14.52, "nemotron-560": 13.14, "nemotron-1120": 12.29, "nemotron-560-auto": 13.17}},
+    {"name": "FLEURS Japanese, first 100 test files", "measure": "CER",
+     "results": {"nemotron-160": 16.76, "nemotron-560": 15.37, "nemotron-560-auto": 15.91}},
+    {"name": "FLEURS Mandarin, first 100 test files", "measure": "CER",
+     "results": {"nemotron-160": 19.51, "nemotron-560": 19.63, "nemotron-560-auto": 19.69}}
+  ],
+  "latency": {
+    "description": "Time from the end of a word's audio, from the forced alignments of Lugosch et al., until the word first appears in any result, with input delivered at the audio's rate (hear --live --real-time), over the first 25 LibriSpeech test-clean utterances.",
+    "rows": [
+      {"system": "Parakeet v3, live", "median_ms": 729, "p90_ms": 1297, "first_word_ms": 427, "final_when_shown": false},
+      {"system": "This model, 80 ms", "median_ms": 380, "p90_ms": 554, "first_word_ms": 487, "final_when_shown": true},
+      {"system": "This model, 160 ms", "median_ms": 370, "p90_ms": 552, "first_word_ms": 435, "final_when_shown": true},
+      {"system": "This model, 560 ms", "median_ms": 479, "p90_ms": 738, "first_word_ms": 635, "final_when_shown": true},
+      {"system": "This model, 1,120 ms", "median_ms": 667, "p90_ms": 1176, "first_word_ms": 843, "final_when_shown": true}
+    ]
+  },
+  "real_time_factor": {
+    "nemotron-160": [0.09, 0.15],
+    "nemotron-560": [0.035, 0.06],
+    "nemotron-1120": [0.025, 0.04],
+    "parakeet-live": [0.04, 0.06]
+  },
+  "reference_check": [
+    {"set": "LibriSpeech test-other, first 60 utterances", "chunk_ms": 560, "reference_wer": 8.62, "runtime_wer": 9.16},
+    {"set": "FLEURS German, first 50 files", "chunk_ms": 560, "reference_wer": 11.17, "runtime_wer": 11.50}
+  ]
+}
