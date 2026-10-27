@@ -249,7 +249,8 @@ Creating a model does not download or load weights.
 and verifies the size and SHA-256 digest of each one.
 `.v3` and `.ultra` need about 632 MB each, and `.unified` about 614 MB.
 Modules with volatile or fast results also use an 8-second live encoder,
-about 591 MB more, which makes live transcription faster.
+about 591 MB more, which makes live transcription faster
+but raises its word error rate on long files.
 Until it is installed, those modules use the 15-second encoder,
 and `AssetInventory.status(forModules:)` reports them as not installed.
 
@@ -465,17 +466,18 @@ Apple's transcriber was not run on FLEURS.
 | FLEURS French | 6.55% | 9.13% | 5.62% | 5.82% | | | |
 | AMI meetings, headset mix | 26.72% | 23.95% | 25.17% | 23.56% | 25.25% | 25.41% | 29.24% |
 
-Parakeet file mode processes an hour of audio in 20 to 40 seconds,
-and live mode in about 2 minutes.
-Peak memory stays below 100 MB except while Core ML compiles a model,
+Parakeet v3 and Ultra process an hour of audio in 18 to 31 seconds in file mode
+and in 93 to 112 seconds in live mode;
+Unified takes 33 to 42 seconds and 124 to 136 seconds.
+Peak memory is about 100 MB except while Core ML compiles a model,
 which can take about 680 MB.
-Parakeet word start times have a median error of 60 ms
+Parakeet v3 and Ultra word start times have a median error of 60 ms
 against forced alignments of LibriSpeech.
 
 With Parakeet v3 in the same analyzer,
 Sortformer's diarization error rate on the 16 AMI test meetings,
 with overlapping speech and no collar,
-was 26.52% for v2 and 24.26% for v2.1.
+was 25.73% for v2 and 23.42% for v2.1.
 
 ## Limitations
 
@@ -485,6 +487,7 @@ was 26.52% for v2 and 24.26% for v2.1.
   Live mode does this less often.
 - Parakeet sometimes decodes a window of speech as silence,
   mostly in live mode and in meetings with overlapping speech.
+- Parakeet Unified's word start times are currently about 300 ms late.
 - Parakeet on a physical iPhone, the OS 26 runtime,
   and the minimum Swift 6.2 toolchain are not yet tested.
 - With Apple's analyzer, `finalize(through:)` for the newest audio
