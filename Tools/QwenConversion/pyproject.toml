@@ -15,7 +15,7 @@ dependencies = [
     "soundfile",
     # transformers 5.20 imports torch.distributed.checkpoint.hf_storage, which PyTorch 2.7 lacks.
     # coremltools 9.0 is tested with PyTorch 2.7 and warns about 2.8.
-    "torch==2.8.0",
+    "torch==2.13.0",
     # Qwen3ASRForConditionalGeneration first shipped in transformers 5.13.0.
     "transformers==5.20.0",
 ]
