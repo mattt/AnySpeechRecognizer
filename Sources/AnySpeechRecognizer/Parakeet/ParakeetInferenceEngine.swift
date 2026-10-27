@@ -100,14 +100,33 @@ struct ParakeetJointDecision: Sendable, Equatable {
     var duration: Int
 }
 
-/// Runs the neural networks of a Parakeet TDT model.
+/// Runs the prediction and joint networks of a transducer, which greedy decoding needs.
 ///
 /// Implementations convert their outputs to plain Swift values, so the decoder does not
 /// depend on a framework's tensor types. An engine that produces raw logits takes the
 /// argmax of the token and duration logits and a softmax probability for the token.
-/// An engine can keep reusable buffers, so one owner uses it at a time.
-protocol ParakeetInferenceEngine: AnyObject {
+/// A transducer without durations, such as an RNN-T model, reports duration 0 for every
+/// token and lists `[0]` as its durations. An engine can keep reusable buffers, so one owner
+/// uses it at a time.
+protocol ParakeetTransducer: AnyObject {
     var model: ParakeetModelDescription { get }
+
+    /// Advances the prediction network by one token.
+    ///
+    /// - Parameters:
+    ///   - token: The previous token, or the blank token to start.
+    ///   - state: The LSTM state before `token`; receives the state after it.
+    ///   - output: Receives the prediction network output, `decoderHiddenSize` values.
+    func predict(token: Int, state: inout ParakeetDecoderState, output: inout [Float]) throws
+
+    /// Evaluates the joint network for one encoder frame and prediction network output.
+    func joint(
+        encoderFrame: UnsafeBufferPointer<Float>, decoderOutput: UnsafeBufferPointer<Float>
+    ) throws -> ParakeetJointDecision
+}
+
+/// Runs the neural networks of a Parakeet TDT model.
+protocol ParakeetInferenceEngine: ParakeetTransducer {
     /// The contract of a longer-window encoder for windows that commit without right
     /// context, or `nil` when the engine has only one encoder.
     var forcedCommitModel: ParakeetModelDescription? { get }
@@ -128,19 +147,6 @@ protocol ParakeetInferenceEngine: AnyObject {
         mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws
-
-    /// Advances the prediction network by one token.
-    ///
-    /// - Parameters:
-    ///   - token: The previous token, or the blank token to start.
-    ///   - state: The LSTM state before `token`; receives the state after it.
-    ///   - output: Receives the prediction network output, `decoderHiddenSize` values.
-    func predict(token: Int, state: inout ParakeetDecoderState, output: inout [Float]) throws
-
-    /// Evaluates the joint network for one encoder frame and prediction network output.
-    func joint(
-        encoderFrame: UnsafeBufferPointer<Float>, decoderOutput: UnsafeBufferPointer<Float>
-    ) throws -> ParakeetJointDecision
 }
 
 extension ParakeetInferenceEngine {

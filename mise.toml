@@ -28,6 +28,8 @@ run = '''
 # Parakeet: ANYSPEECH_PARAKEET_MODELS=<staged model directory>
 #           ANYSPEECH_PARAKEET_LONG_AUDIO=<speech longer than 15 s>
 #           ANYSPEECH_PARAKEET_SHORT_AUDIO=<speech shorter than 15 s> (optional)
+# Nemotron: ANYSPEECH_NEMOTRON_MODELS=<directory from Tools/NemotronConversion>
+#           ANYSPEECH_NEMOTRON_AUDIO=<speech> (optional)
 set -euo pipefail
 filters=()
 if [ -n "${ANYSPEECH_INTEGRATION_AUDIO:-}" ]; then
@@ -36,8 +38,11 @@ fi
 if [ -n "${ANYSPEECH_PARAKEET_MODELS:-}" ]; then
     filters+=(--filter ParakeetAnalyzer --filter ParakeetModelTests)
 fi
+if [ -n "${ANYSPEECH_NEMOTRON_MODELS:-}" ]; then
+    filters+=(--filter NemotronCoreMLTests)
+fi
 if [ "${#filters[@]}" -eq 0 ]; then
-    echo "error: Set ANYSPEECH_INTEGRATION_AUDIO or ANYSPEECH_PARAKEET_MODELS." >&2
+    echo "error: Set ANYSPEECH_INTEGRATION_AUDIO, ANYSPEECH_PARAKEET_MODELS, or ANYSPEECH_NEMOTRON_MODELS." >&2
     exit 1
 fi
 exec xcrun swift test --no-parallel "${filters[@]}"
@@ -65,4 +70,12 @@ run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 exec xcrun swift run hear prepare --backend parakeet "$@"
+'''
+
+[tasks."prepare:nemotron"]
+description = "Download, verify, and prepare the pinned Nemotron assets"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+exec xcrun swift run hear prepare --backend nemotron "$@"
 '''

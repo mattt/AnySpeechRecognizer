@@ -10,7 +10,7 @@ struct ParakeetDecoderContext: Sendable, Equatable {
     var lastToken: Int?
 
     /// Starts the prediction network with the blank token from a zero state, as NeMo does.
-    static func initial(engine: any ParakeetInferenceEngine) throws -> Self {
+    static func initial(engine: any ParakeetTransducer) throws -> Self {
         var state = ParakeetDecoderState(zeroFor: engine.model)
         var output: [Float] = []
         try engine.predict(token: engine.model.blankID, state: &state, output: &output)
@@ -79,7 +79,7 @@ struct ParakeetTDTDecoder {
     /// - Returns: The frame index where decoding stops, `end` or later.
     func decode(
         _ encoder: ParakeetEncoderOutput, from start: Int, to end: Int,
-        context: inout ParakeetDecoderContext, engine: any ParakeetInferenceEngine,
+        context: inout ParakeetDecoderContext, engine: any ParakeetTransducer,
         frameOffset: Int = 0, previousTokenEnd: Int = 0,
         into tokens: inout [ParakeetDecodedToken]
     ) throws -> Int {
@@ -137,7 +137,7 @@ struct ParakeetTDTDecoder {
     /// Blanks before `previousTokenEnd` advance at most to it, as in `decode`.
     func decodeWindow(
         _ encoder: ParakeetEncoderOutput, from start: Int, commit: Int, end: Int,
-        context: ParakeetDecoderContext, engine: any ParakeetInferenceEngine, frameOffset: Int,
+        context: ParakeetDecoderContext, engine: any ParakeetTransducer, frameOffset: Int,
         previousTokenEnd: Int = 0
     ) throws -> ParakeetWindowDecoding {
         var committedContext = context
