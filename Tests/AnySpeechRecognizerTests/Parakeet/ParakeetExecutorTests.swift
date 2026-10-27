@@ -77,4 +77,27 @@ struct ParakeetExecutorTests {
         }
         #expect(finals.last.map { String($0.text.characters) } == " two.")
     }
+
+    /// A staged directory for Unified, prepared as v3, fails before the encoder loads.
+    @Test func preparationRejectsTheVocabularyOfAnotherVariant() async throws {
+        try await withTemporaryModelRoot { directory in
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true)
+            let pieces = (0..<1024).map { "▁\($0)" }
+            try JSONSerialization.data(withJSONObject: pieces).write(
+                to: directory.appending(path: "parakeet_vocab.json"))
+            let executor = ParakeetExecutor(
+                model: ParakeetSpeechModel(variant: .v3, assets: .directory(directory)))
+            let error = await #expect(throws: SpeechRecognitionError.self) {
+                try await executor.prepare(
+                    request: .transcription(.init()), format: AudioFormats.monoFloat16k,
+                    context: AnalysisContext())
+            }
+            guard case .unsupportedConfiguration(let reason) = error else {
+                Issue.record("Expected unsupportedConfiguration, got \(String(describing: error)).")
+                return
+            }
+            #expect(reason.contains("has 1024 tokens, but the v3 variant has 8192"))
+        }
+    }
 }
