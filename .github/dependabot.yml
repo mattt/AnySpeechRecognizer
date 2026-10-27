@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # The conversion tools run only in development, on published model checkpoints.
+  # Their PyTorch, Transformers, and Lightning versions are pinned
+  # for compatibility with coremltools and NeMo,
+  # so Dependabot does not propose updates to them.
+  # Security updates for other packages continue;
+  # the limit of 0 turns off version updates.
+  - package-ecosystem: "uv"
+    directories:
+      - "/Tools/ParakeetConversion"
+      - "/Tools/QwenConversion"
+      - "/Tools/SortformerConversion"
+      - "/Tools/SortformerConversion/v2.1"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "torch"
+      - dependency-name: "torchaudio"
+      - dependency-name: "transformers"
+      - dependency-name: "lightning"
