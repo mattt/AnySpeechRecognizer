@@ -206,17 +206,17 @@ or the OS 27 capture and asset input providers.
 
 ## Backends
 
-| Capability | Apple | Parakeet |
-| --- | --- | --- |
-| `SpeechTranscriber` | Yes | Yes |
-| `DictationTranscriber`, `SpeechDetector` | Yes | No |
-| Live input and volatile results | Yes | Yes |
-| Fast results | Yes | Yes, with less right context |
-| Alternatives, etiquette replacement | Yes | No |
-| Word timing | Yes | Yes, in 80 ms frames |
-| Confidence | Yes | Yes, the geometric mean of token probabilities |
-| Language | Selected by locale | Detected automatically, not reported; English only for `.unified` |
-| Assets | Apple's inventory | Pinned files in the Hugging Face cache |
+| Capability | Apple | Parakeet | Qwen3-ASR |
+| --- | --- | --- | --- |
+| `SpeechTranscriber` | Yes | Yes | Yes |
+| `DictationTranscriber`, `SpeechDetector` | Yes | No | No |
+| Live input and volatile results | Yes | Yes | No; live input gives final results per segment |
+| Fast results | Yes | Yes, with less right context | No |
+| Alternatives, etiquette replacement | Yes | No | No |
+| Word timing | Yes | Yes, in 80 ms frames | No; each result has its segment's range |
+| Confidence | Yes | Yes, the geometric mean of token probabilities | No |
+| Language | Selected by locale | Detected automatically, not reported; English only for `.unified` | Detected automatically, not reported, or forced |
+| Assets | Apple's inventory | Pinned files in the Hugging Face cache | Pinned files in the Hugging Face cache |
 
 Requests for an unsupported module or option fail before the analyzer reads audio.
 
@@ -274,6 +274,53 @@ The directory contains `Encoder_v2.mlmodelc` or `Encoder.mlmodelc`,
 `Decoder.mlmodelc`, `JointDecisionv3.mlmodelc`, `parakeet_vocab.json`,
 and optionally the live encoder, `Encoder8s.mlmodelc`.
 The runtime does not verify a staged directory.
+
+### Qwen3-ASR
+
+`QwenSpeechModel` runs Alibaba's
+[Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf) or
+[Qwen3-ASR-1.7B](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf) on Core ML
+for file transcription.
+It recognizes 30 languages and 22 Chinese dialects,
+including Mandarin, Cantonese, Japanese, and Korean, which Parakeet does not cover.
+The conversions are published at
+[mattt/qwen3-asr-0.6b-coreml](https://huggingface.co/mattt/qwen3-asr-0.6b-coreml)
+and [mattt/qwen3-asr-1.7b-coreml](https://huggingface.co/mattt/qwen3-asr-1.7b-coreml),
+and `AssetInventory` installs and verifies their pinned files as it does Parakeet's:
+
+```swift
+let transcriber = SpeechTranscriber(
+    model: QwenSpeechModel(
+        variant: .large,
+        language: Locale.Language(identifier: "yue")  // or nil to detect it
+    ),
+    transcriptionOptions: [],
+    reportingOptions: [],
+    attributeOptions: []
+)
+```
+
+To use a conversion that you make with [`Tools/QwenConversion`](Tools/QwenConversion),
+pass its output directory as `assets: .directory(url)`.
+
+The model transcribes audio in segments of up to 40 seconds,
+cut at the quietest point near 30 seconds, as the original Qwen3-ASR library cuts long audio.
+Each segment becomes one final result with the segment's source range.
+Results arrive when a segment is complete:
+at a cut, at a gap in the input, or at finalization.
+Live input works, but results trail the audio by up to 40 seconds.
+Requests for volatile or fast results, word timing, confidence, or dictation
+fail with `SpeechRecognitionError.unsupportedConfiguration` before the analyzer reads audio.
+The model card's separate forced-alignment model, Qwen3-ForcedAligner-0.6B,
+predicts word timing but is not integrated,
+so results have no time attributes.
+
+Qwen3-ASR-1.7B is more accurate than 0.6B in every test below.
+Each converted model is an int8 audio encoder and an int8 text decoder
+with a float16 embedding table:
+0.94 GB for 0.6B (187 MB and 754 MB) and 2.36 GB for 1.7B (319 MB and 2,035 MB).
+Both models run on the GPU; Core ML cannot build the decoder for the Neural Engine.
+While it transcribes, a Mac needs about 1.7 GB of memory for 0.6B and 4.4 GB for 1.7B.
 
 ## Speaker diarization
 
@@ -435,6 +482,9 @@ $ swift run hear transcribe recording.wav --backend apple --locale en-US --json
 ```
 
 Every command requires an explicit `--backend`.
+`--backend qwen` uses the built-in assets of the size that `--version` selects
+(default: 1.7b) unless `--model-directory` names a staged directory,
+and its `--locale` forces a language, such as `--locale ja`.
 `prepare` is the only command that downloads;
 `status` checks assets without downloading.
 `--live` reads the file in 100 ms blocks with volatile results,
@@ -474,6 +524,36 @@ which can take about 680 MB.
 Parakeet v3 and Ultra word start times have a median error of 60 ms
 against forced alignments of LibriSpeech.
 
+For Qwen3-ASR, the table below gives character error rates on the first 100 FLEURS test files,
+counted after NFKC normalization, without punctuation, symbols, or spaces;
+Cantonese texts are first converted to simplified characters with OpenCC,
+because the references use traditional characters and the model writes either script.
+The references write numbers as digits, Latin names in Latin script,
+and some English glosses in parentheses that speakers did not always read.
+The model often writes such numbers in words and such names in the local script,
+so these rates are higher than the model card's.
+The transformers columns transcribe each file in one call with greedy decoding on the CPU;
+the package's runtime stays within 0.32 points of them.
+
+| Test set | 0.6B | 0.6B, transformers | 1.7B | 1.7B, transformers |
+| --- | --- | --- | --- | --- |
+| FLEURS Mandarin | 7.11% | 7.14% | 6.28% | 6.25% |
+| FLEURS Japanese | 9.49% | 9.31% | 6.10% | 6.08% |
+| FLEURS Korean | 5.29% | 4.97% | 3.93% | 3.80% |
+| FLEURS Cantonese | 8.15% | | 6.25% | |
+| LibriSpeech test-clean, utterances (WER) | 2.14% | 2.10% | 1.97% | 1.86% |
+| LibriSpeech test-other, utterances (WER) | 4.65% | 4.63% | 3.46% | 3.40% |
+
+On the other sets of the first table, measured on October 16, 2026,
+Qwen3-ASR 0.6B had word error rates of 1.68% and 2.63% on the test-clean and test-other
+3–8 min files, 6.67% on FLEURS German, 8.71% on FLEURS French, and 26.31% on the AMI meetings.
+
+On these utterances, Qwen3-ASR file mode took 13 to 19 minutes per hour of audio with 0.6B
+and 18 to 22 minutes with 1.7B; long files took 8 to 9 minutes per hour with 0.6B.
+Peak memory was 1.7 GB for 0.6B and 4.4 GB for 1.7B.
+Another speech pipeline used the GPU during most of these runs,
+so the times are high and approximate.
+
 With Parakeet v3 in the same analyzer,
 Sortformer's diarization error rate on the 16 AMI test meetings,
 with overlapping speech and no collar,
@@ -490,6 +570,9 @@ was 25.73% for v2 and 23.42% for v2.1.
 - Parakeet Unified's word start times are currently about 300 ms late.
 - Parakeet on a physical iPhone, the OS 26 runtime,
   and the minimum Swift 6.2 toolchain are not yet tested.
+- Qwen3-ASR transcribes files only, with no word timing and no context prompt,
+  and it is not tested on iOS devices.
+  Its decoder runs only on the GPU, and file mode is about 25 times slower than Parakeet's.
 - With Apple's analyzer, `finalize(through:)` for the newest audio
   can wait until more input arrives while the input stream stays open.
 - An interrupted download keeps the files that finished,
@@ -515,15 +598,18 @@ Swift comes from the selected Xcode.
 
 Integration tests read their inputs from environment variables:
 `ANYSPEECH_INTEGRATION_AUDIO` selects the Apple tests,
-and `ANYSPEECH_PARAKEET_MODELS` with `ANYSPEECH_PARAKEET_LONG_AUDIO`
-selects the Parakeet tests.
+`ANYSPEECH_PARAKEET_MODELS` with `ANYSPEECH_PARAKEET_LONG_AUDIO`
+selects the Parakeet tests,
+and `ANYSPEECH_QWEN_MODELS` with `ANYSPEECH_QWEN_AUDIO` selects the Qwen3-ASR tests.
 
 The [`Tools`](Tools) directory contains the development tools:
 
 - [`ParakeetConversion`](Tools/ParakeetConversion) and
   [`SortformerConversion`](Tools/SortformerConversion)
   convert NVIDIA's checkpoints to the Core ML models that the package downloads.
-- `make-parakeet-manifest.py` and `make-sortformer-manifest.py`
+- [`QwenConversion`](Tools/QwenConversion) converts, verifies, and packages Qwen3-ASR
+  for `QwenSpeechModel`.
+- `make-parakeet-manifest.py`, `make-sortformer-manifest.py`, and `make-qwen-manifest.py`
   generate the pinned model manifests.
 - `natural-speech-eval.py` downloads the test sets
   and reproduces the measurements above.
@@ -555,6 +641,16 @@ These models are licensed under CC BY 4.0:
 - Sortformer v2 by NVIDIA
   ([source](https://huggingface.co/nvidia/diar_streaming_sortformer_4spk-v2),
   [Core ML conversion](https://huggingface.co/mattt/diar-streaming-sortformer-4spk-v2-coreml)).
+
+These models are licensed under the
+[Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0):
+
+- Qwen3-ASR 0.6B by the Qwen team, Alibaba Cloud
+  ([source](https://huggingface.co/Qwen/Qwen3-ASR-0.6B-hf),
+  [Core ML conversion](https://huggingface.co/mattt/qwen3-asr-0.6b-coreml)).
+- Qwen3-ASR 1.7B by the Qwen team, Alibaba Cloud
+  ([source](https://huggingface.co/Qwen/Qwen3-ASR-1.7B-hf),
+  [Core ML conversion](https://huggingface.co/mattt/qwen3-asr-1.7b-coreml)).
 
 These models are licensed under the
 [NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/):
