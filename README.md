@@ -320,7 +320,8 @@ Each converted model is an int8 audio encoder and an int8 text decoder
 with a float16 embedding table:
 0.94 GB for 0.6B (187 MB and 754 MB) and 2.36 GB for 1.7B (319 MB and 2,035 MB).
 Both models run on the GPU; Core ML cannot build the decoder for the Neural Engine.
-While it transcribes, a Mac needs about 1.7 GB of memory for 0.6B and 4.4 GB for 1.7B.
+While it transcribes, a Mac needs about 1.7 GB of memory for 0.6B and 4.4 GB for 1.7B,
+for a 10-second file as for a 36-minute meeting.
 
 ## Speaker diarization
 
@@ -544,15 +545,20 @@ the package's runtime stays within 0.32 points of them.
 | LibriSpeech test-clean, utterances (WER) | 2.14% | 2.10% | 1.97% | 1.86% |
 | LibriSpeech test-other, utterances (WER) | 4.65% | 4.63% | 3.46% | 3.40% |
 
-On the other sets of the first table, measured on October 16, 2026,
-Qwen3-ASR 0.6B had word error rates of 1.68% and 2.63% on the test-clean and test-other
-3–8 min files, 6.67% on FLEURS German, 8.71% on FLEURS French, and 26.31% on the AMI meetings.
+On the other sets of the first table,
+Qwen3-ASR had word error rates of 1.68% with 0.6B and 1.58% with 1.7B
+on the test-clean 3–8 min files,
+2.63% and 1.94% on the test-other 3–8 min files,
+6.67% and 3.88% on FLEURS German, 8.71% and 5.12% on FLEURS French,
+and 26.31% and 24.49% on the AMI meetings.
 
-On these utterances, Qwen3-ASR file mode took 13 to 19 minutes per hour of audio with 0.6B
-and 18 to 22 minutes with 1.7B; long files took 8 to 9 minutes per hour with 0.6B.
+On the sets of this table, Qwen3-ASR file mode took 10.5 to 15.4 minutes per hour of audio
+with 0.6B and 14.5 to 21.2 minutes with 1.7B;
+the 3–8 min files took 7.9 to 8.1 minutes per hour with 0.6B
+and 12.6 to 12.9 minutes with 1.7B.
+These times leave out model loading and Core ML compilation,
+and each is the median of two runs that differed by less than 2%.
 Peak memory was 1.7 GB for 0.6B and 4.4 GB for 1.7B.
-Another speech pipeline used the GPU during most of these runs,
-so the times are high and approximate.
 
 With Parakeet v3 in the same analyzer,
 Sortformer's diarization error rate on the 16 AMI test meetings,
@@ -572,7 +578,8 @@ was 25.73% for v2 and 23.42% for v2.1.
   and the minimum Swift 6.2 toolchain are not yet tested.
 - Qwen3-ASR transcribes files only, with no word timing and no context prompt,
   and it is not tested on iOS devices.
-  Its decoder runs only on the GPU, and file mode is about 25 times slower than Parakeet's.
+  Its decoder runs only on the GPU, and file mode takes 8 to 21 minutes per hour of audio,
+  where Parakeet v3 and Ultra take 18 to 31 seconds.
 - With Apple's analyzer, `finalize(through:)` for the newest audio
   can wait until more input arrives while the input stream stays open.
 - An interrupted download keeps the files that finished,
