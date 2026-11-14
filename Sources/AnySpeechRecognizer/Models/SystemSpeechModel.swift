@@ -13,7 +13,11 @@ public struct SystemSpeechModel: SpeechRecognitionModel {
     public let locale: Locale
     public var modelID: String { "apple/speech/\(locale.identifier)" }
     public let capabilities = SpeechRecognitionCapabilities(
-        transcription: .all, dictation: .all, liveInput: true, languageControl: true)
+        transcription: .all,
+        dictation: .all,
+        liveInput: true,
+        languageControl: true
+    )
 
     /// Creates an Apple model configuration without loading or downloading assets.
     /// - Parameter locale: The recognition locale.
@@ -27,15 +31,19 @@ public struct SystemSpeechModel: SpeechRecognitionModel {
         switch request {
         case .transcription(let configuration):
             Speech.SpeechTranscriber(
-                locale: locale, transcriptionOptions: configuration.transcriptionOptions,
-                reportingOptions: configuration.reportingOptions,
-                attributeOptions: configuration.attributeOptions)
-        case .dictation(let configuration):
-            Speech.DictationTranscriber(
-                locale: locale, contentHints: configuration.contentHints,
+                locale: locale,
                 transcriptionOptions: configuration.transcriptionOptions,
                 reportingOptions: configuration.reportingOptions,
-                attributeOptions: configuration.attributeOptions)
+                attributeOptions: configuration.attributeOptions
+            )
+        case .dictation(let configuration):
+            Speech.DictationTranscriber(
+                locale: locale,
+                contentHints: configuration.contentHints,
+                transcriptionOptions: configuration.transcriptionOptions,
+                reportingOptions: configuration.reportingOptions,
+                attributeOptions: configuration.attributeOptions
+            )
         }
     }
 
@@ -70,10 +78,12 @@ public struct SystemSpeechModel: SpeechRecognitionModel {
         switch await availability() {
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
-                "Apple Speech is unavailable on this device.")
+                "Apple Speech is unavailable on this device."
+            )
         case .unsupportedLanguage:
             throw SpeechRecognitionError.unsupportedLanguage(
-                "Apple Speech does not support \(locale.identifier).")
+                "Apple Speech does not support \(locale.identifier)."
+            )
         default: break
         }
         let module = Speech.SpeechTranscriber(locale: locale, preset: .transcription)
@@ -88,19 +98,26 @@ public struct SystemSpeechModel: SpeechRecognitionModel {
     public func diagnostics() async -> SpeechRecognitionDiagnostics {
         let effective = await Speech.SpeechTranscriber.supportedLocale(equivalentTo: locale)
         return .init(
-            provider: "Apple Speech", modelID: modelID, computeConfiguration: "OS-managed",
-            requestedLocale: locale.identifier, effectiveLocale: effective?.identifier,
-            capabilities: capabilities)
+            provider: "Apple Speech",
+            modelID: modelID,
+            computeConfiguration: "OS-managed",
+            requestedLocale: locale.identifier,
+            effectiveLocale: effective?.identifier,
+            capabilities: capabilities
+        )
     }
 }
 
 /// Rejects direct use; Apple-backed modules run on the analyzer's native engine.
 private struct SystemSpeechExecutor: SpeechRecognitionExecutor {
     func prepare(
-        request: SpeechRecognitionRequest, format: AVAudioFormat, context: AnalysisContext
+        request: SpeechRecognitionRequest,
+        format: AVAudioFormat,
+        context: AnalysisContext
     ) async throws {
         throw SpeechRecognitionError.unsupportedConfiguration(
-            "Apple Speech modules run only inside a SpeechAnalyzer.")
+            "Apple Speech modules run only inside a SpeechAnalyzer."
+        )
     }
     func analyze(_ input: SpeechAnalysisInput, results: SpeechRecognitionResultSink) async throws {
         throw CancellationError()

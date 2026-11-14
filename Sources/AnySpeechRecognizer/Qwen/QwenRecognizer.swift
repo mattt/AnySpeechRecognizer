@@ -49,9 +49,11 @@ final class QwenRecognizer {
             window.withUnsafeMutableBufferPointer { window in
                 window.update(repeating: 0)
                 features.withUnsafeBufferPointer { features in
-                    for bin in 0..<audio.melBins {
+                    for bin in 0 ..< audio.melBins {
                         (window.baseAddress! + bin * audio.windowFrames).update(
-                            from: features.baseAddress! + bin * frames + start, count: length)
+                            from: features.baseAddress! + bin * frames + start,
+                            count: length
+                        )
                     }
                 }
             }
@@ -63,7 +65,9 @@ final class QwenRecognizer {
             let tokens = configuration.audioTokenCount(melFrames: length)
             values.withUnsafeMutableBufferPointer { values in
                 (values.baseAddress! + written * hidden).update(
-                    from: encoded, count: tokens * hidden)
+                    from: encoded,
+                    count: tokens * hidden
+                )
             }
             written += tokens
         }
@@ -77,7 +81,9 @@ final class QwenRecognizer {
         var samples = samples
         if samples.count < configuration.audio.minimumSamples {
             samples += [Float](
-                repeating: 0, count: configuration.audio.minimumSamples - samples.count)
+                repeating: 0,
+                count: configuration.audio.minimumSamples - samples.count
+            )
         }
         let (audio, audioCount) = try audioEmbeddings(samples)
         let prompt = configuration.prompt
@@ -89,7 +95,9 @@ final class QwenRecognizer {
         var embeddings = [Float](repeating: 0, count: ids.count * hidden)
         embeddings.withUnsafeMutableBufferPointer { embeddings in
             (embeddings.baseAddress! + prompt.prefix.count * hidden).update(
-                from: audio, count: audio.count)
+                from: audio,
+                count: audio.count
+            )
         }
         guard ids.count < configuration.contextLength else {
             throw SpeechRecognitionError.invalidAudio(
@@ -116,9 +124,11 @@ final class QwenRecognizer {
         }
         let parsed = QwenOutput.parse(vocabulary.text(for: tokens))
         return Transcript(
-            language: prefill == nil ? parsed.language : nil, text: parsed.transcript,
+            language: prefill == nil ? parsed.language : nil,
+            text: parsed.transcript,
             tokens: tokens,
-            reachedContextLimit: reachedContextLimit)
+            reachedContextLimit: reachedContextLimit
+        )
     }
 }
 
@@ -141,7 +151,8 @@ enum QwenSegmenter {
     ///   - search: How far from the target the boundary can be, in samples.
     /// - Returns: A boundary from 1 to `samples.count`.
     static func boundary(
-        in samples: UnsafeBufferPointer<Float>, target: Int = targetSamples,
+        in samples: UnsafeBufferPointer<Float>,
+        target: Int = targetSamples,
         search: Int = searchSamples
     ) -> Int {
         let count = samples.count
@@ -151,12 +162,12 @@ enum QwenSegmenter {
         guard upper - lower > windowSamples else { return max(1, cut) }
         // Window sums of absolute values, from prefix sums in double precision.
         var prefix = [Double](repeating: 0, count: upper - lower + 1)
-        for index in lower..<upper {
+        for index in lower ..< upper {
             prefix[index - lower + 1] = prefix[index - lower] + Double(abs(samples[index]))
         }
         var quietest = 0
         var smallest = Double.infinity
-        for start in 0...(upper - lower - windowSamples) {
+        for start in 0 ... (upper - lower - windowSamples) {
             let sum = prefix[start + windowSamples] - prefix[start]
             if sum < smallest {
                 smallest = sum
@@ -164,7 +175,7 @@ enum QwenSegmenter {
             }
         }
         var inner = 0
-        for offset in 0..<windowSamples
+        for offset in 0 ..< windowSamples
         where abs(samples[lower + quietest + offset]) < abs(samples[lower + quietest + inner]) {
             inner = offset
         }

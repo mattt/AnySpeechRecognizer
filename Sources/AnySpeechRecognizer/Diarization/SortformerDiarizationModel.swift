@@ -114,8 +114,12 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
         ///   - minimumSpeechDuration: Seconds below which speech runs are removed.
         ///   - minimumGapDuration: Seconds below which gaps are filled.
         public init(
-            onset: Float, offset: Float, padOnset: Double = 0, padOffset: Double = 0,
-            minimumSpeechDuration: Double = 0, minimumGapDuration: Double = 0
+            onset: Float,
+            offset: Float,
+            padOnset: Double = 0,
+            padOffset: Double = 0,
+            minimumSpeechDuration: Double = 0,
+            minimumGapDuration: Double = 0
         ) {
             self.onset = onset
             self.offset = offset
@@ -130,13 +134,23 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
         ///
         /// NVIDIA publishes no parameters for v2.1, so both versions use these by default.
         public static let callHome = PostProcessing(
-            onset: 0.641, offset: 0.561, padOnset: 0.229, padOffset: 0.079,
-            minimumSpeechDuration: 0.511, minimumGapDuration: 0.296)
+            onset: 0.641,
+            offset: 0.561,
+            padOnset: 0.229,
+            padOffset: 0.079,
+            minimumSpeechDuration: 0.511,
+            minimumGapDuration: 0.296
+        )
         /// NeMo's parameters for Streaming Sortformer v2, tuned on the DIHARD III
         /// development set.
         public static let dihard3 = PostProcessing(
-            onset: 0.56, offset: 1.0, padOnset: 0.063, padOffset: 0.002,
-            minimumSpeechDuration: 0.007, minimumGapDuration: 0.151)
+            onset: 0.56,
+            offset: 1.0,
+            padOnset: 0.063,
+            padOffset: 0.002,
+            minimumSpeechDuration: 0.007,
+            minimumGapDuration: 0.151
+        )
         /// Thresholds of 0.5 without padding or filtering.
         public static let none = PostProcessing(onset: 0.5, offset: 0.5)
 
@@ -145,9 +159,13 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
                 CMTime(value: CMTimeValue((max(0, seconds) * 16_000).rounded()), timescale: 16_000)
             }
             return .init(
-                onset: onset, offset: offset, padOnset: time(padOnset), padOffset: time(padOffset),
+                onset: onset,
+                offset: offset,
+                padOnset: time(padOnset),
+                padOffset: time(padOffset),
                 minimumDurationOn: time(minimumSpeechDuration),
-                minimumDurationOff: time(minimumGapDuration))
+                minimumDurationOff: time(minimumGapDuration)
+            )
         }
     }
 
@@ -166,8 +184,11 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
 
     public var modelID: String { manifest.identifier }
     public let capabilities = SpeakerDiarizationCapabilities(
-        maximumSpeakerCount: 4, overlappingSpeech: true, liveInput: true,
-        reportingOptions: [.volatileResults])
+        maximumSpeakerCount: 4,
+        overlappingSpeech: true,
+        liveInput: true,
+        reportingOptions: [.volatileResults]
+    )
 
     /// Creates a configuration without loading, inference, or downloads.
     /// - Parameters:
@@ -179,19 +200,28 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
     ///     resident memory from about 70 MB to about 500 MB.
     ///   - postProcessing: The thresholds and durations for speaker segments.
     public init(
-        version: Version = .v2, assets: Assets = .builtIn,
-        computeUnits: ComputeUnits = .cpuAndNeuralEngine, postProcessing: PostProcessing = .callHome
+        version: Version = .v2,
+        assets: Assets = .builtIn,
+        computeUnits: ComputeUnits = .cpuAndNeuralEngine,
+        postProcessing: PostProcessing = .callHome
     ) {
         self.init(
-            version: version, assets: assets, computeUnits: computeUnits,
-            postProcessing: postProcessing, manifest: version.manifest, store: .shared)
+            version: version,
+            assets: assets,
+            computeUnits: computeUnits,
+            postProcessing: postProcessing,
+            manifest: version.manifest,
+            store: .shared
+        )
     }
 
     /// Creates a configuration with a specific manifest, store, and engine, for tests.
     init(
-        version: Version = .v2, assets: Assets = .builtIn,
+        version: Version = .v2,
+        assets: Assets = .builtIn,
         computeUnits: ComputeUnits = .cpuAndNeuralEngine,
-        postProcessing: PostProcessing = .callHome, manifest: SortformerModelManifest,
+        postProcessing: PostProcessing = .callHome,
+        manifest: SortformerModelManifest,
         store: ModelAssetStore,
         makeInference: @escaping @Sendable (URL, MLComputeUnits) throws -> any SortformerInference =
             { try CoreMLSortformerEngine(contentsOf: $0, computeUnits: $1) }
@@ -241,7 +271,8 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
                 return store.status(of: manifest) == .installed ? .ready : .missingAssets
             case .compiledModel(let url):
                 return FileManager.default.fileExists(
-                    atPath: url.appending(path: "coremldata.bin").path)
+                    atPath: url.appending(path: "coremldata.bin").path
+                )
                     ? .ready : .missingAssets
             }
         #endif
@@ -255,12 +286,14 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
         case .ready: return nil
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
-                "The Sortformer runtime requires Apple silicon.")
+                "The Sortformer runtime requires Apple silicon."
+            )
         default: break
         }
         guard case .builtIn = assets else {
             throw SpeechRecognitionError.missingAssets(
-                "Stage the compiled Sortformer model at \(modelURL.path).")
+                "Stage the compiled Sortformer model at \(modelURL.path)."
+            )
         }
         let manifest = manifest
         let store = store
@@ -277,7 +310,8 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
         let builtIn = assets == .builtIn
         let processing = postProcessing
         return .init(
-            provider: "AnySpeechRecognizer Sortformer", modelID: modelID,
+            provider: "AnySpeechRecognizer Sortformer",
+            modelID: modelID,
             runtimeVersion: "Core ML",
             modelRepository: builtIn ? "\(manifest.repository)/\(manifest.model)" : modelURL.path,
             modelRevision: builtIn ? manifest.revision : nil,
@@ -285,7 +319,8 @@ public struct SortformerDiarizationModel: SpeakerDiarizationModel {
                 "\(computeUnits.rawValue); up to 4 speakers; onset \(processing.onset), "
                 + "offset \(processing.offset), pad \(processing.padOnset)/\(processing.padOffset) s, "
                 + "minimum speech \(processing.minimumSpeechDuration) s, "
-                + "minimum gap \(processing.minimumGapDuration) s")
+                + "minimum gap \(processing.minimumGapDuration) s"
+        )
     }
 }
 
@@ -312,7 +347,8 @@ actor SortformerExecutor: SpeakerDiarizationExecutor {
             format.commonFormat == .pcmFormatFloat32, !format.isInterleaved
         else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "Sortformer requires 16 kHz mono Float32 input.")
+                "Sortformer requires 16 kHz mono Float32 input."
+            )
         }
         let url = model.modelURL
         let units = model.computeUnits.coreML
@@ -324,8 +360,10 @@ actor SortformerExecutor: SpeakerDiarizationExecutor {
         guard !cancelled else { throw CancellationError() }
         self.request = request
         pipeline = SortformerPipeline(
-            inference: inference.value, parameters: model.postProcessing.segmenterParameters,
-            reportsVolatileResults: request.includesVolatileResults)
+            inference: inference.value,
+            parameters: model.postProcessing.segmenterParameters,
+            reportsVolatileResults: request.includesVolatileResults
+        )
     }
 
     func analyze(_ input: SpeechAnalysisInput, results: SpeakerDiarizationResultSink) async throws {
@@ -337,7 +375,8 @@ actor SortformerExecutor: SpeakerDiarizationExecutor {
             }
             let update = try pipeline.append(
                 UnsafeBufferPointer(start: samples, count: Int(buffer.buffer.frameLength)),
-                at: buffer.startTime)
+                at: buffer.startTime
+            )
             try await publish(update)
         }
     }

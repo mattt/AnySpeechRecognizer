@@ -62,7 +62,9 @@ public protocol SpeechRecognitionExecutor: Sendable {
     ///   - context: The initial analysis context.
     /// - Throws: A configuration, availability, or preparation error.
     func prepare(
-        request: SpeechRecognitionRequest, format: AVAudioFormat, context: AnalysisContext
+        request: SpeechRecognitionRequest,
+        format: AVAudioFormat,
+        context: AnalysisContext
     ) async throws
 
     /// Pulls input until the sequence ends, publishing results as they become available.
@@ -148,46 +150,64 @@ public enum SpeechRecognitionRequest: Sendable, Hashable {
         case .transcription(let configuration):
             guard let support = capabilities.transcription else {
                 throw SpeechRecognitionError.unsupportedConfiguration(
-                    "The model does not support SpeechTranscriber.")
+                    "The model does not support SpeechTranscriber."
+                )
             }
             try Self.check(
-                configuration.transcriptionOptions, supported: support.transcriptionOptions,
-                kind: "transcription option")
+                configuration.transcriptionOptions,
+                supported: support.transcriptionOptions,
+                kind: "transcription option"
+            )
             try Self.check(
-                configuration.reportingOptions, supported: support.reportingOptions,
-                kind: "reporting option")
+                configuration.reportingOptions,
+                supported: support.reportingOptions,
+                kind: "reporting option"
+            )
             try Self.check(
-                configuration.attributeOptions, supported: support.attributeOptions,
-                kind: "attribute option")
+                configuration.attributeOptions,
+                supported: support.attributeOptions,
+                kind: "attribute option"
+            )
         case .dictation(let configuration):
             guard let support = capabilities.dictation else {
                 throw SpeechRecognitionError.unsupportedConfiguration(
-                    "The model does not support DictationTranscriber.")
+                    "The model does not support DictationTranscriber."
+                )
             }
             guard configuration.contentHints.isEmpty || support.contentHints else {
                 throw SpeechRecognitionError.unsupportedConfiguration(
-                    "The model does not support dictation content hints.")
+                    "The model does not support dictation content hints."
+                )
             }
             try Self.check(
-                configuration.transcriptionOptions, supported: support.transcriptionOptions,
-                kind: "dictation transcription option")
+                configuration.transcriptionOptions,
+                supported: support.transcriptionOptions,
+                kind: "dictation transcription option"
+            )
             try Self.check(
-                configuration.reportingOptions, supported: support.reportingOptions,
-                kind: "dictation reporting option")
+                configuration.reportingOptions,
+                supported: support.reportingOptions,
+                kind: "dictation reporting option"
+            )
             try Self.check(
-                configuration.attributeOptions, supported: support.attributeOptions,
-                kind: "dictation attribute option")
+                configuration.attributeOptions,
+                supported: support.attributeOptions,
+                kind: "dictation attribute option"
+            )
         }
     }
 
     private static func check<Option: Hashable>(
-        _ requested: Set<Option>, supported: Set<Option>, kind: String
+        _ requested: Set<Option>,
+        supported: Set<Option>,
+        kind: String
     ) throws {
         let unsupported = requested.subtracting(supported)
         guard unsupported.isEmpty else {
             let names = unsupported.map { String(describing: $0) }.sorted().joined(separator: ", ")
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "The model does not support the \(kind) \(names).")
+                "The model does not support the \(kind) \(names)."
+            )
         }
     }
 }
@@ -238,7 +258,8 @@ public struct SpeechRecognitionCapabilities: Sendable, Hashable {
             .init(
                 transcriptionOptions: Set(SpeechTranscriber.TranscriptionOption.allCases),
                 reportingOptions: Set(SpeechTranscriber.ReportingOption.allCases),
-                attributeOptions: Set(SpeechTranscriber.ResultAttributeOption.allCases))
+                attributeOptions: Set(SpeechTranscriber.ResultAttributeOption.allCases)
+            )
         }
     }
 
@@ -277,7 +298,8 @@ public struct SpeechRecognitionCapabilities: Sendable, Hashable {
                 contentHints: true,
                 transcriptionOptions: Set(DictationTranscriber.TranscriptionOption.allCases),
                 reportingOptions: Set(DictationTranscriber.ReportingOption.allCases),
-                attributeOptions: Set(DictationTranscriber.ResultAttributeOption.allCases))
+                attributeOptions: Set(DictationTranscriber.ResultAttributeOption.allCases)
+            )
         }
     }
 
@@ -298,8 +320,10 @@ public struct SpeechRecognitionCapabilities: Sendable, Hashable {
     ///   - liveInput: Whether the provider supports live input.
     ///   - languageControl: Whether the provider can constrain the language.
     public init(
-        transcription: Transcription? = Transcription(), dictation: Dictation? = nil,
-        liveInput: Bool = false, languageControl: Bool = false
+        transcription: Transcription? = Transcription(),
+        dictation: Dictation? = nil,
+        liveInput: Bool = false,
+        languageControl: Bool = false
     ) {
         self.transcription = transcription
         self.dictation = dictation
@@ -382,7 +406,9 @@ public struct SpeechRecognitionResult: SpeechModuleResult, Sendable, Hashable {
     ///   - range: The source audio range.
     ///   - resultsFinalizationTime: The finalized audio boundary after this result.
     public init(
-        text: AttributedString, alternatives: [AttributedString] = [], range: CMTimeRange,
+        text: AttributedString,
+        alternatives: [AttributedString] = [],
+        range: CMTimeRange,
         resultsFinalizationTime: CMTime
     ) {
         self.text = text
@@ -414,7 +440,8 @@ public struct TimedAudioBuffer: @unchecked Sendable {
         startTime
             + CMTime(
                 value: CMTimeValue(buffer.frameLength),
-                timescale: CMTimeScale(buffer.format.sampleRate))
+                timescale: CMTimeScale(buffer.format.sampleRate)
+            )
     }
 }
 
@@ -486,10 +513,15 @@ public struct SpeechRecognitionDiagnostics: Codable, Sendable, Equatable {
     ///   - effectiveLocale: The resolved recognition locale, if the backend reports one.
     ///   - capabilities: The capabilities to list as supported options.
     public init(
-        provider: String, modelID: String, runtimeVersion: String? = nil,
-        modelRepository: String? = nil, modelRevision: String? = nil,
-        computeConfiguration: String, requestedLocale: String? = nil,
-        effectiveLocale: String? = nil, capabilities: SpeechRecognitionCapabilities? = nil
+        provider: String,
+        modelID: String,
+        runtimeVersion: String? = nil,
+        modelRepository: String? = nil,
+        modelRevision: String? = nil,
+        computeConfiguration: String,
+        requestedLocale: String? = nil,
+        effectiveLocale: String? = nil,
+        capabilities: SpeechRecognitionCapabilities? = nil
     ) {
         self.provider = provider
         self.modelID = modelID
@@ -544,13 +576,20 @@ extension SpeechRecognitionModel {
     }
     public func diagnostics() async -> SpeechRecognitionDiagnostics {
         .init(
-            provider: String(describing: Self.self), modelID: modelID,
-            computeConfiguration: "provider-defined", capabilities: capabilities)
+            provider: String(describing: Self.self),
+            modelID: modelID,
+            computeConfiguration: "provider-defined",
+            capabilities: capabilities
+        )
     }
 }
 
 enum AudioFormats {
     /// 16 kHz mono Float32, the default executor format.
     static let monoFloat16k = AVAudioFormat(
-        commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
+        commonFormat: .pcmFormatFloat32,
+        sampleRate: 16_000,
+        channels: 1,
+        interleaved: false
+    )!
 }

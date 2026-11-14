@@ -30,8 +30,10 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
     ///   - preset: The native preset.
     public convenience init(locale: Locale, preset: Preset) {
         self.init(
-            locale: locale, transcriptionOptions: preset.transcriptionOptions,
-            reportingOptions: preset.reportingOptions, attributeOptions: preset.attributeOptions
+            locale: locale,
+            transcriptionOptions: preset.transcriptionOptions,
+            reportingOptions: preset.reportingOptions,
+            attributeOptions: preset.attributeOptions
         )
     }
 
@@ -48,8 +50,10 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
         attributeOptions: Set<ResultAttributeOption>
     ) {
         self.init(
-            model: SystemSpeechModel(locale: locale), transcriptionOptions: transcriptionOptions,
-            reportingOptions: reportingOptions, attributeOptions: attributeOptions
+            model: SystemSpeechModel(locale: locale),
+            transcriptionOptions: transcriptionOptions,
+            reportingOptions: reportingOptions,
+            attributeOptions: attributeOptions
         )
     }
 
@@ -69,13 +73,17 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
     ) {
         self.model = model
         self.configuration = .init(
-            transcriptionOptions: transcriptionOptions, reportingOptions: reportingOptions,
+            transcriptionOptions: transcriptionOptions,
+            reportingOptions: reportingOptions,
             attributeOptions: attributeOptions
         )
         self.native = (model as? SystemSpeechModel).map {
             Speech.SpeechTranscriber(
-                locale: $0.locale, transcriptionOptions: transcriptionOptions,
-                reportingOptions: reportingOptions, attributeOptions: attributeOptions)
+                locale: $0.locale,
+                transcriptionOptions: transcriptionOptions,
+                reportingOptions: reportingOptions,
+                attributeOptions: attributeOptions
+            )
         }
     }
 
@@ -85,8 +93,11 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
     ///   - preset: The native preset.
     public convenience init(model: any SpeechRecognitionModel, preset: Preset) {
         self.init(
-            model: model, transcriptionOptions: preset.transcriptionOptions,
-            reportingOptions: preset.reportingOptions, attributeOptions: preset.attributeOptions)
+            model: model,
+            transcriptionOptions: preset.transcriptionOptions,
+            reportingOptions: preset.reportingOptions,
+            attributeOptions: preset.attributeOptions
+        )
     }
 
     /// Whether Apple's transcriber supports this device.
@@ -131,15 +142,23 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
         let channel = channel
         let native = native
         return .transcription(
-            owner: self, channel: channel, native: native, model: model,
-            request: .transcription(configuration), convert: Result.init(_:)
+            owner: self,
+            channel: channel,
+            native: native,
+            model: model,
+            request: .transcription(configuration),
+            convert: Result.init(_:)
         ) {
             guard let native else { return }
             for try await result in native.results {
                 try channel.publish(
                     Result(
-                        text: result.text, alternatives: result.alternatives, range: result.range,
-                        resultsFinalizationTime: result.resultsFinalizationTime))
+                        text: result.text,
+                        alternatives: result.alternatives,
+                        range: result.range,
+                        resultsFinalizationTime: result.resultsFinalizationTime
+                    )
+                )
             }
         }
     }
@@ -164,7 +183,9 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
         ///   - range: The source audio range.
         ///   - resultsFinalizationTime: The finalized audio boundary after this result.
         public init(
-            text: AttributedString, alternatives: [AttributedString] = [], range: CMTimeRange,
+            text: AttributedString,
+            alternatives: [AttributedString] = [],
+            range: CMTimeRange,
             resultsFinalizationTime: CMTime
         ) {
             self.text = text
@@ -175,8 +196,11 @@ public final class SpeechTranscriber: LocaleDependentSpeechModule, AnalyzerModul
 
         init(_ result: SpeechRecognitionResult) {
             self.init(
-                text: result.text, alternatives: result.alternatives, range: result.range,
-                resultsFinalizationTime: result.resultsFinalizationTime)
+                text: result.text,
+                alternatives: result.alternatives,
+                range: result.range,
+                resultsFinalizationTime: result.resultsFinalizationTime
+            )
         }
 
         public var description: String { String(text.characters) }

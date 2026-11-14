@@ -43,7 +43,8 @@ private func speakers(_ text: AttributedString) -> [String: Int?] {
     let timeline = SpeakerTimeline(segments: [segment(0, 0, 3), segment(1, 1, 2)])
     let text = transcript([("both", 1.2, 1.8), ("mostly", 1.5, 2.5), ("later", 2.2, 2.8)])
     #expect(
-        speakers(timeline.attributing(text)) == ["both": 0, "mostly": 0, "later": 0])
+        speakers(timeline.attributing(text)) == ["both": 0, "mostly": 0, "later": 0]
+    )
     let reversed = SpeakerTimeline(segments: [segment(1, 0, 3), segment(0, 1, 2)])
     #expect(speakers(reversed.attributing(transcript([("both", 1.2, 1.8)]))) == ["both": 1])
 }
@@ -54,13 +55,15 @@ private func speakers(_ text: AttributedString) -> [String: Int?] {
     #expect(speakers(timeline.attributing(text)) == ["near": 1, "far": nil, "between": 0])
     #expect(
         speakers(timeline.attributing(text, maximumGap: .zero))
-            == ["near": nil, "far": nil, "between": nil])
+            == ["near": nil, "far": nil, "between": nil]
+    )
     // Untimed runs, such as spaces, get no speaker.
     let attributed = timeline.attributing(text)
     #expect(
         attributed.runs.allSatisfy { run in
             run[TimeRangeAttribute.self] != nil || run[SpeakerAttribute.self] == nil
-        })
+        }
+    )
 }
 
 @Test func speakerTurnsGroupConsecutiveWords() throws {
@@ -86,7 +89,8 @@ private func speakers(_ text: AttributedString) -> [String: Int?] {
     // A final result clips volatile segments at its finalization time.
     #expect(timeline.volatileSegments == [segment(0, 1, 1.5)])
     timeline.apply(
-        diarization([segment(0, 1, 2), segment(1, 1.5, 2.5)], range: range(1, 2.5), final: 1))
+        diarization([segment(0, 1, 2), segment(1, 1.5, 2.5)], range: range(1, 2.5), final: 1)
+    )
     #expect(timeline.volatileSegments == [segment(0, 1, 2), segment(1, 1.5, 2.5)])
     timeline.apply(diarization([segment(0, 1, 2), segment(1, 1.5, 2)], final: 2))
     timeline.apply(diarization([segment(1, 2, 3)], final: 3))

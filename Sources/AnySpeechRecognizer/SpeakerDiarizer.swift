@@ -56,15 +56,21 @@ public final class SpeakerDiarizer: SpeechModule, AnalyzerModule {
     var binding: ModuleBinding {
         let channel = channel
         let member = DiarizationMember(
-            model: model, request: request, deliver: { try channel.publish($0) })
+            model: model,
+            request: request,
+            deliver: { try channel.publish($0) }
+        )
         return ModuleBinding(
-            id: ObjectIdentifier(self), backend: .diarization(member),
+            id: ObjectIdentifier(self),
+            backend: .diarization(member),
             attach: { channel.attach() },
             deliver: { _ in
                 throw SpeechRecognitionError.invalidSessionState(
-                    "A speaker diarizer does not accept transcription results.")
+                    "A speaker diarizer does not accept transcription results."
+                )
             },
-            finish: { channel.finish(throwing: $0, discardBuffered: $1) })
+            finish: { channel.finish(throwing: $0, discardBuffered: $1) }
+        )
     }
 
     /// A speaker identity that is stable within one analyzer session.
@@ -101,7 +107,11 @@ public final class SpeakerDiarizer: SpeechModule, AnalyzerModule {
 
         public var description: String {
             String(
-                format: "%@ %.2f–%.2f", speaker.description, range.start.seconds, range.end.seconds)
+                format: "%@ %.2f–%.2f",
+                speaker.description,
+                range.start.seconds,
+                range.end.seconds
+            )
         }
     }
 

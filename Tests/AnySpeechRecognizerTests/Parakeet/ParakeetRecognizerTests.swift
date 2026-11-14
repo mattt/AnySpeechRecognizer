@@ -7,11 +7,21 @@ import Testing
 /// A fake window holds 24 whole encoder frames.
 struct ParakeetRecognizerTests {
     static let file = ParakeetRecognizer.Configuration(
-        leftContextFrames: 4, chunkFrames: .max, rightContextFrames: 4,
-        reportsVolatileResults: false, boundaryMarginFrames: 2, decoderHistoryFrames: 6)
+        leftContextFrames: 4,
+        chunkFrames: .max,
+        rightContextFrames: 4,
+        reportsVolatileResults: false,
+        boundaryMarginFrames: 2,
+        decoderHistoryFrames: 6
+    )
     static let live = ParakeetRecognizer.Configuration(
-        leftContextFrames: 10, chunkFrames: 4, rightContextFrames: 4,
-        reportsVolatileResults: true, boundaryMarginFrames: 2, decoderHistoryFrames: 6)
+        leftContextFrames: 10,
+        chunkFrames: 4,
+        rightContextFrames: 4,
+        reportsVolatileResults: true,
+        boundaryMarginFrames: 2,
+        decoderHistoryFrames: 6
+    )
 
     struct Run {
         var updates: [ParakeetUpdate] = []
@@ -21,16 +31,20 @@ struct ParakeetRecognizerTests {
     }
 
     func run(
-        _ recognizer: ParakeetRecognizer, _ samples: [Float], block: Int, endOfInput: Bool = true
+        _ recognizer: ParakeetRecognizer,
+        _ samples: [Float],
+        block: Int,
+        endOfInput: Bool = true
     ) throws -> Run {
         var run = Run()
         var offset = 0
         while offset < samples.count {
             let end = min(samples.count, offset + block)
-            recognizer.append(Array(samples[offset..<end]))
+            recognizer.append(Array(samples[offset ..< end]))
             offset = end
             run.updates.append(
-                try recognizer.process(endOfInput: endOfInput && offset == samples.count))
+                try recognizer.process(endOfInput: endOfInput && offset == samples.count)
+            )
             run.received.append(offset)
             run.retained.append(recognizer.retainedSampleCount)
         }
@@ -38,13 +52,15 @@ struct ParakeetRecognizerTests {
     }
 
     func expectTokens(
-        _ tokens: [ParakeetToken], _ expected: [(id: Int, frame: Int)],
+        _ tokens: [ParakeetToken],
+        _ expected: [(id: Int, frame: Int)],
         sourceLocation: SourceLocation = #_sourceLocation
     ) {
         #expect(tokens.map(\.id) == expected.map(\.id), sourceLocation: sourceLocation)
         #expect(
             tokens.map(\.startSample) == expected.map { $0.frame * 1280 },
-            sourceLocation: sourceLocation)
+            sourceLocation: sourceLocation
+        )
     }
 
     @Test(arguments: [(1, 16_000), (2, 1_600), (3, 777), (1, 1_000_000)])
@@ -52,7 +68,10 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 40)
         let engine = FakeParakeetEngine(tokenDuration: duration)
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: ToneSpeech.vocabulary, configuration: Self.file)
+            engine: engine,
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.file
+        )
         let run = try run(recognizer, script.samples, block: block)
         expectTokens(run.committed, script.tokens)
         #expect(run.updates.allSatisfy { $0.volatile.isEmpty })
@@ -68,7 +87,9 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 30)
         let recognizer = try ParakeetRecognizer(
             engine: FakeParakeetEngine(tokenDuration: duration),
-            vocabulary: ToneSpeech.vocabulary, configuration: Self.live)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.live
+        )
         let run = try run(recognizer, script.samples, block: 640)
         expectTokens(run.committed, script.tokens)
         var previousThrough = 0
@@ -108,11 +129,17 @@ struct ParakeetRecognizerTests {
     @Test func finalizeThroughCommitsWithoutRightContext() throws {
         let script = ToneSpeech.script(count: 12)
         let recognizer = try ParakeetRecognizer(
-            engine: FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
-            configuration: Self.live)
+            engine: FakeParakeetEngine(),
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.live
+        )
         let split = 30 * 1280 + 300
         let first = try run(
-            recognizer, Array(script.samples[..<split]), block: 640, endOfInput: false)
+            recognizer,
+            Array(script.samples[..<split]),
+            block: 640,
+            endOfInput: false
+        )
         #expect(recognizer.committedThroughSample < split)
         let finalized = try recognizer.process(finalizeThrough: split)
         #expect(finalized.committedThroughSample == split)
@@ -121,7 +148,8 @@ struct ParakeetRecognizerTests {
         expectTokens(early, script.tokens.filter { $0.frame < 31 })
         // A later target is limited to the received audio.
         #expect(
-            try recognizer.process(finalizeThrough: split + 10_000).committedThroughSample == split)
+            try recognizer.process(finalizeThrough: split + 10_000).committedThroughSample == split
+        )
         let rest = try run(recognizer, Array(script.samples[split...]), block: 640)
         expectTokens(early + rest.committed, script.tokens)
     }
@@ -129,8 +157,10 @@ struct ParakeetRecognizerTests {
     @Test func endOfInputCommitsShortAudio() throws {
         let script = ToneSpeech.script(count: 2, trailing: 1)
         let recognizer = try ParakeetRecognizer(
-            engine: FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
-            configuration: Self.live)
+            engine: FakeParakeetEngine(),
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.live
+        )
         recognizer.append(Array(script.samples.dropLast(500)))
         let update = try recognizer.process(endOfInput: true)
         expectTokens(update.committed, script.tokens)
@@ -141,10 +171,13 @@ struct ParakeetRecognizerTests {
 
     @Test func emptyInputProducesNoTokens() throws {
         let recognizer = try ParakeetRecognizer(
-            engine: FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
-            configuration: Self.file)
+            engine: FakeParakeetEngine(),
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.file
+        )
         #expect(
-            try recognizer.process(endOfInput: true) == ParakeetUpdate(committedThroughSample: 0))
+            try recognizer.process(endOfInput: true) == ParakeetUpdate(committedThroughSample: 0)
+        )
     }
 
     @Test(arguments: [false, true])
@@ -152,8 +185,10 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 200)
         let configuration = live ? Self.live : Self.file
         let recognizer = try ParakeetRecognizer(
-            engine: FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
-            configuration: configuration)
+            engine: FakeParakeetEngine(),
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         let block = 1_600
         let run = try run(recognizer, script.samples, block: block)
         expectTokens(run.committed, script.tokens)
@@ -174,7 +209,9 @@ struct ParakeetRecognizerTests {
         if live { configuration.chunkFrames = 8 }
         let recognizer = try ParakeetRecognizer(
             engine: FakeParakeetEngine(tokenDuration: 3, innerBlankDuration: 4),
-            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         let run = try run(recognizer, script.samples, block: 640)
         expectTokens(run.committed, script.tokens)
     }
@@ -194,13 +231,18 @@ struct ParakeetRecognizerTests {
         configuration.blankRecoveryFrames = 3
         let engine = FakeParakeetEngine(tokenDuration: 3, blanksAfterSentenceEnd: true)
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            engine: engine,
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         expectTokens(try run(recognizer, script.samples, block: 640).committed, script.tokens)
 
         configuration.blankRecoveryFrames = nil
         let unrecovered = try ParakeetRecognizer(
             engine: FakeParakeetEngine(tokenDuration: 3, blanksAfterSentenceEnd: true),
-            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         let committed = try run(unrecovered, script.samples, block: 640).committed
         #expect(committed.count < script.tokens.count)
     }
@@ -212,16 +254,20 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 40)
         var configuration = Self.file
         configuration.blankRecoveryFrames = nil
-        configuration.quietStartFrames = 2...(configuration.leftContextFrames + 4)
+        configuration.quietStartFrames = 2 ... (configuration.leftContextFrames + 4)
         let recognizer = try ParakeetRecognizer(
             engine: FakeParakeetEngine(blanksAfterSpeechStart: true),
-            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         expectTokens(try run(recognizer, script.samples, block: 640).committed, script.tokens)
 
         configuration.quietStartFrames = nil
         let fixed = try ParakeetRecognizer(
             engine: FakeParakeetEngine(blanksAfterSpeechStart: true),
-            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         let committed = try run(fixed, script.samples, block: 640).committed
         #expect(committed.count < script.tokens.count)
     }
@@ -231,15 +277,23 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 4, trailing: 120)
         let engine = FakeParakeetEngine()
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: ToneSpeech.vocabulary, configuration: Self.file)
+            engine: engine,
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.file
+        )
         expectTokens(try run(recognizer, script.samples, block: 1_600).committed, script.tokens)
         var configuration = Self.file
         configuration.blankRecoveryFrames = nil
         let reference = FakeParakeetEngine()
         _ = try run(
             ParakeetRecognizer(
-                engine: reference, vocabulary: ToneSpeech.vocabulary, configuration: configuration),
-            script.samples, block: 1_600)
+                engine: reference,
+                vocabulary: ToneSpeech.vocabulary,
+                configuration: configuration
+            ),
+            script.samples,
+            block: 1_600
+        )
         // Only the first gap, which starts inside the last tone, is encoded again.
         #expect(engine.encodeCount <= reference.encodeCount + 1)
     }
@@ -257,7 +311,10 @@ struct ParakeetRecognizerTests {
         let samples = toneAudio(tokens, frames: 100)
         let engine = FakeParakeetEngine(silenceToken: 9)
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            engine: engine,
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         expectTokens(try run(recognizer, samples, block: 640).committed, tokens)
     }
 
@@ -272,13 +329,17 @@ struct ParakeetRecognizerTests {
         configuration.recoversGapsAfterAFailure = true
         let recognizer = try ParakeetRecognizer(
             engine: FakeParakeetEngine(tokenDuration: 3, blanksAfterSentenceEnd: true),
-            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         expectTokens(try run(recognizer, samples, block: 640).committed, tokens)
 
         configuration.recoversGapsAfterAFailure = false
         let stopping = try ParakeetRecognizer(
             engine: FakeParakeetEngine(tokenDuration: 3, blanksAfterSentenceEnd: true),
-            vocabulary: ToneSpeech.vocabulary, configuration: configuration)
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         // Otherwise a later window enters the tones after the period inside the first one.
         let stopped = try run(stopping, samples, block: 640).committed
         #expect(stopped.map(\.startSample) != tokens.map { $0.1 * 1280 })
@@ -293,14 +354,18 @@ struct ParakeetRecognizerTests {
         var configuration = live ? Self.live : Self.file
         configuration.discardsFramesAtSymbolLimit = true
         let recognizer = try ParakeetRecognizer(
-            engine: FakeParakeetEngine(fillerToken: 9), vocabulary: ToneSpeech.vocabulary,
-            configuration: configuration)
+            engine: FakeParakeetEngine(fillerToken: 9),
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         expectTokens(try run(recognizer, script.samples, block: 640).committed, script.tokens)
 
         configuration.discardsFramesAtSymbolLimit = false
         let keeping = try ParakeetRecognizer(
-            engine: FakeParakeetEngine(fillerToken: 9), vocabulary: ToneSpeech.vocabulary,
-            configuration: configuration)
+            engine: FakeParakeetEngine(fillerToken: 9),
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: configuration
+        )
         let committed = try run(keeping, script.samples, block: 640).committed
         #expect(committed.filter { $0.id == 9 }.count >= 10 * (script.tokens.count - 1))
     }
@@ -310,8 +375,11 @@ struct ParakeetRecognizerTests {
         var samples = [Float](repeating: 0, count: frames * 1280)
         for token in tokens {
             ToneSpeech.write(
-                token: token.id, frames: token.frame..<(token.frame + 3), into: &samples,
-                offset: 0)
+                token: token.id,
+                frames: token.frame ..< (token.frame + 3),
+                into: &samples,
+                offset: 0
+            )
         }
         return samples
     }
@@ -320,7 +388,10 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 20)
         let engine = FakeParakeetEngine()
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: ToneSpeech.vocabulary, configuration: Self.file)
+            engine: engine,
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.file
+        )
         _ = try run(recognizer, script.samples, block: script.samples.count)
         // Each window replays at most the tokens of `decoderHistoryFrames` frames,
         // two tokens at a spacing of five frames, then one prediction per new token.
@@ -332,7 +403,10 @@ struct ParakeetRecognizerTests {
         let script = ToneSpeech.script(count: 30)
         let engine = FakeParakeetEngine(forcedCommitWindow: true)
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: ToneSpeech.vocabulary, configuration: Self.live)
+            engine: engine,
+            vocabulary: ToneSpeech.vocabulary,
+            configuration: Self.live
+        )
         var run = try run(recognizer, script.samples, block: 640, endOfInput: false)
         #expect(engine.forcedCommitEncodeCount == 0)
         if endOfInput {
@@ -382,15 +456,19 @@ struct ParakeetRecognizerTests {
         configuration.rightContextFrames = 12
         #expect(throws: SpeechRecognitionError.self) {
             try ParakeetRecognizer(
-                engine: FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
-                configuration: configuration)
+                engine: FakeParakeetEngine(),
+                vocabulary: ToneSpeech.vocabulary,
+                configuration: configuration
+            )
         }
         configuration = Self.live
         configuration.chunkFrames = 2
         #expect(throws: SpeechRecognitionError.self) {
             try ParakeetRecognizer(
-                engine: FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
-                configuration: configuration)
+                engine: FakeParakeetEngine(),
+                vocabulary: ToneSpeech.vocabulary,
+                configuration: configuration
+            )
         }
     }
 }

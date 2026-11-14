@@ -165,10 +165,14 @@ final class AudioBranch: Sendable {
                     } else if state.consumer != nil {
                         continuation.resume(
                             throwing: SpeechRecognitionError.invalidSessionState(
-                                "Concurrent input iteration is unsupported."))
+                                "Concurrent input iteration is unsupported."
+                            )
+                        )
                     } else {
                         state.consumer = Consumer(
-                            continuation: continuation, observesBoundaries: observingBoundaries)
+                            continuation: continuation,
+                            observesBoundaries: observingBoundaries
+                        )
                     }
                 }
             }

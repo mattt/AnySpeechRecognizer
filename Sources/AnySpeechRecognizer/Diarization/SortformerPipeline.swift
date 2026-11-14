@@ -44,7 +44,8 @@ final class SortformerPipeline {
     var recordedProbabilities: [Float]?
 
     init(
-        inference: any SortformerInference, parameters: SpeakerSegmenter.Parameters,
+        inference: any SortformerInference,
+        parameters: SpeakerSegmenter.Parameters,
         reportsVolatileResults: Bool
     ) {
         self.inference = inference
@@ -54,7 +55,8 @@ final class SortformerPipeline {
         state = SortformerStreamingState(configuration: inference.configuration)
         chunkBuffer = [Float](
             repeating: 0,
-            count: inference.configuration.chunkMelFrames * SortformerMelFrontend.melBinCount)
+            count: inference.configuration.chunkMelFrames * SortformerMelFrontend.melBinCount
+        )
     }
 
     private var frameSamples: Int { configuration.subsampling * SortformerMelFrontend.hopLength }
@@ -85,7 +87,10 @@ final class SortformerPipeline {
         }
         if segmenter == nil {
             segmenter = SpeakerSegmenter(
-                speakerCount: configuration.speakerCount, parameters: parameters, origin: start)
+                speakerCount: configuration.speakerCount,
+                parameters: parameters,
+                origin: start
+            )
         }
         frontend.append(samples)
         let chunkFrames = configuration.chunkLength * configuration.subsampling
@@ -111,8 +116,9 @@ final class SortformerPipeline {
         if !streamEnded, target > segmenter.frontier {
             update.results += try endStream(cutAt: min(target, streamEnd))
         } else if let result = self.segmenter?.cut(
-            at: min(target, segmenter.frontier), forced: true)
-        {
+            at: min(target, segmenter.frontier),
+            forced: true
+        ) {
             update.results.append(result)
         }
         update.volatileRange = volatile(into: &update)
@@ -151,41 +157,54 @@ final class SortformerPipeline {
     private func runChunk(end: Int) throws {
         let leftFrames = min(configuration.leftContext * configuration.subsampling, melStart)
         let rightFrames = min(
-            configuration.rightContext * configuration.subsampling, frontend.frameCount - end)
+            configuration.rightContext * configuration.subsampling,
+            frontend.frameCount - end
+        )
         let first = melStart - leftFrames
         let count = end + rightFrames - first
         let bins = SortformerMelFrontend.melBinCount
         chunkBuffer.withUnsafeMutableBufferPointer { buffer in
-            frontend.copyFrames(first..<(first + count), into: buffer.baseAddress!)
+            frontend.copyFrames(first ..< (first + count), into: buffer.baseAddress!)
             (buffer.baseAddress! + count * bins).update(
-                repeating: 0, count: buffer.count - count * bins)
+                repeating: 0,
+                count: buffer.count - count * bins
+            )
         }
         let output = try inference.predict(
-            chunk: chunkBuffer, chunkFrames: count, speakerCache: state.speakerCache,
-            fifo: state.fifo)
+            chunk: chunkBuffer,
+            chunkFrames: count,
+            speakerCache: state.speakerCache,
+            fifo: state.fifo
+        )
         let leftContext = Int((Double(leftFrames) / Double(configuration.subsampling)).rounded())
         let rightContext = Int(
-            (Double(rightFrames) / Double(configuration.subsampling)).rounded(.up))
+            (Double(rightFrames) / Double(configuration.subsampling)).rounded(.up)
+        )
         let cacheRows = state.speakerCacheFrames + state.fifoFrames
         let probabilities = state.update(
-            embeddings: output.embeddings, embeddingCount: output.embeddingCount,
-            predictions: output.predictions, leftContext: leftContext, rightContext: rightContext)
+            embeddings: output.embeddings,
+            embeddingCount: output.embeddingCount,
+            predictions: output.predictions,
+            leftContext: leftContext,
+            rightContext: rightContext
+        )
 
         let speakers = configuration.speakerCount
         let firstFrame = melStart / configuration.subsampling
         let frames = probabilities.count / speakers
         let limit = frontend.finished ? frontend.sampleCount : Int.max
-        for frame in 0..<frames {
+        for frame in 0 ..< frames {
             appendFrame(
                 firstFrame + frame,
-                probabilities: probabilities[(frame * speakers)..<((frame + 1) * speakers)],
-                limit: limit)
+                probabilities: probabilities[(frame * speakers) ..< ((frame + 1) * speakers)],
+                limit: limit
+            )
         }
         // Right-context predictions preview the next frames for volatile results.
         preview = []
         let previewStart = cacheRows + leftContext + frames
         let previewRows = max(0, output.embeddingCount - leftContext - frames)
-        for row in 0..<previewRows {
+        for row in 0 ..< previewRows {
             let index = (previewStart + row) * speakers
             guard index + speakers <= output.predictions.count else { break }
             let frameIndex = firstFrame + frames + row
@@ -195,8 +214,9 @@ final class SortformerPipeline {
             preview.append(
                 (
                     time(sample: start), time(sample: end),
-                    output.predictions[index..<(index + speakers)]
-                ))
+                    output.predictions[index ..< (index + speakers)]
+                )
+            )
         }
         melStart = end
         frontend.discard(before: melStart - configuration.leftContext * configuration.subsampling)
@@ -208,7 +228,10 @@ final class SortformerPipeline {
         guard end > start else { return }
         recordedProbabilities?.append(contentsOf: probabilities)
         segmenter?.append(
-            start: time(sample: start), end: time(sample: end), probabilities: probabilities)
+            start: time(sample: start),
+            end: time(sample: end),
+            probabilities: probabilities
+        )
     }
 
     /// Adds a volatile result when requested and it changed, and returns the volatile range.
@@ -216,7 +239,9 @@ final class SortformerPipeline {
         guard reportsVolatileResults, let segmenter else { return nil }
         guard
             let result = segmenter.volatileResult(
-                preview: preview, end: preview.last?.end ?? segmenter.frontier)
+                preview: preview,
+                end: preview.last?.end ?? segmenter.frontier
+            )
         else {
             lastVolatile = nil
             return nil

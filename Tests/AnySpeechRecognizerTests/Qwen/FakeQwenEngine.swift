@@ -24,14 +24,14 @@ final class FakeQwenEngine: QwenInferenceEngine, @unchecked Sendable {
     private var reply: [Int] = []
     private var promptCount = 0
 
-    init(configuration: QwenModelConfiguration = QwenTestSupport.configuration(), scripts: [[Int]])
-    {
+    init(configuration: QwenModelConfiguration = QwenTestSupport.configuration(), scripts: [[Int]]) {
         self.configuration = configuration
         self.scripts = scripts
     }
 
     func encode(
-        window: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        window: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: UnsafeMutableBufferPointer<Float>
     ) throws {
         encodedWindows.append(validFrameCount)
@@ -51,7 +51,8 @@ final class FakeQwenEngine: QwenInferenceEngine, @unchecked Sendable {
             prompts.append(tokens)
             let hidden = configuration.hiddenSize
             promptAudio.append(
-                (0..<tokens.count).map { row in audioEmbeddings.map { $0[row * hidden] } ?? 0 })
+                (0 ..< tokens.count).map { row in audioEmbeddings.map { $0[row * hidden] } ?? 0 }
+            )
         }
         position += tokens.count
         precondition(position <= configuration.contextLength)
@@ -115,7 +116,7 @@ enum QwenTestSupport {
 
     /// A 440 Hz tone with silence from `silence`, in seconds, at 16 kHz.
     static func tone(seconds: Double, silence: Range<Double>? = nil) -> [Float] {
-        (0..<Int(seconds * 16_000)).map { index in
+        (0 ..< Int(seconds * 16_000)).map { index in
             let time = Double(index) / 16_000
             if let silence, silence.contains(time) { return 0 }
             return Float(0.3 * sin(2 * Double.pi * 440 * time))

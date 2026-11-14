@@ -22,7 +22,9 @@ public final class SpeechDetector: SpeechModule, AnalyzerModule {
     ///   - reportResults: Whether to publish detection results.
     public init(detectionOptions: DetectionOptions, reportResults: Bool) {
         native = Speech.SpeechDetector(
-            detectionOptions: detectionOptions, reportResults: reportResults)
+            detectionOptions: detectionOptions,
+            reportResults: reportResults
+        )
     }
 
     /// Creates a detector with Apple's default options.
@@ -45,16 +47,22 @@ public final class SpeechDetector: SpeechModule, AnalyzerModule {
                     Result(
                         range: result.range,
                         resultsFinalizationTime: result.resultsFinalizationTime,
-                        speechDetected: result.speechDetected))
+                        speechDetected: result.speechDetected
+                    )
+                )
             }
         }
         return ModuleBinding(
-            id: ObjectIdentifier(self), backend: .native(member), attach: { channel.attach() },
+            id: ObjectIdentifier(self),
+            backend: .native(member),
+            attach: { channel.attach() },
             deliver: { _ in
                 throw SpeechRecognitionError.invalidSessionState(
-                    "A speech detector does not accept executor results.")
+                    "A speech detector does not accept executor results."
+                )
             },
-            finish: { channel.finish(throwing: $0, discardBuffered: $1) })
+            finish: { channel.finish(throwing: $0, discardBuffered: $1) }
+        )
     }
 
     /// Whether a range of audio contains speech.

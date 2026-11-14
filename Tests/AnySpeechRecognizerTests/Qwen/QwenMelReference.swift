@@ -13,7 +13,8 @@ enum QwenMelReference {
     }
 
     static let long = Case(
-        sampleCount: 16517, frameCount: 103,
+        sampleCount: 16517,
+        frameCount: 103,
         frames: [0, 1, 2, 51, 101, 102],
         values: [
             [
@@ -45,10 +46,12 @@ enum QwenMelReference {
                 -0.127626, 0.0180798, -0.0774873, -0.176404, 0.606246, -0.015676, -0.0808585,
                 0.0633821, 0.0972676,
             ],
-        ])
+        ]
+    )
 
     static let short = Case(
-        sampleCount: 5000, frameCount: 50,
+        sampleCount: 5000,
+        frameCount: 50,
         frames: [0, 1, 2, 25, 48, 49],
         values: [
             [
@@ -80,6 +83,7 @@ enum QwenMelReference {
                 -0.759616, -0.759616, -0.759616, -0.759616, -0.759616, -0.759616, -0.759616,
                 -0.759616, -0.759616,
             ],
-        ])
+        ]
+    )
 
 }

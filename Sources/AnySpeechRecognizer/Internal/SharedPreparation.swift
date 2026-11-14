@@ -31,8 +31,7 @@ final class SharedPreparation<Value: Sendable>: Sendable {
         }
     }
 
-    private func wait(operation: @escaping @Sendable () async throws -> Value) async throws -> Value
-    {
+    private func wait(operation: @escaping @Sendable () async throws -> Value) async throws -> Value {
         let id = UUID()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in

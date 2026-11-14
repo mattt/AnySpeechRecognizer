@@ -30,7 +30,8 @@ struct ParakeetAssetTests {
             #expect(
                 manifest.files(in: .liveEncoder).allSatisfy {
                     $0.path.hasPrefix("Encoder8s.mlmodelc/")
-                })
+                }
+            )
         }
         #expect(ParakeetModelManifest.v3.byteCount(of: .base) == 631_653_214)
         #expect(ParakeetModelManifest.ultra.byteCount(of: .base) == 631_654_261)
@@ -40,15 +41,18 @@ struct ParakeetAssetTests {
         #expect(ParakeetModelManifest.ultra.totalByteCount == 1_222_437_781)
         let store = ModelAssetStore(
             cache: HubCache(cacheDirectory: URL(filePath: "/cache")),
-            markerDirectory: URL(filePath: "/verified"))
+            markerDirectory: URL(filePath: "/verified")
+        )
         #expect(
             store.directory(for: ParakeetModelManifest.v3).path
                 == "/cache/models--mattt--parakeet-tdt-0.6b-v3-coreml/snapshots/"
-                + "f2f43eaa239d1ea45191c2a2d5bd0f980dae1b1f")
+                + "f2f43eaa239d1ea45191c2a2d5bd0f980dae1b1f"
+        )
         #expect(
             store.directory(for: ParakeetModelManifest.ultra).path
                 == "/cache/models--mattt--parakeet-ultra-coreml/snapshots/"
-                + "4038b9e5eced45b04703afb1dab0d30e5dc162b4")
+                + "4038b9e5eced45b04703afb1dab0d30e5dc162b4"
+        )
     }
 
     @Test func unifiedManifestPinsFilesUnderTheNVIDIALicense() throws {
@@ -62,7 +66,9 @@ struct ParakeetAssetTests {
         // Section 3.1 of the NVIDIA Open Model License requires this notice.
         #expect(
             manifest.attribution.contains(
-                "Licensed by NVIDIA Corporation under the NVIDIA Open Model License"))
+                "Licensed by NVIDIA Corporation under the NVIDIA Open Model License"
+            )
+        )
         #expect(manifest.contractVersion == 1)
         #expect(manifest.components.encoder == "Encoder.mlmodelc")
         #expect(manifest.components.liveEncoder == "Encoder8s.mlmodelc")
@@ -100,13 +106,20 @@ struct ParakeetAssetTests {
         {
             var files = valid.files
             files[0] = .init(
-                path: path ?? files[0].path, size: files[0].size,
-                sha256: digest ?? files[0].sha256)
+                path: path ?? files[0].path,
+                size: files[0].size,
+                sha256: digest ?? files[0].sha256
+            )
             return ParakeetModelManifest(
-                identifier: valid.identifier, repository: valid.repository,
-                revision: revision ?? valid.revision, contractVersion: valid.contractVersion,
-                components: valid.components, files: files, license: valid.license,
-                attribution: valid.attribution)
+                identifier: valid.identifier,
+                repository: valid.repository,
+                revision: revision ?? valid.revision,
+                contractVersion: valid.contractVersion,
+                components: valid.components,
+                files: files,
+                license: valid.license,
+                attribution: valid.attribution
+            )
         }
         for invalid in [
             replacing(path: "../outside.bin"), replacing(path: "/absolute.bin"),
@@ -131,7 +144,8 @@ struct ParakeetAssetTests {
                 directory.standardizedFileURL
                     == root.appending(
                         path: "hub/models--Example--parakeet-test/snapshots/\(manifest.revision)/"
-                    ).standardizedFileURL)
+                    ).standardizedFileURL
+            )
             for (path, data) in Fixture.files {
                 let url = directory.appending(path: path)
                 #expect(try Data(contentsOf: url) == data)
@@ -165,7 +179,8 @@ struct ParakeetAssetTests {
             let otherRevision = Fixture.manifest(revision: String(repeating: "f", count: 40))
             let otherCache = ModelAssetStore(
                 cache: HubCache(cacheDirectory: root.appending(path: "elsewhere")),
-                markerDirectory: store.markerDirectory)
+                markerDirectory: store.markerDirectory
+            )
             let markers = [
                 store.markerURL(for: manifest), store.markerURL(for: otherFiles),
                 store.markerURL(for: otherRevision), otherCache.markerURL(for: manifest),
@@ -194,14 +209,21 @@ struct ParakeetAssetTests {
             try FileManager.default.removeItem(at: marker)
             #expect(store.status(of: manifest) == .missing)
             let recorded = try JSONDecoder().decode(
-                ModelAssetStore.VerificationMarker.self, from: markerData)
+                ModelAssetStore.VerificationMarker.self,
+                from: markerData
+            )
             let subject = recorded.subject
             let forged = ModelAssetStore.VerificationMarker(
                 subject: .init(
-                    repository: subject.repository, revision: String(repeating: "f", count: 40),
-                    contractVersion: subject.contractVersion, part: subject.part,
-                    files: subject.files, snapshot: subject.snapshot),
-                fileNumbers: recorded.fileNumbers)
+                    repository: subject.repository,
+                    revision: String(repeating: "f", count: 40),
+                    contractVersion: subject.contractVersion,
+                    part: subject.part,
+                    files: subject.files,
+                    snapshot: subject.snapshot
+                ),
+                fileNumbers: recorded.fileNumbers
+            )
             try JSONEncoder().encode(forged).write(to: marker)
             #expect(store.status(of: manifest) == .missing)
             try markerData.write(to: marker)
@@ -234,27 +256,38 @@ struct ParakeetAssetTests {
 
     @Test func stagedDirectoryNeedsEveryComponentName() throws {
         try FileManager.default.createDirectory(
-            at: URL.temporaryDirectory, withIntermediateDirectories: true)
+            at: URL.temporaryDirectory,
+            withIntermediateDirectories: true
+        )
         let directory = URL.temporaryDirectory.appending(path: "anyspeech-staged-\(UUID())")
         defer { try? FileManager.default.removeItem(at: directory) }
         let components = Fixture.manifest().components
         for name in ["Encoder.mlmodelc", "Decoder.mlmodelc", "Joint.mlmodelc"] {
             try FileManager.default.createDirectory(
-                at: directory.appending(path: name), withIntermediateDirectories: true)
+                at: directory.appending(path: name),
+                withIntermediateDirectories: true
+            )
         }
         #expect(
             ModelAssetStore.status(ofStagedDirectory: directory, components: components)
-                == .missing)
+                == .missing
+        )
         try Data("{}".utf8).write(to: directory.appending(path: Fixture.vocabulary))
         #expect(
             ModelAssetStore.status(ofStagedDirectory: directory, components: components)
-                == .installed)
+                == .installed
+        )
         // The live encoder is optional in a staged directory.
         let live = ParakeetModelManifest.Components(
-            encoder: components.encoder, decoder: components.decoder, joint: components.joint,
-            vocabulary: components.vocabulary, liveEncoder: "Encoder8s.mlmodelc")
+            encoder: components.encoder,
+            decoder: components.decoder,
+            joint: components.joint,
+            vocabulary: components.vocabulary,
+            liveEncoder: "Encoder8s.mlmodelc"
+        )
         #expect(
-            ModelAssetStore.status(ofStagedDirectory: directory, components: live) == .installed)
+            ModelAssetStore.status(ofStagedDirectory: directory, components: live) == .installed
+        )
         #expect(live.missingPaths(in: directory).isEmpty)
     }
 
@@ -270,17 +303,27 @@ struct ParakeetAssetTests {
         {
             let components = valid.components
             return ParakeetModelManifest(
-                identifier: valid.identifier, repository: valid.repository,
-                revision: valid.revision, contractVersion: valid.contractVersion,
+                identifier: valid.identifier,
+                repository: valid.repository,
+                revision: valid.revision,
+                contractVersion: valid.contractVersion,
                 components: .init(
-                    encoder: components.encoder, decoder: components.decoder,
-                    joint: components.joint, vocabulary: components.vocabulary,
-                    liveEncoder: liveEncoder),
-                files: files, license: valid.license, attribution: valid.attribution)
+                    encoder: components.encoder,
+                    decoder: components.decoder,
+                    joint: components.joint,
+                    vocabulary: components.vocabulary,
+                    liveEncoder: liveEncoder
+                ),
+                files: files,
+                license: valid.license,
+                attribution: valid.attribution
+            )
         }
         let liveFile = ParakeetModelManifest.File(
-            path: "Encoder8s.mlmodelc/weights/weight.bin", size: 1,
-            sha256: String(repeating: "a", count: 64))
+            path: "Encoder8s.mlmodelc/weights/weight.bin",
+            size: 1,
+            sha256: String(repeating: "a", count: 64)
+        )
         #expect(throws: ModelAssetError.self) {
             try manifest(liveEncoder: "Encoder8s.mlmodelc", files: valid.files).validate()
         }
@@ -290,11 +333,14 @@ struct ParakeetAssetTests {
             try manifest(liveEncoder: "Encoder.mlmodelc", files: valid.files).validate()
         }
         let nested = ParakeetModelManifest.File(
-            path: "Decoder.mlmodelc/Live.mlmodelc/model.mil", size: 1,
-            sha256: String(repeating: "b", count: 64))
+            path: "Decoder.mlmodelc/Live.mlmodelc/model.mil",
+            size: 1,
+            sha256: String(repeating: "b", count: 64)
+        )
         #expect(throws: ModelAssetError.self) {
             try manifest(
-                liveEncoder: "Decoder.mlmodelc/Live.mlmodelc", files: valid.files + [nested]
+                liveEncoder: "Decoder.mlmodelc/Live.mlmodelc",
+                files: valid.files + [nested]
             )
             .validate()
         }
@@ -312,7 +358,11 @@ struct ParakeetAssetTests {
             let data = try #require(Fixture.files[Fixture.encoderWeights])
             let kept = 40_000
             let incomplete = try writeIncompleteBlob(
-                Data(data.prefix(kept)), for: data, of: manifest, in: store)
+                Data(data.prefix(kept)),
+                for: data,
+                of: manifest,
+                in: store
+            )
 
             let directory = try await store.install(manifest)
 
@@ -334,7 +384,11 @@ struct ParakeetAssetTests {
             let data = try #require(Fixture.files[Fixture.encoderWeights])
             // These bytes are wrong, so appending the full response would fail verification.
             try writeIncompleteBlob(
-                Data(repeating: 0xEE, count: 30_000), for: data, of: manifest, in: store)
+                Data(repeating: 0xEE, count: 30_000),
+                for: data,
+                of: manifest,
+                in: store
+            )
             let recorder = ProgressRecorder(store.progress(for: manifest))
 
             let directory = try await store.install(manifest)
@@ -377,8 +431,12 @@ struct ParakeetAssetTests {
             #expect(!FileManager.default.fileExists(atPath: directory.appending(path: path).path))
             #expect(
                 store.cache.cachedBlobPath(
-                    repo: "Example/parakeet-test", kind: .model, etag: Fixture.sha256(tampered))
-                    == nil)
+                    repo: "Example/parakeet-test",
+                    kind: .model,
+                    etag: Fixture.sha256(tampered)
+                )
+                    == nil
+            )
             #expect(store.status(of: manifest) == .missing)
 
             // A later install downloads the file again.
@@ -394,7 +452,9 @@ struct ParakeetAssetTests {
             let server = StubModelServer(files: Fixture.files)
             let original = try #require(Fixture.files[Fixture.jointProgram])
             server.setFile(
-                Fixture.jointProgram, Fixture.bytes(original.count + difference, seed: 4))
+                Fixture.jointProgram,
+                Fixture.bytes(original.count + difference, seed: 4)
+            )
             let store = server.makeStore(root: root)
             let manifest = Fixture.manifest()
 
@@ -446,7 +506,8 @@ struct ParakeetAssetTests {
             // so the interrupted file starts over.
             #expect(
                 server.downloads.filter { $0.path == path }
-                    == Array(repeating: .init(method: "GET", path: path, range: nil), count: 2))
+                    == Array(repeating: .init(method: "GET", path: path, range: nil), count: 2)
+            )
             let progress = store.progress(for: manifest)
             #expect(progress.completedUnitCount == manifest.totalByteCount)
         }
@@ -459,9 +520,13 @@ struct ParakeetAssetTests {
             let manifest = Fixture.manifest()
             let present = try #require(Fixture.files[Fixture.decoderProgram])
             try await store.cache.storeData(
-                present, repo: "Example/parakeet-test", kind: .model,
-                revision: manifest.revision, filename: Fixture.decoderProgram,
-                etag: Fixture.sha256(present))
+                present,
+                repo: "Example/parakeet-test",
+                kind: .model,
+                revision: manifest.revision,
+                filename: Fixture.decoderProgram,
+                etag: Fixture.sha256(present)
+            )
             let recorder = ProgressRecorder(store.progress(for: manifest))
 
             _ = try await store.install(manifest)
@@ -522,14 +587,20 @@ struct ParakeetAssetTests {
     /// Writes the bytes that an interrupted download left in the cache's blob store.
     @discardableResult
     private func writeIncompleteBlob(
-        _ data: Data, for file: Data, of manifest: ParakeetModelManifest,
+        _ data: Data,
+        for file: Data,
+        of manifest: ParakeetModelManifest,
         in store: ModelAssetStore
     ) throws -> URL {
         let url = try store.cache.incompleteBlobPath(
-            repo: try #require(Repo.ID(rawValue: manifest.repository)), kind: .model,
-            etag: Fixture.sha256(file))
+            repo: try #require(Repo.ID(rawValue: manifest.repository)),
+            kind: .model,
+            etag: Fixture.sha256(file)
+        )
         try FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
         try data.write(to: url)
         return url
     }
@@ -557,31 +628,43 @@ struct ParakeetAssetNetworkTests {
             // a redirect to the CDN; neither is a weight file.
             let paths = ["parakeet_vocab.json", "Decoder.mlmodelc/coremldata.bin"]
             let manifest = ParakeetModelManifest(
-                identifier: "\(v3.identifier)-network-test", repository: v3.repository,
-                revision: v3.revision, contractVersion: v3.contractVersion,
+                identifier: "\(v3.identifier)-network-test",
+                repository: v3.repository,
+                revision: v3.revision,
+                contractVersion: v3.contractVersion,
                 components: .init(
-                    encoder: "Decoder.mlmodelc", decoder: "Decoder.mlmodelc",
-                    joint: "Decoder.mlmodelc", vocabulary: "parakeet_vocab.json"),
-                files: v3.files.filter { paths.contains($0.path) }, license: v3.license,
-                attribution: v3.attribution)
+                    encoder: "Decoder.mlmodelc",
+                    decoder: "Decoder.mlmodelc",
+                    joint: "Decoder.mlmodelc",
+                    vocabulary: "parakeet_vocab.json"
+                ),
+                files: v3.files.filter { paths.contains($0.path) },
+                license: v3.license,
+                attribution: v3.attribution
+            )
             #expect(manifest.files.count == 2)
             #expect(manifest.totalByteCount < 200_000)
             let cache = HubCache(cacheDirectory: root.appending(path: "hub"))
 
             let store = ModelAssetStore(
-                cache: cache, markerDirectory: root.appending(path: "verified"))
+                cache: cache,
+                markerDirectory: root.appending(path: "verified")
+            )
             let directory = try await store.install(manifest)
 
             #expect(store.status(of: manifest) == .installed)
             let lfs = try #require(manifest.files.first { $0.path.hasPrefix("Decoder") })
             let link = try FileManager.default.destinationOfSymbolicLink(
-                atPath: directory.appending(path: lfs.path).path)
+                atPath: directory.appending(path: lfs.path).path
+            )
             #expect(link.hasSuffix("blobs/\(lfs.sha256)"))
 
             // Another store with an unreachable host verifies the cached files without network.
             let offline = ModelAssetStore(
-                cache: cache, markerDirectory: root.appending(path: "offline"),
-                host: URL(string: "https://anyspeech.invalid")!)
+                cache: cache,
+                markerDirectory: root.appending(path: "offline"),
+                host: URL(string: "https://anyspeech.invalid")!
+            )
             #expect(offline.status(of: manifest) == .missing)
             #expect(try await offline.install(manifest) == directory)
             #expect(offline.status(of: manifest) == .installed)

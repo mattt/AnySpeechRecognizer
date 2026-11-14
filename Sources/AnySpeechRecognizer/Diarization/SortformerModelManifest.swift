@@ -27,7 +27,11 @@ struct SortformerModelManifest: PinnedModelManifest, Hashable, Codable {
 
     func validate() throws {
         try ParakeetModelManifest.validatePinnedFiles(
-            identifier: identifier, repository: repository, revision: revision, files: files,
-            components: [model])
+            identifier: identifier,
+            repository: repository,
+            revision: revision,
+            files: files,
+            components: [model]
+        )
     }
 }

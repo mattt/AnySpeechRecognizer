@@ -10,7 +10,8 @@ import Testing
 @Suite(.enabled(if: ProcessInfo.processInfo.environment["ANYSPEECH_INTEGRATION_AUDIO"] != nil))
 struct AppleIntegration {
     let url = URL(
-        fileURLWithPath: ProcessInfo.processInfo.environment["ANYSPEECH_INTEGRATION_AUDIO"] ?? "")
+        fileURLWithPath: ProcessInfo.processInfo.environment["ANYSPEECH_INTEGRATION_AUDIO"] ?? ""
+    )
     let locale = Locale(identifier: "en-US")
 
     init() async throws {
@@ -23,8 +24,11 @@ struct AppleIntegration {
 
     @Test func fileTextMatchesDirectNativeAnalysis() async throws {
         let native = Speech.SpeechTranscriber(
-            locale: locale, transcriptionOptions: [], reportingOptions: [],
-            attributeOptions: [.audioTimeRange])
+            locale: locale,
+            transcriptionOptions: [],
+            reportingOptions: [],
+            attributeOptions: [.audioTimeRange]
+        )
         let nativeAnalyzer = Speech.SpeechAnalyzer(modules: [native])
         async let nativeText: String = {
             var text = ""
@@ -39,12 +43,16 @@ struct AppleIntegration {
         let direct = try await nativeText
 
         let transcriber = SpeechTranscriber(
-            locale: locale, transcriptionOptions: [], reportingOptions: [],
-            attributeOptions: [.audioTimeRange])
+            locale: locale,
+            transcriptionOptions: [],
+            reportingOptions: [],
+            attributeOptions: [.audioTimeRange]
+        )
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         async let results = collect(transcriber)
         let time = try #require(
-            try await analyzer.analyzeSequence(from: AVAudioFile(forReading: url)))
+            try await analyzer.analyzeSequence(from: AVAudioFile(forReading: url))
+        )
         try await analyzer.finalizeAndFinish(through: time)
         let values = try await results
         #expect(texts(values).joined() == direct)
@@ -56,7 +64,9 @@ struct AppleIntegration {
         let file = try AVAudioFile(forReading: url)
         file.framePosition = min(file.length / 3, Int64(file.processingFormat.sampleRate))
         let offset = try AudioTimeline.time(
-            frame: file.framePosition, sampleRate: file.processingFormat.sampleRate)
+            frame: file.framePosition,
+            sampleRate: file.processingFormat.sampleRate
+        )
         let transcriber = SpeechTranscriber(locale: locale, preset: .transcription)
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         async let results = collect(transcriber)
@@ -69,12 +79,16 @@ struct AppleIntegration {
 
     @Test func liveInputProducesVolatileThenFinalResults() async throws {
         let transcriber = SpeechTranscriber(
-            locale: locale, preset: .timeIndexedProgressiveTranscription)
+            locale: locale,
+            preset: .timeIndexedProgressiveTranscription
+        )
         let ranges = RangeLog()
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         let analyzer = SpeechAnalyzer(
-            inputSequence: stream, modules: [transcriber],
-            volatileRangeChangedHandler: { range, _, _ in Task { await ranges.append(range) } })
+            inputSequence: stream,
+            modules: [transcriber],
+            volatileRangeChangedHandler: { range, _, _ in Task { await ranges.append(range) } }
+        )
         async let results = collect(transcriber)
         var end = CMTime.zero
         for input in try liveBlocks(url, seconds: 0.1) {
@@ -82,7 +96,9 @@ struct AppleIntegration {
             end =
                 input.bufferStartTime!
                 + CMTime(
-                    value: CMTimeValue(input.buffer.frameLength), timescale: 16_000)
+                    value: CMTimeValue(input.buffer.frameLength),
+                    timescale: 16_000
+                )
         }
         try await analyzer.finalize(through: end - CMTime(value: 1, timescale: 16_000))
         continuation.finish()
@@ -98,12 +114,15 @@ struct AppleIntegration {
     @Test func dictationAndDetectorShareOneNativeAnalyzer() async throws {
         let dictation = DictationTranscriber(locale: locale, preset: .longDictation)
         let detector = SpeechDetector(
-            detectionOptions: .init(sensitivityLevel: .medium), reportResults: true)
+            detectionOptions: .init(sensitivityLevel: .medium),
+            reportResults: true
+        )
         let analyzer = SpeechAnalyzer(modules: [dictation, detector])
         async let dictated = collect(dictation)
         async let detected = collect(detector)
         let time = try #require(
-            try await analyzer.analyzeSequence(from: AVAudioFile(forReading: url)))
+            try await analyzer.analyzeSequence(from: AVAudioFile(forReading: url))
+        )
         try await analyzer.finalizeAndFinish(through: time)
         let text = try await dictated.map { String($0.text.characters) }.joined()
         #expect(!text.isEmpty)
@@ -128,7 +147,11 @@ private actor RangeLog {
 func liveBlocks(_ url: URL, seconds: Double) throws -> [AnalyzerInput] {
     let file = try AVAudioFile(forReading: url)
     let target = AVAudioFormat(
-        commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
+        commonFormat: .pcmFormatInt16,
+        sampleRate: 16_000,
+        channels: 1,
+        interleaved: true
+    )!
     let converter = StreamConverter(output: target)
     var timeline = InputTimeline(lastEnd: nil)
     var converted: [TimedAudioBuffer] = []

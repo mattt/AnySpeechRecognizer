@@ -79,7 +79,8 @@ final class CoreMLSortformerEngine: SortformerInference {
         ]
         for (name, dimensions) in expected where shape(name) != dimensions {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "The Sortformer model input \(name) does not have the shape \(dimensions).")
+                "The Sortformer model input \(name) does not have the shape \(dimensions)."
+            )
         }
         guard
             shape("speaker_preds", outputs: true)
@@ -88,7 +89,8 @@ final class CoreMLSortformerEngine: SortformerInference {
                 == [1, configuration.chunkEmbeddingRows, configuration.embeddingSize]
         else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "The Sortformer model outputs do not match its streaming configuration.")
+                "The Sortformer model outputs do not match its streaming configuration."
+            )
         }
         self.configuration = configuration
         func array(_ shape: [Int], _ type: MLMultiArrayDataType) throws -> MLMultiArray {
@@ -111,7 +113,10 @@ final class CoreMLSortformerEngine: SortformerInference {
     }
 
     func predict(
-        chunk features: [Float], chunkFrames: Int, speakerCache cache: [Float], fifo queue: [Float]
+        chunk features: [Float],
+        chunkFrames: Int,
+        speakerCache cache: [Float],
+        fifo queue: [Float]
     )
         throws -> SortformerPrediction
     {
@@ -130,12 +135,15 @@ final class CoreMLSortformerEngine: SortformerInference {
                 .multiArrayValue
         else {
             throw SpeechRecognitionError.invalidResult(
-                "The Sortformer model returned no predictions.")
+                "The Sortformer model returned no predictions."
+            )
         }
         let count = min(lengths[0].intValue, configuration.chunkEmbeddingRows)
         return SortformerPrediction(
-            predictions: Self.floats(predictions), embeddings: Self.floats(embeddings, rows: count),
-            embeddingCount: count)
+            predictions: Self.floats(predictions),
+            embeddings: Self.floats(embeddings, rows: count),
+            embeddingCount: count
+        )
     }
 
     /// Copies values into the start of a Float32 array and zeros the rest.
@@ -160,16 +168,17 @@ final class CoreMLSortformerEngine: SortformerInference {
         case .float16:
             #if arch(arm64)
                 array.withUnsafeBufferPointer(ofType: Float16.self) { buffer in
-                    for row in 0..<rowCount {
-                        for column in 0..<columns {
+                    for row in 0 ..< rowCount {
+                        for column in 0 ..< columns {
                             values[row * columns + column] = Float(
-                                buffer[row * strides[1] + column * strides[2]])
+                                buffer[row * strides[1] + column * strides[2]]
+                            )
                         }
                     }
                 }
             #else
-                for row in 0..<rowCount {
-                    for column in 0..<columns {
+                for row in 0 ..< rowCount {
+                    for column in 0 ..< columns {
                         values[row * columns + column] =
                             array[[0, row, column] as [NSNumber]].floatValue
                     }
@@ -177,8 +186,8 @@ final class CoreMLSortformerEngine: SortformerInference {
             #endif
         default:
             array.withUnsafeBufferPointer(ofType: Float.self) { buffer in
-                for row in 0..<rowCount {
-                    for column in 0..<columns {
+                for row in 0 ..< rowCount {
+                    for column in 0 ..< columns {
                         values[row * columns + column] =
                             buffer[row * strides[1] + column * strides[2]]
                     }

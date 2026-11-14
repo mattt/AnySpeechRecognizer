@@ -79,12 +79,13 @@ struct ParakeetEncoderOutput: Sendable {
     }
 
     func withFrame<Result>(
-        _ index: Int, _ body: (UnsafeBufferPointer<Float>) throws -> Result
+        _ index: Int,
+        _ body: (UnsafeBufferPointer<Float>) throws -> Result
     ) rethrows -> Result {
         precondition(index >= 0 && index < frameCount)
         return try features.withUnsafeBufferPointer {
             try body(
-                UnsafeBufferPointer(rebasing: $0[(index * hiddenSize)..<((index + 1) * hiddenSize)])
+                UnsafeBufferPointer(rebasing: $0[(index * hiddenSize) ..< ((index + 1) * hiddenSize)])
             )
         }
     }
@@ -119,13 +120,15 @@ protocol ParakeetInferenceEngine: AnyObject {
     ///   - validFrameCount: The mel frames that contain audio.
     ///   - output: Receives the features and the valid encoder frame count.
     func encode(
-        mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws
 
     /// Encodes one window of mel features with the encoder of ``forcedCommitModel``.
     func encodeForcedCommit(
-        mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws
 
@@ -139,7 +142,8 @@ protocol ParakeetInferenceEngine: AnyObject {
 
     /// Evaluates the joint network for one encoder frame and prediction network output.
     func joint(
-        encoderFrame: UnsafeBufferPointer<Float>, decoderOutput: UnsafeBufferPointer<Float>
+        encoderFrame: UnsafeBufferPointer<Float>,
+        decoderOutput: UnsafeBufferPointer<Float>
     ) throws -> ParakeetJointDecision
 }
 
@@ -147,7 +151,8 @@ extension ParakeetInferenceEngine {
     var forcedCommitModel: ParakeetModelDescription? { nil }
 
     func encodeForcedCommit(
-        mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {
         throw SpeechRecognitionError.invalidResult("The Parakeet engine has one encoder.")

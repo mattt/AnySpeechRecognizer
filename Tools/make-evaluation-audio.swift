@@ -11,11 +11,15 @@ else {
     )
 }
 let seed = try AVAudioFile(
-    forReading: URL(fileURLWithPath: CommandLine.arguments[1]), commonFormat: .pcmFormatFloat32,
-    interleaved: false)
+    forReading: URL(fileURLWithPath: CommandLine.arguments[1]),
+    commonFormat: .pcmFormatFloat32,
+    interleaved: false
+)
 let ending = try AVAudioFile(
-    forReading: URL(fileURLWithPath: CommandLine.arguments[4]), commonFormat: .pcmFormatFloat32,
-    interleaved: false)
+    forReading: URL(fileURLWithPath: CommandLine.arguments[4]),
+    commonFormat: .pcmFormatFloat32,
+    interleaved: false
+)
 let format = seed.processingFormat
 guard seed.length > 0, format == ending.processingFormat,
     seconds * format.sampleRate < Double(Int64.max)
@@ -30,13 +34,15 @@ guard totalFrames > leadingFrames + ending.length else {
 var settings = format.settings
 settings[AVLinearPCMIsNonInterleaved] = false
 var output: AVAudioFile? = try AVAudioFile(
-    forWriting: URL(fileURLWithPath: CommandLine.arguments[2]), settings: settings)
+    forWriting: URL(fileURLWithPath: CommandLine.arguments[2]),
+    settings: settings
+)
 let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 8192)!
 var written: Int64 = 0
 while written < leadingFrames {
     buffer.frameLength = AVAudioFrameCount(min(8192, leadingFrames - written))
-    for channel in 0..<Int(format.channelCount) {
-        for frame in 0..<Int(buffer.frameLength) { buffer.floatChannelData![channel][frame] = 0 }
+    for channel in 0 ..< Int(format.channelCount) {
+        for frame in 0 ..< Int(buffer.frameLength) { buffer.floatChannelData![channel][frame] = 0 }
     }
     try output!.write(from: buffer)
     written += Int64(buffer.frameLength)

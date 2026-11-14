@@ -19,18 +19,28 @@ enum ParakeetFixtures {
     static func samples(_ url: URL) throws -> [Float] {
         let file = try AVAudioFile(forReading: url)
         let target = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 16_000,
+            channels: 1,
+            interleaved: false
+        )!
         let input = AVAudioPCMBuffer(
-            pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length))!
+            pcmFormat: file.processingFormat,
+            frameCapacity: AVAudioFrameCount(file.length)
+        )!
         try file.read(into: input)
         if file.processingFormat == target {
             return Array(
                 UnsafeBufferPointer(
-                    start: input.floatChannelData![0], count: Int(input.frameLength)))
+                    start: input.floatChannelData![0],
+                    count: Int(input.frameLength)
+                )
+            )
         }
         let converter = AVAudioConverter(from: file.processingFormat, to: target)!
         let capacity = AVAudioFrameCount(
-            Double(input.frameLength) * 16_000 / file.processingFormat.sampleRate + 1024)
+            Double(input.frameLength) * 16_000 / file.processingFormat.sampleRate + 1024
+        )
         let output = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: capacity)!
         var supplied = false
         var error: NSError?
@@ -45,7 +55,8 @@ enum ParakeetFixtures {
         }
         if let error { throw error }
         return Array(
-            UnsafeBufferPointer(start: output.floatChannelData![0], count: Int(output.frameLength)))
+            UnsafeBufferPointer(start: output.floatChannelData![0], count: Int(output.frameLength))
+        )
     }
 
     static func text(_ tokens: [ParakeetToken], vocabulary: ParakeetVocabulary) -> String {
@@ -69,13 +80,15 @@ enum ParakeetFixtures {
         let a = reference.split(whereSeparator: \.isWhitespace).map(String.init)
         let b = hypothesis.split(whereSeparator: \.isWhitespace).map(String.init)
         var cost = [[Int]](repeating: [Int](repeating: 0, count: b.count + 1), count: a.count + 1)
-        for i in 0...a.count { cost[i][0] = i }
-        for j in 0...b.count { cost[0][j] = j }
+        for i in 0 ... a.count { cost[i][0] = i }
+        for j in 0 ... b.count { cost[0][j] = j }
         for i in stride(from: 1, through: a.count, by: 1) {
             for j in stride(from: 1, through: b.count, by: 1) {
                 cost[i][j] = min(
-                    cost[i - 1][j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1), cost[i - 1][j] + 1,
-                    cost[i][j - 1] + 1)
+                    cost[i - 1][j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1),
+                    cost[i - 1][j] + 1,
+                    cost[i][j - 1] + 1
+                )
             }
         }
         var result = WordEdits(words: a.count)

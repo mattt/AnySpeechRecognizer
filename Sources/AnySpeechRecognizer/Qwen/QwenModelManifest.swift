@@ -31,7 +31,11 @@ struct QwenModelManifest: PinnedModelManifest, Hashable, Codable {
 
     func validate() throws {
         try ParakeetModelManifest.validatePinnedFiles(
-            identifier: identifier, repository: repository, revision: revision, files: files,
-            components: Self.components)
+            identifier: identifier,
+            repository: repository,
+            revision: revision,
+            files: files,
+            components: Self.components
+        )
     }
 }

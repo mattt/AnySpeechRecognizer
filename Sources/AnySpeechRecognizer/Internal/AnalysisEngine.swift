@@ -69,8 +69,10 @@ actor ExecutorEngine: AnalysisEngine {
     private var queue = FinalizationQueue()
 
     init(
-        binding: ModuleBinding, model: any SpeechRecognitionModel,
-        request: SpeechRecognitionRequest, events: EngineEvents
+        binding: ModuleBinding,
+        model: any SpeechRecognitionModel,
+        request: SpeechRecognitionRequest,
+        events: EngineEvents
     ) {
         self.binding = binding
         self.model = model
@@ -102,13 +104,16 @@ actor ExecutorEngine: AnalysisEngine {
         case .ready, .preparing: break
         case .missingAssets:
             throw SpeechRecognitionError.missingAssets(
-                "Install assets for \(model.modelID) with AssetInventory before analysis.")
+                "Install assets for \(model.modelID) with AssetInventory before analysis."
+            )
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
-                "The device does not support \(model.modelID).")
+                "The device does not support \(model.modelID)."
+            )
         case .unsupportedLanguage:
             throw SpeechRecognitionError.unsupportedLanguage(
-                "The language configuration is unsupported by \(model.modelID).")
+                "The language configuration is unsupported by \(model.modelID)."
+            )
         }
         try Task.checkCancellation()
         try await executor.prepare(request: request, format: format, context: context)
@@ -119,7 +124,8 @@ actor ExecutorEngine: AnalysisEngine {
         let id = id
         let events = events
         let (ranges, continuation) = AsyncStream<CMTimeRange?>.makeStream(
-            bufferingPolicy: .bufferingNewest(1))
+            bufferingPolicy: .bufferingNewest(1)
+        )
         let forwarding = Task {
             for await range in ranges { await events.volatileRangeChanged(id, range) }
         }
@@ -143,7 +149,9 @@ actor ExecutorEngine: AnalysisEngine {
             try validate(result)
             try binding.deliver(result)
             finalization = max(
-                finalization ?? result.resultsFinalizationTime, result.resultsFinalizationTime)
+                finalization ?? result.resultsFinalizationTime,
+                result.resultsFinalizationTime
+            )
         } catch {
             let error = recognitionError(error)
             await events.fail(error)
@@ -164,7 +172,8 @@ actor ExecutorEngine: AnalysisEngine {
             !result.isFinal || result.resultsFinalizationTime >= range.end
         else {
             throw SpeechRecognitionError.invalidResult(
-                "A result has invalid, overlapping, or unfinalized source timing.")
+                "A result has invalid, overlapping, or unfinalized source timing."
+            )
         }
         try validateTiming(in: result.text, range: range)
         for alternative in result.alternatives { try validateTiming(in: alternative, range: range) }
@@ -243,7 +252,8 @@ actor NativeEngine: AnalysisEngine {
 
     init(
         members: [(binding: ModuleBinding, member: NativeMember)],
-        options: Speech.SpeechAnalyzer.Options?, events: EngineEvents
+        options: Speech.SpeechAnalyzer.Options?,
+        events: EngineEvents
     ) {
         self.members = members
         self.options = options
@@ -255,10 +265,13 @@ actor NativeEngine: AnalysisEngine {
     func inputFormat(considering natural: AVAudioFormat?) async throws -> AVAudioFormat {
         guard
             let format = await Speech.SpeechAnalyzer.bestAvailableAudioFormat(
-                compatibleWith: natives, considering: natural)
+                compatibleWith: natives,
+                considering: natural
+            )
         else {
             throw SpeechRecognitionError.missingAssets(
-                "Apple Speech has no installed format for these modules.")
+                "Apple Speech has no installed format for these modules."
+            )
         }
         return format
     }
@@ -268,16 +281,19 @@ actor NativeEngine: AnalysisEngine {
         case .installed: break
         case .unsupported:
             throw SpeechRecognitionError.unsupportedLanguage(
-                "Apple Speech does not support this module configuration.")
+                "Apple Speech does not support this module configuration."
+            )
         default:
             throw SpeechRecognitionError.missingAssets(
-                "Install Apple Speech assets with AssetInventory before analysis.")
+                "Install Apple Speech assets with AssetInventory before analysis."
+            )
         }
         try Task.checkCancellation()
         guard !closed else { throw CancellationError() }
         let analyzer = Speech.SpeechAnalyzer(modules: natives, options: options)
         let (stream, continuation) = AsyncStream<CMTimeRange?>.makeStream(
-            bufferingPolicy: .bufferingNewest(1))
+            bufferingPolicy: .bufferingNewest(1)
+        )
         await analyzer.setVolatileRangeChangedHandler { range, _, _ in
             continuation.yield(range.duration > .zero ? range : nil)
         }

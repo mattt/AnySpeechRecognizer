@@ -72,7 +72,10 @@ struct SortformerStreamingState: Sendable {
     ///   - rightContext: Rows of right context at the end of the chunk.
     /// - Returns: The predictions of the chunk's rows without context, row-major.
     mutating func update(
-        embeddings: [Float], embeddingCount: Int, predictions: [Float], leftContext: Int,
+        embeddings: [Float],
+        embeddingCount: Int,
+        predictions: [Float],
+        leftContext: Int,
         rightContext: Int
     ) -> [Float] {
         let size = configuration.embeddingSize
@@ -82,24 +85,28 @@ struct SortformerStreamingState: Sendable {
         let chunkFrames = max(0, embeddingCount - leftContext - rightContext)
 
         func rows(_ values: [Float], _ range: Range<Int>, width: Int) -> ArraySlice<Float> {
-            values[(range.lowerBound * width)..<(range.upperBound * width)]
+            values[(range.lowerBound * width) ..< (range.upperBound * width)]
         }
         let chunkStart = cacheFrames + queuedFrames + leftContext
         let chunkPredictions = Array(
-            rows(predictions, chunkStart..<(chunkStart + chunkFrames), width: speakers))
+            rows(predictions, chunkStart ..< (chunkStart + chunkFrames), width: speakers)
+        )
         fifoPredictions = Array(
-            rows(predictions, cacheFrames..<(cacheFrames + queuedFrames), width: speakers))
-        fifo += rows(embeddings, leftContext..<(leftContext + chunkFrames), width: size)
+            rows(predictions, cacheFrames ..< (cacheFrames + queuedFrames), width: speakers)
+        )
+        fifo += rows(embeddings, leftContext ..< (leftContext + chunkFrames), width: size)
         fifoPredictions += chunkPredictions
 
         guard queuedFrames + chunkFrames > configuration.fifoLength else {
             return chunkPredictions
         }
         var popCount = max(
-            configuration.updatePeriod, chunkFrames - configuration.fifoLength + queuedFrames)
+            configuration.updatePeriod,
+            chunkFrames - configuration.fifoLength + queuedFrames
+        )
         popCount = min(popCount, queuedFrames + chunkFrames)
-        let poppedEmbeddings = Array(fifo[0..<(popCount * size)])
-        let poppedPredictions = Array(fifoPredictions[0..<(popCount * speakers)])
+        let poppedEmbeddings = Array(fifo[0 ..< (popCount * size)])
+        let poppedPredictions = Array(fifoPredictions[0 ..< (popCount * speakers)])
         updateSilenceProfile(embeddings: poppedEmbeddings, predictions: poppedPredictions)
         fifo.removeFirst(popCount * size)
         fifoPredictions.removeFirst(popCount * speakers)
@@ -110,11 +117,13 @@ struct SortformerStreamingState: Sendable {
         } else {
             // Before the first compression, keep fresh predictions for every cached frame.
             speakerCachePredictions =
-                Array(rows(predictions, 0..<cacheFrames, width: speakers)) + poppedPredictions
+                Array(rows(predictions, 0 ..< cacheFrames, width: speakers)) + poppedPredictions
         }
         if speakerCacheFrames > configuration.speakerCacheLength {
             (speakerCache, speakerCachePredictions) = compress(
-                embeddings: speakerCache, predictions: speakerCachePredictions)
+                embeddings: speakerCache,
+                predictions: speakerCachePredictions
+            )
             compressed = true
         }
         return chunkPredictions
@@ -127,16 +136,16 @@ struct SortformerStreamingState: Sendable {
         let frames = predictions.count / speakers
         var sum = [Float](repeating: 0, count: size)
         var count = 0
-        for frame in 0..<frames {
+        for frame in 0 ..< frames {
             var activity: Float = 0
-            for speaker in 0..<speakers { activity += predictions[frame * speakers + speaker] }
+            for speaker in 0 ..< speakers { activity += predictions[frame * speakers + speaker] }
             guard activity < silenceThreshold else { continue }
             count += 1
-            for index in 0..<size { sum[index] += embeddings[frame * size + index] }
+            for index in 0 ..< size { sum[index] += embeddings[frame * size + index] }
         }
         guard count > 0 else { return }
         let total = silenceFrameCount + count
-        for index in 0..<size {
+        for index in 0 ..< size {
             meanSilenceEmbedding[index] =
                 (meanSilenceEmbedding[index] * Float(silenceFrameCount) + sum[index])
                 / Float(max(total, 1))
@@ -159,12 +168,12 @@ struct SortformerStreamingState: Sendable {
         // Scores are high for confident, non-overlapped speech of one speaker.
         var scores = [Float](repeating: 0, count: frames * speakers)
         let threshold = predictionScoreThreshold
-        for frame in 0..<frames {
+        for frame in 0 ..< frames {
             var silenceSum: Float = 0
-            for speaker in 0..<speakers {
+            for speaker in 0 ..< speakers {
                 silenceSum += log(max(1 - predictions[frame * speakers + speaker], threshold))
             }
-            for speaker in 0..<speakers {
+            for speaker in 0 ..< speakers {
                 let probability = predictions[frame * speakers + speaker]
                 scores[frame * speakers + speaker] =
                     log(max(probability, threshold)) - log(max(1 - probability, threshold))
@@ -173,13 +182,13 @@ struct SortformerStreamingState: Sendable {
         }
         // Non-speech scores are disabled. When a speaker has enough positive scores,
         // its non-positive speech scores, usually overlapped speech, are disabled too.
-        for speaker in 0..<speakers {
+        for speaker in 0 ..< speakers {
             var positive = 0
-            for frame in 0..<frames {
+            for frame in 0 ..< frames {
                 let index = frame * speakers + speaker
                 if predictions[index] > 0.5 && scores[index] > 0 { positive += 1 }
             }
-            for frame in 0..<frames {
+            for frame in 0 ..< frames {
                 let index = frame * speakers + speaker
                 if predictions[index] <= 0.5 {
                     scores[index] = -.infinity
@@ -189,7 +198,7 @@ struct SortformerStreamingState: Sendable {
             }
         }
         if latestScoreBoost > 0, frames > cacheLength {
-            for index in (cacheLength * speakers)..<(frames * speakers) {
+            for index in (cacheLength * speakers) ..< (frames * speakers) {
                 scores[index] += latestScoreBoost
             }
         }
@@ -202,8 +211,8 @@ struct SortformerStreamingState: Sendable {
         let paddedFrames = frames + silenceFramesPerSpeaker
         var flattened: [(score: Float, index: Int)] = []
         flattened.reserveCapacity(paddedFrames * speakers)
-        for speaker in 0..<speakers {
-            for frame in 0..<paddedFrames {
+        for speaker in 0 ..< speakers {
+            for frame in 0 ..< paddedFrames {
                 let score = frame < frames ? scores[frame * speakers + speaker] : .infinity
                 flattened.append((score, speaker * paddedFrames + frame))
             }
@@ -218,15 +227,15 @@ struct SortformerStreamingState: Sendable {
         for (slot, index) in selected.enumerated() {
             let frame = index == placeholder ? frames : index % paddedFrames
             if frame >= frames {
-                for offset in 0..<size {
+                for offset in 0 ..< size {
                     cache[slot * size + offset] = meanSilenceEmbedding[offset]
                 }
                 continue
             }
-            for offset in 0..<size {
+            for offset in 0 ..< size {
                 cache[slot * size + offset] = embeddings[frame * size + offset]
             }
-            for speaker in 0..<speakers {
+            for speaker in 0 ..< speakers {
                 cachePredictions[slot * speakers + speaker] =
                     predictions[frame * speakers + speaker]
             }
@@ -237,8 +246,8 @@ struct SortformerStreamingState: Sendable {
     /// Adds `amount` to each speaker's `count` highest scores. Disabled scores stay disabled.
     private func boostTopScores(_ scores: inout [Float], frames: Int, count: Int, amount: Float) {
         let speakers = configuration.speakerCount
-        for speaker in 0..<speakers {
-            let column = (0..<frames).map { (score: scores[$0 * speakers + speaker], index: $0) }
+        for speaker in 0 ..< speakers {
+            let column = (0 ..< frames).map { (score: scores[$0 * speakers + speaker], index: $0) }
             for entry in Self.topIndices(column, count: count) {
                 scores[entry.index * speakers + speaker] += amount
             }

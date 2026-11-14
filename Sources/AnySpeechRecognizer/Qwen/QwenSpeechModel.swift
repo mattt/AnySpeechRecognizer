@@ -109,8 +109,10 @@ public struct QwenSpeechModel: SpeechRecognitionModel {
     }
 
     public let capabilities = SpeechRecognitionCapabilities(
-        transcription: .init(reportingOptions: [], attributeOptions: []), liveInput: false,
-        languageControl: true)
+        transcription: .init(reportingOptions: [], attributeOptions: []),
+        liveInput: false,
+        languageControl: true
+    )
 
     /// Creates a configuration without loading, inference, or downloads.
     /// - Parameters:
@@ -121,21 +123,31 @@ public struct QwenSpeechModel: SpeechRecognitionModel {
     ///   - encoderComputeUnits: The compute units for the audio encoder.
     ///   - decoderComputeUnits: The compute units for the text decoder.
     public init(
-        variant: Variant = .large, assets: Assets = .builtIn, language: Locale.Language? = nil,
+        variant: Variant = .large,
+        assets: Assets = .builtIn,
+        language: Locale.Language? = nil,
         encoderComputeUnits: ComputeUnits = .cpuAndGPU,
         decoderComputeUnits: ComputeUnits = .cpuAndGPU
     ) {
         self.init(
-            variant: variant, assets: assets, language: language,
-            encoderComputeUnits: encoderComputeUnits, decoderComputeUnits: decoderComputeUnits,
-            manifest: QwenModelManifest.builtIn[variant], store: .shared)
+            variant: variant,
+            assets: assets,
+            language: language,
+            encoderComputeUnits: encoderComputeUnits,
+            decoderComputeUnits: decoderComputeUnits,
+            manifest: QwenModelManifest.builtIn[variant],
+            store: .shared
+        )
     }
 
     /// Creates a configuration with a specific manifest and store, for tests.
     init(
-        variant: Variant, assets: Assets, language: Locale.Language? = nil,
+        variant: Variant,
+        assets: Assets,
+        language: Locale.Language? = nil,
         encoderComputeUnits: ComputeUnits = .cpuAndGPU,
-        decoderComputeUnits: ComputeUnits = .cpuAndGPU, manifest: QwenModelManifest?,
+        decoderComputeUnits: ComputeUnits = .cpuAndGPU,
+        manifest: QwenModelManifest?,
         store: ModelAssetStore
     ) {
         self.variant = variant
@@ -195,10 +207,12 @@ public struct QwenSpeechModel: SpeechRecognitionModel {
         case .ready: return nil
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
-                "The Qwen3-ASR runtime requires Apple silicon.")
+                "The Qwen3-ASR runtime requires Apple silicon."
+            )
         case .unsupportedLanguage:
             throw SpeechRecognitionError.unsupportedLanguage(
-                "Qwen3-ASR does not support the language \(languageCode ?? "").")
+                "Qwen3-ASR does not support the language \(languageCode ?? "")."
+            )
         default: break
         }
         guard case .builtIn = assets, let manifest else {
@@ -206,7 +220,8 @@ public struct QwenSpeechModel: SpeechRecognitionModel {
             throw SpeechRecognitionError.missingAssets(
                 "No published conversion of \(variant.title) is pinned. Stage the Qwen3-ASR "
                     + "encoder, decoder, vocabulary, and configuration\(location); convert them "
-                    + "with Tools/QwenConversion.")
+                    + "with Tools/QwenConversion."
+            )
         }
         let store = store
         // The request owns its progress object, which follows the shared install.
@@ -222,7 +237,9 @@ public struct QwenSpeechModel: SpeechRecognitionModel {
     public func diagnostics() async -> SpeechRecognitionDiagnostics {
         let builtIn = assets == .builtIn
         return .init(
-            provider: "AnySpeechRecognizer Qwen3-ASR", modelID: modelID, runtimeVersion: "Core ML",
+            provider: "AnySpeechRecognizer Qwen3-ASR",
+            modelID: modelID,
+            runtimeVersion: "Core ML",
             modelRepository: builtIn ? manifest?.repository : directory?.path,
             modelRevision: builtIn ? manifest?.revision : nil,
             computeConfiguration:
@@ -230,8 +247,10 @@ public struct QwenSpeechModel: SpeechRecognitionModel {
                 + "greedy decoding; segments of up to "
                 + "\(QwenSegmenter.maximumSamples / QwenSegmenter.sampleRate) s; "
                 + (languageCode.map { "language forced to \($0)" } ?? "automatic language"),
-            requestedLocale: language?.minimalIdentifier, effectiveLocale: languageCode,
-            capabilities: capabilities)
+            requestedLocale: language?.minimalIdentifier,
+            effectiveLocale: languageCode,
+            capabilities: capabilities
+        )
     }
 }
 
@@ -259,45 +278,57 @@ actor QwenExecutor: SpeechRecognitionExecutor {
     var inputEnd: CMTime? { expected }
 
     func prepare(
-        request: SpeechRecognitionRequest, format: AVAudioFormat, context: AnalysisContext
+        request: SpeechRecognitionRequest,
+        format: AVAudioFormat,
+        context: AnalysisContext
     ) async throws {
         guard case .transcription = request else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "Qwen3-ASR does not support DictationTranscriber.")
+                "Qwen3-ASR does not support DictationTranscriber."
+            )
         }
         try request.validate(for: model.capabilities)
         guard format.sampleRate == 16_000, format.channelCount == 1,
             format.commonFormat == .pcmFormatFloat32, !format.isInterleaved
         else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "Qwen3-ASR requires 16 kHz mono Float32 input.")
+                "Qwen3-ASR requires 16 kHz mono Float32 input."
+            )
         }
         guard let directory = model.directory else {
             throw SpeechRecognitionError.missingAssets(
-                "No published conversion of \(model.variant.title) is pinned; stage a directory.")
+                "No published conversion of \(model.variant.title) is pinned; stage a directory."
+            )
         }
         let languageCode = model.languageCode
         let encoderUnits = model.encoderComputeUnits.coreML
         let decoderUnits = model.decoderComputeUnits.coreML
         let loaded = try await Task.detached {
             let configuration = try QwenModelConfiguration(
-                contentsOf: directory.appending(path: CoreMLQwenEngine.configurationName))
+                contentsOf: directory.appending(path: CoreMLQwenEngine.configurationName)
+            )
             var prefill: [Int]?
             if let languageCode {
                 guard let language = configuration.prompt.languages[languageCode] else {
                     throw SpeechRecognitionError.unsupportedLanguage(
-                        "Qwen3-ASR does not support the language \(languageCode).")
+                        "Qwen3-ASR does not support the language \(languageCode)."
+                    )
                 }
                 prefill = language.prefill
             }
             let vocabulary = try QwenVocabulary(
                 contentsOf: directory.appending(path: CoreMLQwenEngine.vocabularyName),
-                skipping: Set(configuration.skippedTokenIds))
+                skipping: Set(configuration.skippedTokenIds)
+            )
             let engine = try CoreMLQwenEngine(
-                directory: directory, configuration: configuration,
-                encoderComputeUnits: encoderUnits, decoderComputeUnits: decoderUnits)
+                directory: directory,
+                configuration: configuration,
+                encoderComputeUnits: encoderUnits,
+                decoderComputeUnits: decoderUnits
+            )
             return UncheckedRecognizer(
-                QwenRecognizer(engine: engine, vocabulary: vocabulary, prefill: prefill))
+                QwenRecognizer(engine: engine, vocabulary: vocabulary, prefill: prefill)
+            )
         }.value
         try Task.checkCancellation()
         guard !cancelled else { throw CancellationError() }
@@ -339,7 +370,8 @@ actor QwenExecutor: SpeechRecognitionExecutor {
         let sample =
             Int(
                 CMTimeConvertScale(offset, timescale: 16_000, method: .roundTowardPositiveInfinity)
-                    .value) + 1
+                    .value
+            ) + 1
         try await transcribe(through: min(sample, buffered.count))
     }
 
@@ -360,7 +392,9 @@ actor QwenExecutor: SpeechRecognitionExecutor {
         guard !cancelled else { throw CancellationError() }
         let text = try transcribe(Array(buffered[..<length]))
         let range = CMTimeRange(
-            start: origin, duration: CMTime(value: CMTimeValue(length), timescale: 16_000))
+            start: origin,
+            duration: CMTime(value: CMTimeValue(length), timescale: 16_000)
+        )
         // Update the buffer before publishing suspends the executor, so that a finalization
         // that runs meanwhile does not transcribe the same samples again.
         buffered.removeFirst(length)
@@ -391,8 +425,10 @@ actor QwenExecutor: SpeechRecognitionExecutor {
             lastCharacter.map { Self.needsSpace(between: $0, and: text.first!) } ?? false
         lastCharacter = text.last
         let result = SpeechRecognitionResult(
-            text: AttributedString(separated ? " " + text : text), range: range,
-            resultsFinalizationTime: range.end)
+            text: AttributedString(separated ? " " + text : text),
+            range: range,
+            resultsFinalizationTime: range.end
+        )
         let previous = emission
         let task = Task {
             _ = await previous?.result
@@ -418,11 +454,11 @@ actor QwenExecutor: SpeechRecognitionExecutor {
         func isUnspaced(_ character: Character) -> Bool {
             character.unicodeScalars.contains { scalar in
                 switch scalar.value {
-                case 0x3000...0x303F,  // CJK symbols and punctuation
-                    0x3040...0x30FF,  // Hiragana and katakana
-                    0x3400...0x4DBF, 0x4E00...0x9FFF, 0xF900...0xFAFF,  // CJK ideographs
-                    0x20000...0x2FA1F,
-                    0xFF00...0xFFEF:  // Full-width forms
+                case 0x3000 ... 0x303F,  // CJK symbols and punctuation
+                    0x3040 ... 0x30FF,  // Hiragana and katakana
+                    0x3400 ... 0x4DBF, 0x4E00 ... 0x9FFF, 0xF900 ... 0xFAFF,  // CJK ideographs
+                    0x20000 ... 0x2FA1F,
+                    0xFF00 ... 0xFFEF:  // Full-width forms
                     true
                 default: false
                 }

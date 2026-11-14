@@ -18,15 +18,20 @@ struct Analysis {
     /// With `json`, this writes JSON lines with metadata, results, and speaker segments;
     /// otherwise it writes final text, unless a diarizer attributes it to speakers later.
     @concurrent static func run(
-        _ path: String, model: ModelOptions, results: ResultOptions, diarizer: DiarizerOptions,
-        json: Bool, cacheState: String
+        _ path: String,
+        model: ModelOptions,
+        results: ResultOptions,
+        diarizer: DiarizerOptions,
+        json: Bool,
+        cacheState: String
     ) async throws -> Analysis {
         let model = model.model()
         let diarizer = diarizer.diarizer(live: results.live)
         let file: AVAudioFile
         do { file = try AVAudioFile(forReading: URL(fileURLWithPath: path)) } catch {
             throw SpeechRecognitionError.invalidAudio(
-                "Cannot open audio file: \(error.localizedDescription)")
+                "Cannot open audio file: \(error.localizedDescription)"
+            )
         }
         let properties = AudioProperties(
             sampleRate: file.processingFormat.sampleRate,
@@ -37,8 +42,10 @@ struct Analysis {
         // Request word timing from models that report it; Qwen3-ASR reports none.
         let timing = model.capabilities.transcription?.attributeOptions.contains(.audioTimeRange)
         let transcriber = SpeechTranscriber(
-            model: model, reportingOptions: results.reportingOptions,
-            attributeOptions: timing == true ? [.audioTimeRange] : [])
+            model: model,
+            reportingOptions: results.reportingOptions,
+            attributeOptions: timing == true ? [.audioTimeRange] : []
+        )
         let modules: [any SpeechModule] = [transcriber] + (diarizer.map { [$0] } ?? [])
         let analyzer = SpeechAnalyzer(modules: modules)
         let started = ContinuousClock.now
@@ -49,11 +56,15 @@ struct Analysis {
             if json {
                 try writeJSON(
                     MetadataRecord(
-                        type: "metadata", diagnostics: await model.diagnostics(), audio: properties,
-                        hardware: hardware(), cacheState: cacheState,
+                        type: "metadata",
+                        diagnostics: await model.diagnostics(),
+                        audio: properties,
+                        hardware: hardware(),
+                        cacheState: cacheState,
                         preparationSeconds: preparationSeconds,
                         diarizer: await diarizer?.model.diagnostics()
-                    ))
+                    )
+                )
             }
             async let transcript = consume(transcriber, json: json, printsText: diarizer == nil)
             async let timeline = consume(diarizer, json: json)
@@ -66,8 +77,11 @@ struct Analysis {
                 try await analyzer.finalizeAndFinishThroughEndOfInput()
             }
             return Analysis(
-                transcript: try await transcript, speakers: try await timeline, audio: properties,
-                started: started)
+                transcript: try await transcript,
+                speakers: try await timeline,
+                audio: properties,
+                started: started
+            )
         } catch {
             await analyzer.cancelAndFinishNow()
             throw error
@@ -75,7 +89,9 @@ struct Analysis {
     }
 
     @concurrent private static func consume(
-        _ transcriber: SpeechTranscriber, json: Bool, printsText: Bool
+        _ transcriber: SpeechTranscriber,
+        json: Bool,
+        printsText: Bool
     ) async throws -> AttributedString {
         var text = AttributedString()
         for try await result in transcriber.results {
@@ -110,8 +126,11 @@ struct Analysis {
     private static func liveBlocks(_ path: String) throws -> LiveBlocks {
         LiveBlocks(
             file: try AVAudioFile(
-                forReading: URL(fileURLWithPath: path), commonFormat: .pcmFormatInt16,
-                interleaved: true))
+                forReading: URL(fileURLWithPath: path),
+                commonFormat: .pcmFormatInt16,
+                interleaved: true
+            )
+        )
     }
 
     private static func hardware() -> String {
@@ -164,8 +183,10 @@ private struct DiarizationRecord: Encodable {
         finalizationSeconds = result.resultsFinalizationTime.seconds
         segments = result.segments.map {
             Segment(
-                speaker: $0.speaker.id, startSeconds: $0.range.start.seconds,
-                endSeconds: $0.range.end.seconds)
+                speaker: $0.speaker.id,
+                startSeconds: $0.range.start.seconds,
+                endSeconds: $0.range.end.seconds
+            )
         }
     }
 }
@@ -194,8 +215,10 @@ private struct ResultRecord: Encodable {
                 return nil
             }
             return Word(
-                text: String(result.text[run.range].characters), startSeconds: range.start.seconds,
-                endSeconds: range.end.seconds)
+                text: String(result.text[run.range].characters),
+                startSeconds: range.start.seconds,
+                endSeconds: range.end.seconds
+            )
         }
     }
 }
@@ -215,7 +238,9 @@ private struct LiveBlocks: AsyncSequence, @unchecked Sendable {
             let frames = AVAudioFrameCount(file.processingFormat.sampleRate / 10)
             guard
                 let buffer = AVAudioPCMBuffer(
-                    pcmFormat: file.processingFormat, frameCapacity: frames)
+                    pcmFormat: file.processingFormat,
+                    frameCapacity: frames
+                )
             else { throw CLIError("Cannot allocate an audio block.") }
             try file.read(into: buffer, frameCount: frames)
             return AnalyzerInput(buffer: buffer)

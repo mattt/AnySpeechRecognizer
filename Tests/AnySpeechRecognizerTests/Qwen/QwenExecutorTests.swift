@@ -17,7 +17,8 @@ struct QwenExecutorTests {
     }
 
     static let model = QwenSpeechModel(
-        assets: .directory(URL(fileURLWithPath: "/nonexistent/qwen")))
+        assets: .directory(URL(fileURLWithPath: "/nonexistent/qwen"))
+    )
 
     func executor(scripts: [[Int]]) async -> (QwenExecutor, FakeQwenEngine) {
         let engine = FakeQwenEngine(scripts: scripts)
@@ -30,11 +31,15 @@ struct QwenExecutorTests {
         let buffer = try #require(
             AVAudioPCMBuffer(
                 pcmFormat: AudioFormats.monoFloat16k,
-                frameCapacity: AVAudioFrameCount(samples.count)))
+                frameCapacity: AVAudioFrameCount(samples.count)
+            )
+        )
         buffer.frameLength = AVAudioFrameCount(samples.count)
         for (index, sample) in samples.enumerated() { buffer.floatChannelData![0][index] = sample }
         return TimedAudioBuffer(
-            buffer: buffer, startTime: CMTime(seconds: start, preferredTimescale: 16_000))
+            buffer: buffer,
+            startTime: CMTime(seconds: start, preferredTimescale: 16_000)
+        )
     }
 
     /// Runs the executor over buffers, then finalizes through the end of the last one.
@@ -42,7 +47,8 @@ struct QwenExecutorTests {
         let received = Received()
         let sink = SpeechRecognitionResultSink(
             publish: { result in received.results.withLock { $0.append(result) } },
-            volatile: { _ in Issue.record("Qwen3-ASR reported a volatile range.") })
+            volatile: { _ in Issue.record("Qwen3-ASR reported a volatile range.") }
+        )
         let branch = AudioBranch(format: AudioFormats.monoFloat16k)
         let analysis = Task {
             try await executor.analyze(SpeechAnalysisInput(branch: branch), results: sink)
@@ -63,21 +69,23 @@ struct QwenExecutorTests {
     /// becomes one final result with the segment's source range.
     @Test func publishesOneFinalResultPerSegment() async throws {
         let (executor, engine) = await executor(scripts: [T.englishReply])
-        let samples = T.tone(seconds: 50, silence: 28.0..<28.4)
+        let samples = T.tone(seconds: 50, silence: 28.0 ..< 28.4)
         let received = try await run(
             executor,
             [
                 try buffer(Array(samples[..<400_000]), start: 2),
                 try buffer(Array(samples[400_000...]), start: 27),
-            ])
+            ]
+        )
         #expect(received.texts == ["Hello world", " Hello world"])
         let ranges = received.all.map(\.range)
         #expect(ranges.first?.start == CMTime(value: 32_000, timescale: 16_000))
-        #expect((30.0..<30.4).contains(try #require(ranges.first).end.seconds))
+        #expect((30.0 ..< 30.4).contains(try #require(ranges.first).end.seconds))
         #expect(ranges.first?.end == ranges.last?.start)
         #expect(ranges.last?.end == CMTime(value: 52 * 16_000, timescale: 16_000))
         #expect(
-            received.all.allSatisfy { $0.isFinal && $0.resultsFinalizationTime == $0.range.end })
+            received.all.allSatisfy { $0.isFinal && $0.resultsFinalizationTime == $0.range.end }
+        )
         #expect(engine.prompts.count == 2)
     }
 
@@ -86,7 +94,8 @@ struct QwenExecutorTests {
         let (executor, _) = await executor(scripts: [T.englishReply, T.chineseReply])
         let received = try await run(
             executor,
-            [try buffer(T.tone(seconds: 3), start: 0), try buffer(T.tone(seconds: 2), start: 10)])
+            [try buffer(T.tone(seconds: 3), start: 0), try buffer(T.tone(seconds: 2), start: 10)]
+        )
         #expect(received.texts == ["Hello world", "你好"])
         #expect(received.all.map(\.range.start.seconds) == [0, 10])
         #expect(received.all.map(\.range.end.seconds) == [3, 12])
@@ -96,7 +105,9 @@ struct QwenExecutorTests {
     @Test func publishesNothingForSilence() async throws {
         let (executor, _) = await executor(scripts: [[T.language, T.none, T.asrText]])
         let received = try await run(
-            executor, [try buffer([Float](repeating: 0, count: 32_000), start: 0)])
+            executor,
+            [try buffer([Float](repeating: 0, count: 32_000), start: 0)]
+        )
         #expect(received.all.isEmpty)
     }
 
@@ -121,7 +132,10 @@ struct QwenExecutorTests {
         let executor = QwenExecutor(model: Self.model)
         await #expect(throws: SpeechRecognitionError.self) {
             try await executor.prepare(
-                request: request, format: AudioFormats.monoFloat16k, context: AnalysisContext())
+                request: request,
+                format: AudioFormats.monoFloat16k,
+                context: AnalysisContext()
+            )
         }
     }
 }
@@ -129,11 +143,14 @@ struct QwenExecutorTests {
 struct QwenSpeechModelTests {
     func stagedDirectory(_ names: [String]) throws -> URL {
         let directory = FileManager.default.temporaryDirectory.appending(
-            path: "anyspeech-qwen-\(UUID())")
+            path: "anyspeech-qwen-\(UUID())"
+        )
         for name in names {
             let url = directory.appending(path: name)
             try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
             try Data().write(to: url)
         }
         return directory
@@ -154,9 +171,11 @@ struct QwenSpeechModelTests {
         #expect(await QwenSpeechModel(assets: .directory(complete)).availability() == .ready)
         #expect(
             try await QwenSpeechModel(assets: .directory(complete)).assetInstallationRequest()
-                == nil)
+                == nil
+        )
         #expect(
-            await QwenSpeechModel(assets: .directory(incomplete)).availability() == .missingAssets)
+            await QwenSpeechModel(assets: .directory(incomplete)).availability() == .missingAssets
+        )
         await #expect(throws: SpeechRecognitionError.self) {
             _ = try await QwenSpeechModel(assets: .directory(incomplete)).assetInstallationRequest()
         }
@@ -167,11 +186,15 @@ struct QwenSpeechModelTests {
         let directory = try stagedDirectory(Self.files)
         defer { try? FileManager.default.removeItem(at: directory) }
         let cantonese = QwenSpeechModel(
-            assets: .directory(directory), language: Locale.Language(identifier: "yue-Hant-HK"))
+            assets: .directory(directory),
+            language: Locale.Language(identifier: "yue-Hant-HK")
+        )
         #expect(cantonese.languageCode == "yue")
         #expect(await cantonese.availability() == .ready)
         let klingon = QwenSpeechModel(
-            assets: .directory(directory), language: Locale.Language(identifier: "tlh"))
+            assets: .directory(directory),
+            language: Locale.Language(identifier: "tlh")
+        )
         #expect(await klingon.availability() == .unsupportedLanguage)
         #expect(QwenSpeechModel(assets: .directory(directory)).languageCode == nil)
     }

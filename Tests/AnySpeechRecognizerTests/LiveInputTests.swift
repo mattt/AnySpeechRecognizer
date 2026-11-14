@@ -96,10 +96,12 @@ private func time(_ frames: Int64) -> CMTime { CMTime(value: frames, timescale: 
     let channel = ResultChannel<SpeechTranscriber.Result>()
     let volatile1 = SpeechTranscriber.Result(snapshot("Hel", start: 0, end: 8_000, final: false))
     let volatile2 = SpeechTranscriber.Result(
-        snapshot("Hello wor", start: 0, end: 12_000, final: false))
+        snapshot("Hello wor", start: 0, end: 12_000, final: false)
+    )
     let final = SpeechTranscriber.Result(snapshot("Hello", start: 0, end: 8_000))
     let volatile3 = SpeechTranscriber.Result(
-        snapshot("world", start: 8_000, end: 16_000, final: false))
+        snapshot("world", start: 8_000, end: 16_000, final: false)
+    )
     for result in [volatile1, volatile2, final, volatile3] { try channel.publish(result) }
     channel.finish()
     var values: [SpeechTranscriber.Result] = []
@@ -109,7 +111,7 @@ private func time(_ frames: Int64) -> CMTime { CMTime(value: frames, timescale: 
 
 @Test func slowConsumerDoesNotOverflowOnVolatileResults() throws {
     let channel = ResultChannel<SpeechTranscriber.Result>()
-    for index in 0..<(ResultChannel<SpeechTranscriber.Result>.maximumResults * 4) {
+    for index in 0 ..< (ResultChannel<SpeechTranscriber.Result>.maximumResults * 4) {
         let result = snapshot("partial \(index)", start: 0, end: Int64(index + 1), final: false)
         try channel.publish(SpeechTranscriber.Result(result))
     }
@@ -118,12 +120,16 @@ private func time(_ frames: Int64) -> CMTime { CMTime(value: frames, timescale: 
 @Test func volatileRangeIsReported() async throws {
     let executor = FakeExecutor()
     let transcriber = SpeechTranscriber(
-        model: FakeModel(executor: executor), reportingOptions: [.volatileResults])
+        model: FakeModel(executor: executor),
+        reportingOptions: [.volatileResults]
+    )
     let ranges = Ranges()
     let (stream, continuation) = liveInput()
     let analyzer = SpeechAnalyzer(
-        inputSequence: stream, modules: [transcriber],
-        volatileRangeChangedHandler: { range, _, _ in Task { await ranges.append(range) } })
+        inputSequence: stream,
+        modules: [transcriber],
+        volatileRangeChangedHandler: { range, _, _ in Task { await ranges.append(range) } }
+    )
     continuation.yield(input(frames: 8_000))
     await eventually { await executor.pulledFrames == 8_000 }
     let range = CMTimeRange(start: .zero, end: time(8_000))
@@ -208,7 +214,10 @@ private actor Ranges {
     let transcriber = SpeechTranscriber(model: FakeModel(executor: executor))
     async let results = collect(transcriber)
     let analyzer = try await SpeechAnalyzer(
-        inputAudioFile: file, modules: [transcriber], finishAfterFile: true)
+        inputAudioFile: file,
+        modules: [transcriber],
+        finishAfterFile: true
+    )
     #expect(texts(try await results) == ["File."])
     await eventually { await analyzer.state == .finished }
 }

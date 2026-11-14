@@ -49,8 +49,10 @@ final class StubModelServer: Sendable {
         return ModelAssetStore(
             cache: HubCache(cacheDirectory: root.appending(path: "hub")),
             markerDirectory: root.appending(path: "verified"),
-            session: URLSession(configuration: configuration), host: url,
-            maximumConcurrentDownloads: maximumConcurrentDownloads)
+            session: URLSession(configuration: configuration),
+            host: url,
+            maximumConcurrentDownloads: maximumConcurrentDownloads
+        )
     }
 
     func setFile(_ path: String, _ data: Data) { state.withLock { $0.files[path] = data } }
@@ -92,7 +94,11 @@ final class StubModelServer: Sendable {
     }
 
     private func respond(
-        method: String, path: String, revision: String, range: String?, _ stub: StubModelProtocol
+        method: String,
+        path: String,
+        revision: String,
+        range: String?,
+        _ stub: StubModelProtocol
     ) {
         let (data, honorsRange, stallAfter) = state.withLock {
             ($0.files[path], $0.honorsRange, $0.stalls[path])
@@ -115,12 +121,16 @@ final class StubModelServer: Sendable {
         }
         if honorsRange, let range, let start = Self.rangeStart(range), start < data.count {
             status = 206
-            body = data.subdata(in: start..<data.count)
+            body = data.subdata(in: start ..< data.count)
             headers["Content-Range"] = "bytes \(start)-\(data.count - 1)/\(data.count)"
         }
         if let stallAfter {
             stub.send(
-                status: status, headers: headers, body: body.prefix(stallAfter), finish: false)
+                status: status,
+                headers: headers,
+                body: body.prefix(stallAfter),
+                finish: false
+            )
         } else {
             stub.send(status: status, headers: headers, body: body, finish: true)
         }
@@ -170,14 +180,18 @@ final class StubModelProtocol: URLProtocol, @unchecked Sendable {
     fileprivate func send(status: Int, headers: [String: String], body: Data, finish: Bool) {
         guard stopped.withLock({ !$0 }), let url = request.url,
             let response = HTTPURLResponse(
-                url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers)
+                url: url,
+                statusCode: status,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )
         else { return }
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         // Several chunks exercise incremental hashing and progress.
         var offset = body.startIndex
         while offset < body.endIndex {
             let end = min(offset + 4096, body.endIndex)
-            client?.urlProtocol(self, didLoad: body.subdata(in: offset..<end))
+            client?.urlProtocol(self, didLoad: body.subdata(in: offset ..< end))
             offset = end
         }
         if finish { client?.urlProtocolDidFinishLoading(self) }
@@ -206,7 +220,9 @@ final class ProgressRecorder: Sendable {
 /// Runs a test body with a model root directory that is removed afterward.
 func withTemporaryModelRoot<T>(_ body: (URL) async throws -> T) async throws -> T {
     let url = FileManager.default.temporaryDirectory.appending(
-        path: "anyspeech-models-\(UUID().uuidString)", directoryHint: .isDirectory)
+        path: "anyspeech-models-\(UUID().uuidString)",
+        directoryHint: .isDirectory
+    )
     defer { try? FileManager.default.removeItem(at: url) }
     return try await body(url)
 }
@@ -219,7 +235,7 @@ enum ModelFixture {
     static let vocabulary = "vocab.json"
 
     static func bytes(_ count: Int, seed: UInt8) -> Data {
-        Data((0..<count).map { UInt8(truncatingIfNeeded: $0 &* 31 &+ Int(seed)) })
+        Data((0 ..< count).map { UInt8(truncatingIfNeeded: $0 &* 31 &+ Int(seed)) })
     }
 
     static let files: [String: Data] = [
@@ -259,8 +275,12 @@ enum ModelFixture {
             revision: revision,
             contractVersion: 1,
             components: .init(
-                encoder: "Encoder.mlmodelc", decoder: "Decoder.mlmodelc",
-                joint: "Joint.mlmodelc", vocabulary: vocabulary, liveEncoder: liveEncoder),
+                encoder: "Encoder.mlmodelc",
+                decoder: "Decoder.mlmodelc",
+                joint: "Joint.mlmodelc",
+                vocabulary: vocabulary,
+                liveEncoder: liveEncoder
+            ),
             files: files.keys.sorted().map { path in
                 .init(path: path, size: Int64(files[path]!.count), sha256: sha256(files[path]!))
             },

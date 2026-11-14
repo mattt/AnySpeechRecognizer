@@ -59,7 +59,8 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
 
     /// Loads the models from a directory without downloading.
     init(
-        directory: URL, configuration: Configuration = Configuration(),
+        directory: URL,
+        configuration: Configuration = Configuration(),
         model: ParakeetModelDescription = .v3
     ) throws {
         func load(_ name: String, units: MLComputeUnits) throws -> MLModel {
@@ -74,18 +75,26 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
         let encoderName =
             configuration.encoderName
             ?? (FileManager.default.fileExists(
-                atPath: directory.appendingPathComponent("Encoder_v2.mlmodelc").path)
+                atPath: directory.appendingPathComponent("Encoder_v2.mlmodelc").path
+            )
                 ? "Encoder_v2.mlmodelc" : "Encoder.mlmodelc")
         encoder = try WindowEncoder(
-            name: encoderName, model: load(encoderName, units: configuration.encoderComputeUnits),
-            base: model)
+            name: encoderName,
+            model: load(encoderName, units: configuration.encoderComputeUnits),
+            base: model
+        )
         forcedCommitEncoder = try configuration.forcedCommitEncoderName.map {
             try WindowEncoder(
-                name: $0, model: load($0, units: configuration.encoderComputeUnits), base: model)
+                name: $0,
+                model: load($0, units: configuration.encoderComputeUnits),
+                base: model
+            )
         }
         decoder = try load("Decoder.mlmodelc", units: configuration.predictionComputeUnits)
         jointNetwork = try load(
-            "JointDecisionv3.mlmodelc", units: configuration.predictionComputeUnits)
+            "JointDecisionv3.mlmodelc",
+            units: configuration.predictionComputeUnits
+        )
         let model = encoder.model
         self.model = model
 
@@ -109,7 +118,9 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
             "decoder": projectionOutput, "h_out": hiddenOutput, "c_out": cellOutput,
         ]
         encoderStep = try MLMultiArray(
-            shape: [1, NSNumber(value: model.encoderHiddenSize), 1], dataType: .float32)
+            shape: [1, NSNumber(value: model.encoderHiddenSize), 1],
+            dataType: .float32
+        )
         decoderStep = try MLMultiArray(shape: [1, decoderHidden, 1], dataType: .float32)
         jointInput = FeatureProvider(["encoder_step": encoderStep, "decoder_step": decoderStep])
         tokenOutput = try MLMultiArray(shape: [1, 1, 1], dataType: .int32)
@@ -122,19 +133,22 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
     }
 
     func encode(
-        mel features: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel features: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {
         try encoder.encode(features, validFrameCount: validFrameCount, into: &output)
     }
 
     func encodeForcedCommit(
-        mel features: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel features: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {
         guard let forcedCommitEncoder else {
             throw SpeechRecognitionError.invalidResult(
-                "No Parakeet forced-commit encoder is loaded.")
+                "No Parakeet forced-commit encoder is loaded."
+            )
         }
         try forcedCommitEncoder.encode(features, validFrameCount: validFrameCount, into: &output)
     }
@@ -163,7 +177,8 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
     }
 
     func joint(
-        encoderFrame: UnsafeBufferPointer<Float>, decoderOutput: UnsafeBufferPointer<Float>
+        encoderFrame: UnsafeBufferPointer<Float>,
+        decoderOutput: UnsafeBufferPointer<Float>
     ) throws -> ParakeetJointDecision {
         try encoderStep.writeLogical(encoderFrame)
         try decoderStep.writeLogical(decoderOutput)
@@ -173,13 +188,15 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
         let durationClass = durationOutput.withUnsafeBufferPointer(ofType: Int32.self) {
             Int($0[0])
         }
-        guard (0...model.blankID).contains(token), model.durations.indices.contains(durationClass)
+        guard (0 ... model.blankID).contains(token), model.durations.indices.contains(durationClass)
         else {
             throw SpeechRecognitionError.invalidResult("The Parakeet joint output is invalid.")
         }
         return ParakeetJointDecision(
-            token: token, probability: probability.isFinite ? min(1, max(0, probability)) : 0,
-            duration: model.durations[durationClass])
+            token: token,
+            probability: probability.isFinite ? min(1, max(0, probability)) : 0,
+            duration: model.durations[durationClass]
+        )
     }
 
     private func validateShapes() throws {
@@ -199,7 +216,8 @@ final class CoreMLParakeetEngine: ParakeetInferenceEngine {
             shape(jointNetwork, input: "decoder_step") == [1, expected.decoderHiddenSize, 1]
         else {
             throw SpeechRecognitionError.missingAssets(
-                "The Parakeet models do not match the expected tensor shapes.")
+                "The Parakeet models do not match the expected tensor shapes."
+            )
         }
     }
 }
@@ -226,19 +244,22 @@ private final class WindowEncoder {
             input[2] > 1, output[2] > 0
         else {
             throw SpeechRecognitionError.missingAssets(
-                "The Parakeet encoder \(name) does not have the expected fixed-window shapes.")
+                "The Parakeet encoder \(name) does not have the expected fixed-window shapes."
+            )
         }
         model = base.withEncoderWindow(melFrameCount: input[2], encoderFrameCount: output[2])
         self.encoder = encoder
         mel = try MLMultiArray(
             shape: [1, NSNumber(value: model.melBinCount), NSNumber(value: model.melFrameCount)],
-            dataType: .float32)
+            dataType: .float32
+        )
         melLength = try MLMultiArray(shape: [1], dataType: .int32)
         self.input = FeatureProvider(["mel": mel, "mel_length": melLength])
     }
 
     func encode(
-        _ features: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        _ features: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {
         precondition(features.count == model.melBinCount * model.melFrameCount)
@@ -256,7 +277,9 @@ private final class WindowEncoder {
             || output.frameCount != model.encoderFrameCount
         {
             output = ParakeetEncoderOutput(
-                hiddenSize: model.encoderHiddenSize, frameCount: model.encoderFrameCount)
+                hiddenSize: model.encoderHiddenSize,
+                frameCount: model.encoderFrameCount
+            )
         }
         try encoded.transposeChannels(into: &output.features)
         output.validFrameCount = min(max(0, length[0].intValue), model.encoderFrameCount)
@@ -288,7 +311,7 @@ extension MLMultiArray {
         var offsets = [0]
         for axis in shape.indices {
             offsets = offsets.flatMap { base in
-                (0..<shape[axis]).map { base + $0 * strides[axis] }
+                (0 ..< shape[axis]).map { base + $0 * strides[axis] }
             }
         }
         return offsets
@@ -313,7 +336,8 @@ extension MLMultiArray {
     fileprivate func readLogical(into values: UnsafeMutableBufferPointer<Float>) throws {
         guard values.count == count else {
             throw SpeechRecognitionError.invalidResult(
-                "A Parakeet model output has the wrong size.")
+                "A Parakeet model output has the wrong size."
+            )
         }
         let offsets = offsets()
         if offsets == nil, dataType == .float32 {
@@ -324,7 +348,7 @@ extension MLMultiArray {
         }
         func read<Scalar: MLShapedArrayScalar>(_ type: Scalar.Type, _ convert: (Scalar) -> Float) {
             withUnsafeBufferPointer(ofType: type) { pointer in
-                for index in 0..<values.count {
+                for index in 0 ..< values.count {
                     values[index] = convert(pointer[offsets?[index] ?? index])
                 }
             }
@@ -337,7 +361,8 @@ extension MLMultiArray {
         #endif
         default:
             throw SpeechRecognitionError.invalidResult(
-                "A Parakeet model output is not a float array.")
+                "A Parakeet model output is not a float array."
+            )
         }
     }
 
@@ -348,7 +373,8 @@ extension MLMultiArray {
         let (channels, frames) = (shape[1], shape[2])
         guard values.count == channels * frames else {
             throw SpeechRecognitionError.invalidResult(
-                "A Parakeet model output has the wrong size.")
+                "A Parakeet model output has the wrong size."
+            )
         }
         if dataType == .float32, strides[2] == 1, strides[1] >= frames {
             // Transpose whole rows, including any padding after the last frame, and keep the
@@ -356,10 +382,16 @@ extension MLMultiArray {
             let rowLength = strides[1]
             withUnsafeBufferPointer(ofType: Float.self) { source in
                 let transposed = [Float](unsafeUninitializedCapacity: rowLength * channels) {
-                    buffer, count in
+                    buffer,
+                    count in
                     vDSP_mtrans(
-                        source.baseAddress!, 1, buffer.baseAddress!, 1, vDSP_Length(rowLength),
-                        vDSP_Length(channels))
+                        source.baseAddress!,
+                        1,
+                        buffer.baseAddress!,
+                        1,
+                        vDSP_Length(rowLength),
+                        vDSP_Length(channels)
+                    )
                     count = rowLength * channels
                 }
                 values.withUnsafeMutableBufferPointer { target in
@@ -373,11 +405,12 @@ extension MLMultiArray {
         func read<Scalar: MLShapedArrayScalar>(_ type: Scalar.Type, _ convert: (Scalar) -> Float) {
             withUnsafeBufferPointer(ofType: type) { source in
                 values.withUnsafeMutableBufferPointer { target in
-                    for channel in 0..<channels {
+                    for channel in 0 ..< channels {
                         let row = channel * strides[1]
-                        for frame in 0..<frames {
+                        for frame in 0 ..< frames {
                             target[frame * channels + channel] = convert(
-                                source[row + frame * strides[2]])
+                                source[row + frame * strides[2]]
+                            )
                         }
                     }
                 }
@@ -391,7 +424,8 @@ extension MLMultiArray {
         #endif
         default:
             throw SpeechRecognitionError.invalidResult(
-                "A Parakeet model output is not a float array.")
+                "A Parakeet model output is not a float array."
+            )
         }
     }
 }

@@ -15,7 +15,9 @@ final class AssetCalls: Sendable {
 struct RequestFreeAssetModel: SpeechRecognitionModel {
     let modelID = "test/request-free"
     let capabilities = SpeechRecognitionCapabilities(
-        transcription: .init(reportingOptions: [.volatileResults]), liveInput: true)
+        transcription: .init(reportingOptions: [.volatileResults]),
+        liveInput: true
+    )
     let state: SpeechRecognitionAvailability
     let calls: AssetCalls
     let executor = FakeExecutor()
@@ -40,7 +42,9 @@ struct RequestFreeAssetModel: SpeechRecognitionModel {
 struct OptionalAssetModel: SpeechRecognitionModel {
     let modelID = "test/optional-assets"
     let capabilities = SpeechRecognitionCapabilities(
-        transcription: .init(reportingOptions: [.volatileResults]), liveInput: true)
+        transcription: .init(reportingOptions: [.volatileResults]),
+        liveInput: true
+    )
     let base: SpeechRecognitionAvailability
     let executor = FakeExecutor()
 
@@ -69,14 +73,16 @@ struct OptionalAssetModel: SpeechRecognitionModel {
     #expect(await AssetInventory.status(forModules: modules) == .supported)
     // One model's modules make one installation request.
     let request = try #require(
-        try await AssetInventory.assetInstallationRequest(supporting: modules))
+        try await AssetInventory.assetInstallationRequest(supporting: modules)
+    )
     #expect(calls.count("assetInstallationRequest") == 2)
     try await request.downloadAndInstall()
     #expect(calls.count("install") == 1)
 
     let ready = RequestFreeAssetModel(state: .ready, calls: calls)
     #expect(
-        await AssetInventory.status(forModules: [SpeechTranscriber(model: ready)]) == .installed)
+        await AssetInventory.status(forModules: [SpeechTranscriber(model: ready)]) == .installed
+    )
 }
 
 @Test func optionalAssetsDoNotBlockAnalysis() async throws {
@@ -84,7 +90,8 @@ struct OptionalAssetModel: SpeechRecognitionModel {
     let live = SpeechTranscriber(model: model, reportingOptions: [.volatileResults])
     #expect(await AssetInventory.status(forModules: [live]) == .supported)
     #expect(
-        await AssetInventory.status(forModules: [SpeechTranscriber(model: model)]) == .installed)
+        await AssetInventory.status(forModules: [SpeechTranscriber(model: model)]) == .installed
+    )
     let analyzer = SpeechAnalyzer(modules: [live])
     try await analyzer.prepareToAnalyze(in: nil)
     #expect(await model.executor.prepareCount == 1)

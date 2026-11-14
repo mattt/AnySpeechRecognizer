@@ -3,7 +3,8 @@ import Speech
 
 /// Transcribes caller-supplied live audio and replaces volatile text as results arrive.
 func transcribeLive(
-    _ audio: AsyncStream<AnalyzerInput>, locale: Locale
+    _ audio: AsyncStream<AnalyzerInput>,
+    locale: Locale
 ) async throws -> String {
     let transcriber = SpeechTranscriber(locale: locale, preset: .progressiveTranscription)
     if let request = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
@@ -16,7 +17,10 @@ func transcribeLive(
     try await analyzer.prepareToAnalyze(in: format)
     await analyzer.setVolatileRangeChangedHandler { range, changedStart, changedEnd in
         print(
-            "Volatile range \(range.start.seconds)–\(range.end.seconds)", changedStart, changedEnd)
+            "Volatile range \(range.start.seconds)–\(range.end.seconds)",
+            changedStart,
+            changedEnd
+        )
     }
     async let text: String = {
         var finalized = ""
@@ -54,7 +58,9 @@ func transcribeLive(
         }
         let file = try AVAudioFile(
             forReading: URL(fileURLWithPath: CommandLine.arguments[1]),
-            commonFormat: .pcmFormatInt16, interleaved: true)
+            commonFormat: .pcmFormatInt16,
+            interleaved: true
+        )
         while file.framePosition < file.length {
             let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 1600)!
             try file.read(into: buffer, frameCount: 1600)

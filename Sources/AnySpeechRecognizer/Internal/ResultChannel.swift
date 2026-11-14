@@ -123,7 +123,9 @@ final class ResultChannel<Element: ChannelResult>: Sendable {
                     } else if state.waiter != nil {
                         continuation.resume(
                             throwing: SpeechRecognitionError.invalidSessionState(
-                                "Concurrent next() calls are unsupported."))
+                                "Concurrent next() calls are unsupported."
+                            )
+                        )
                     } else {
                         state.waiter = (id, continuation)
                     }
@@ -162,7 +164,8 @@ public struct SpeechModuleResults<Element: Sendable>: AsyncSequence, Sendable {
         public mutating func next() async throws -> Element? {
             guard permitted else {
                 throw SpeechRecognitionError.invalidSessionState(
-                    "A module permits only one result iterator.")
+                    "A module permits only one result iterator."
+                )
             }
             return try await pull()
         }

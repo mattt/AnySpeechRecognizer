@@ -21,9 +21,11 @@ struct ParakeetExecutorTests {
         let script = ToneSpeech.script(count: 9, spacing: 12)
         let executor = ParakeetExecutor(model: ParakeetSpeechModel())
         await executor.use(
-            FakeParakeetEngine(), vocabulary: ToneSpeech.vocabulary,
+            FakeParakeetEngine(),
+            vocabulary: ToneSpeech.vocabulary,
             request: .transcription(.init(attributeOptions: [.audioTimeRange])),
-            configuration: ParakeetRecognizerTests.file)
+            configuration: ParakeetRecognizerTests.file
+        )
         let received = Received()
         let firstEmitted = Gate()
         let release = Gate()
@@ -38,12 +40,16 @@ struct ParakeetExecutorTests {
                     await release.wait()
                 }
             },
-            volatile: { _ in })
+            volatile: { _ in }
+        )
 
         let format = AudioFormats.monoFloat16k
         let buffer = try #require(
             AVAudioPCMBuffer(
-                pcmFormat: format, frameCapacity: AVAudioFrameCount(script.samples.count)))
+                pcmFormat: format,
+                frameCapacity: AVAudioFrameCount(script.samples.count)
+            )
+        )
         buffer.frameLength = AVAudioFrameCount(script.samples.count)
         for (index, sample) in script.samples.enumerated() {
             buffer.floatChannelData![0][index] = sample
@@ -60,7 +66,7 @@ struct ParakeetExecutorTests {
         await firstEmitted.wait()
         let finalization = Task { try await executor.finalize(through: audio.endTime) }
         // Give a finalization that does not wait for the emission time to emit its result.
-        for _ in 0..<100 where received.finals.count == 1 {
+        for _ in 0 ..< 100 where received.finals.count == 1 {
             try await Task.sleep(for: .milliseconds(1))
         }
         await release.open()
@@ -82,16 +88,22 @@ struct ParakeetExecutorTests {
     @Test func preparationRejectsTheVocabularyOfAnotherVariant() async throws {
         try await withTemporaryModelRoot { directory in
             try FileManager.default.createDirectory(
-                at: directory, withIntermediateDirectories: true)
-            let pieces = (0..<1024).map { "▁\($0)" }
+                at: directory,
+                withIntermediateDirectories: true
+            )
+            let pieces = (0 ..< 1024).map { "▁\($0)" }
             try JSONSerialization.data(withJSONObject: pieces).write(
-                to: directory.appending(path: "parakeet_vocab.json"))
+                to: directory.appending(path: "parakeet_vocab.json")
+            )
             let executor = ParakeetExecutor(
-                model: ParakeetSpeechModel(variant: .v3, assets: .directory(directory)))
+                model: ParakeetSpeechModel(variant: .v3, assets: .directory(directory))
+            )
             let error = await #expect(throws: SpeechRecognitionError.self) {
                 try await executor.prepare(
-                    request: .transcription(.init()), format: AudioFormats.monoFloat16k,
-                    context: AnalysisContext())
+                    request: .transcription(.init()),
+                    format: AudioFormats.monoFloat16k,
+                    context: AnalysisContext()
+                )
             }
             guard case .unsupportedConfiguration(let reason) = error else {
                 Issue.record("Expected unsupportedConfiguration, got \(String(describing: error)).")

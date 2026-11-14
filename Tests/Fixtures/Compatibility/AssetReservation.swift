@@ -15,9 +15,12 @@ func prepareAssets(for locale: Locale) async throws -> Bool {
     let modules: [any SpeechModule] = [
         SpeechTranscriber(locale: supported, preset: .timeIndexedTranscriptionWithAlternatives),
         DictationTranscriber(
-            locale: supported, contentHints: [.shortForm], transcriptionOptions: [.punctuation],
+            locale: supported,
+            contentHints: [.shortForm],
+            transcriptionOptions: [.punctuation],
             reportingOptions: [.alternativeTranscriptions],
-            attributeOptions: [.audioTimeRange, .transcriptionConfidence]),
+            attributeOptions: [.audioTimeRange, .transcriptionConfidence]
+        ),
         SpeechDetector(),
     ]
     if await AssetInventory.status(forModules: modules) < .installed,

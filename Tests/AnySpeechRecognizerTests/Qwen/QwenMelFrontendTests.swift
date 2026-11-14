@@ -18,7 +18,7 @@ struct QwenMelFrontendTests {
     /// The generated signal of `Tools/QwenConversion/mel_reference.py`.
     func referenceSignal(count: Int) -> [Float] {
         var state: UInt32 = 1
-        return (0..<count).map { index in
+        return (0 ..< count).map { index in
             state = state &* 1_664_525 &+ 1_013_904_223
             let noise = Double(state >> 8) / 16_777_216 - 0.5
             let time = Double(index) / 16_000
@@ -43,7 +43,9 @@ struct QwenMelFrontendTests {
         for (row, frame) in reference.frames.enumerated() {
             for (column, bin) in QwenMelReference.bins.enumerated() {
                 largest = max(
-                    largest, abs(mel[bin * frames + frame] - reference.values[row][column]))
+                    largest,
+                    abs(mel[bin * frames + frame] - reference.values[row][column])
+                )
             }
         }
         #expect(largest < 1e-3, "largest difference \(largest)")
@@ -53,9 +55,10 @@ struct QwenMelFrontendTests {
     /// one frequency bin, and no weight is negative.
     @Test func filterbankCoversEveryMelBin() {
         let bank = QwenMelFrontend.slaneyFilterbank()
-        for bin in 0..<QwenMelFrontend.melBinCount {
+        for bin in 0 ..< QwenMelFrontend.melBinCount {
             let row = bank[
-                (bin * QwenMelFrontend.binCount)..<((bin + 1) * QwenMelFrontend.binCount)]
+                (bin * QwenMelFrontend.binCount) ..< ((bin + 1) * QwenMelFrontend.binCount)
+            ]
             #expect(row.contains { $0 > 0 })
             #expect(row.allSatisfy { $0 >= 0 })
         }

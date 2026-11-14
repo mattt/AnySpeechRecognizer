@@ -94,8 +94,10 @@ extension SpeakerDiarizationModel {
     }
     public func diagnostics() async -> SpeechRecognitionDiagnostics {
         .init(
-            provider: String(describing: Self.self), modelID: modelID,
-            computeConfiguration: "provider-defined")
+            provider: String(describing: Self.self),
+            modelID: modelID,
+            computeConfiguration: "provider-defined"
+        )
     }
 }
 
@@ -121,7 +123,8 @@ public struct SpeakerDiarizationRequest: Sendable, Hashable {
         guard unsupported.isEmpty else {
             let names = unsupported.map(\.rawValue).sorted().joined(separator: ", ")
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "The diarization model does not support the reporting option \(names).")
+                "The diarization model does not support the reporting option \(names)."
+            )
         }
     }
 }
@@ -145,7 +148,9 @@ public struct SpeakerDiarizationCapabilities: Sendable, Hashable {
     ///   - liveInput: Whether the model supports live input.
     ///   - reportingOptions: Supported result delivery options.
     public init(
-        maximumSpeakerCount: Int, overlappingSpeech: Bool = false, liveInput: Bool = false,
+        maximumSpeakerCount: Int,
+        overlappingSpeech: Bool = false,
+        liveInput: Bool = false,
         reportingOptions: Set<SpeakerDiarizer.ReportingOption> = []
     ) {
         self.maximumSpeakerCount = maximumSpeakerCount

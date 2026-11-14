@@ -9,7 +9,8 @@ enum AudioTimeline {
             sampleRate.rounded() == sampleRate, sampleRate <= Double(Int32.max)
         else {
             throw SpeechRecognitionError.invalidAudio(
-                "The source sample rate must be a positive integral rate.")
+                "The source sample rate must be a positive integral rate."
+            )
         }
         return CMTime(value: frame, timescale: Int32(sampleRate))
     }
@@ -26,7 +27,8 @@ func validateTiming(in text: AttributedString, range: CMTimeRange) throws {
             wordRange.start >= range.start, wordRange.end <= range.end
         else {
             throw SpeechRecognitionError.invalidResult(
-                "A text attribute has invalid or unordered source timing.")
+                "A text attribute has invalid or unordered source timing."
+            )
         }
         lastStart = wordRange.start
     }

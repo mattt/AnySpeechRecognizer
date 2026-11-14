@@ -11,7 +11,9 @@ import Testing
 /// `ANYSPEECH_PARAKEET_LONG_AUDIO` to a speech recording longer than one window.
 @Suite(
     .enabled(
-        if: ParakeetFixtures.modelDirectory != nil && ParakeetFixtures.longAudio != nil))
+        if: ParakeetFixtures.modelDirectory != nil && ParakeetFixtures.longAudio != nil
+    )
+)
 struct ParakeetAnalyzer {
     let audio = ParakeetFixtures.longAudio!
     var model: ParakeetSpeechModel {
@@ -23,9 +25,13 @@ struct ParakeetAnalyzer {
         let directory = ParakeetFixtures.modelDirectory!
         let engine = try CoreMLParakeetEngine(directory: directory)
         let vocabulary = try ParakeetVocabulary(
-            contentsOf: directory.appending(path: "parakeet_vocab.json"))
+            contentsOf: directory.appending(path: "parakeet_vocab.json")
+        )
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: vocabulary, configuration: .file)
+            engine: engine,
+            vocabulary: vocabulary,
+            configuration: .file
+        )
         recognizer.append(try ParakeetFixtures.samples(audio))
         var tokens = try recognizer.process().committed
         tokens += try recognizer.process(endOfInput: true).committed
@@ -35,11 +41,14 @@ struct ParakeetAnalyzer {
     @Test func fileTextMatchesTheRecognizer() async throws {
         #expect(await model.availability() == .ready)
         let transcriber = SpeechTranscriber(
-            model: model, attributeOptions: [.audioTimeRange, .transcriptionConfidence])
+            model: model,
+            attributeOptions: [.audioTimeRange, .transcriptionConfidence]
+        )
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         async let results = collect(transcriber)
         let time = try #require(
-            try await analyzer.analyzeSequence(from: AVAudioFile(forReading: audio)))
+            try await analyzer.analyzeSequence(from: AVAudioFile(forReading: audio))
+        )
         try await analyzer.finalizeAndFinish(through: time)
         let values = try await results
         #expect(values.count > 1)
@@ -50,7 +59,7 @@ struct ParakeetAnalyzer {
             for run in result.text.runs
             where !String(result.text[run.range].characters).allSatisfy(\.isWhitespace) {
                 let confidence = run[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self]
-                #expect(confidence.map { (0...1).contains($0) } == true)
+                #expect(confidence.map { (0 ... 1).contains($0) } == true)
             }
         }
         #expect(texts(values).joined() == (try directText()))
@@ -58,7 +67,10 @@ struct ParakeetAnalyzer {
 
     @Test func liveInputPublishesVolatileThenFinalText() async throws {
         let transcriber = SpeechTranscriber(
-            model: model, reportingOptions: [.volatileResults], attributeOptions: [.audioTimeRange])
+            model: model,
+            reportingOptions: [.volatileResults],
+            attributeOptions: [.audioTimeRange]
+        )
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         let analyzer = SpeechAnalyzer(inputSequence: stream, modules: [transcriber])
         async let results = collect(transcriber)
@@ -78,7 +90,10 @@ struct ParakeetAnalyzer {
 
     @Test func midStreamFinalizationCommitsThroughTheTime() async throws {
         let transcriber = SpeechTranscriber(
-            model: model, reportingOptions: [.volatileResults], attributeOptions: [.audioTimeRange])
+            model: model,
+            reportingOptions: [.volatileResults],
+            attributeOptions: [.audioTimeRange]
+        )
         let (stream, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         let analyzer = SpeechAnalyzer(inputSequence: stream, modules: [transcriber])
         let collected = Task { try await collect(transcriber) }
@@ -113,11 +128,17 @@ struct ParakeetAnalyzer {
     }
 
     private func resample(
-        _ source: AVAudioFile, to url: URL, sampleRate: Double, channels: AVAudioChannelCount
+        _ source: AVAudioFile,
+        to url: URL,
+        sampleRate: Double,
+        channels: AVAudioChannelCount
     ) throws {
         let format = AVAudioFormat(
-            commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: channels,
-            interleaved: false)!
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: sampleRate,
+            channels: channels,
+            interleaved: false
+        )!
         var settings = format.settings
         settings[AVLinearPCMIsNonInterleaved] = false
         let output = try AVAudioFile(forWriting: url, settings: settings)

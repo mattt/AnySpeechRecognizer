@@ -56,7 +56,9 @@ public enum AssetInventory {
         var status = Status.installed
         if !groups.native.isEmpty {
             status = min(
-                status, Status(await Speech.AssetInventory.status(forModules: groups.native)))
+                status,
+                Status(await Speech.AssetInventory.status(forModules: groups.native))
+            )
         }
         for (model, request) in groups.models {
             guard (try? request.validate(for: model.capabilities)) != nil else {
@@ -87,23 +89,24 @@ public enum AssetInventory {
         var requests: [AssetInstallationRequest] = []
         if !groups.native.isEmpty,
             let native = try await Speech.AssetInventory.assetInstallationRequest(
-                supporting: groups.native)
+                supporting: groups.native
+            )
         {
             requests.append(AssetInstallationRequest(native: native))
         }
         for (model, modelRequests) in groups.requestsByModel {
             for request in modelRequests { try request.validate(for: model.capabilities) }
             if let installation = try await model.assetInstallationRequest(
-                supporting: modelRequests)
-            {
+                supporting: modelRequests
+            ) {
                 requests.append(installation)
             }
         }
         for (model, modelRequests) in groups.diarizationRequestsByModel {
             for request in modelRequests { try request.validate(for: model.capabilities) }
             if let installation = try await model.assetInstallationRequest(
-                supporting: modelRequests)
-            {
+                supporting: modelRequests
+            ) {
                 requests.append(installation)
             }
         }
@@ -142,7 +145,8 @@ struct ModuleGroups {
         for module in modules {
             guard let module = module as? any AnalyzerModule else {
                 throw SpeechRecognitionError.unsupportedConfiguration(
-                    "\(type(of: module)) is not a package speech module.")
+                    "\(type(of: module)) is not a package speech module."
+                )
             }
             switch module.binding.backend {
             case .native(let member): native.append(member.module)
@@ -197,8 +201,7 @@ public final class AssetInstallationRequest: NSObject, ProgressReporting, Sendab
     /// - Parameters:
     ///   - progress: The provider's thread-safe progress object.
     ///   - downloadAndInstall: The operation to run only on explicit installation.
-    public init(progress: Progress, downloadAndInstall: @escaping @Sendable () async throws -> Void)
-    {
+    public init(progress: Progress, downloadAndInstall: @escaping @Sendable () async throws -> Void) {
         self.progress = progress
         self.install = downloadAndInstall
     }

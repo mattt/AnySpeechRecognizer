@@ -53,7 +53,8 @@ struct QwenModelConfiguration: Decodable, Sendable, Equatable {
             self = try decoder.decode(Self.self, from: Data(contentsOf: url))
         } catch {
             throw SpeechRecognitionError.missingAssets(
-                "The Qwen3-ASR configuration \(url.path) is invalid: \(error.localizedDescription)")
+                "The Qwen3-ASR configuration \(url.path) is invalid: \(error.localizedDescription)"
+            )
         }
     }
 
@@ -79,7 +80,8 @@ struct QwenVocabulary: Sendable {
             strings = try JSONDecoder().decode([String].self, from: Data(contentsOf: url))
         } catch {
             throw SpeechRecognitionError.missingAssets(
-                "The Qwen3-ASR vocabulary \(url.path) is invalid: \(error.localizedDescription)")
+                "The Qwen3-ASR vocabulary \(url.path) is invalid: \(error.localizedDescription)"
+            )
         }
         self.init(strings: strings, skipping: skipped)
     }
@@ -106,11 +108,11 @@ struct QwenVocabulary: Sendable {
     /// GPT-2's `bytes_to_unicode` mapping, inverted: printable Latin-1 bytes map to themselves,
     /// and the other 68 bytes to U+0100 and later, in byte order.
     static let byteDecoder: [Unicode.Scalar: UInt8] = {
-        let printable = Array(33...126) + Array(161...172) + Array(174...255)
+        let printable = Array(33 ... 126) + Array(161 ... 172) + Array(174 ... 255)
         var mapping: [Unicode.Scalar: UInt8] = [:]
         for byte in printable { mapping[Unicode.Scalar(UInt8(byte))] = UInt8(byte) }
         var next = 256
-        for byte in 0...255 where !printable.contains(byte) {
+        for byte in 0 ... 255 where !printable.contains(byte) {
             mapping[Unicode.Scalar(UInt32(next))!] = UInt8(byte)
             next += 1
         }
@@ -158,7 +160,7 @@ enum QwenOutput {
             while index + count < scalars.count, scalars[index + count] == scalars[index] {
                 count += 1
             }
-            characters += count > threshold ? [scalars[index]] : scalars[index..<(index + count)]
+            characters += count > threshold ? [scalars[index]] : scalars[index ..< (index + count)]
             index += count
         }
         var result = String.UnicodeScalarView()
@@ -167,7 +169,9 @@ enum QwenOutput {
     }
 
     private static func fixPatternRepeats(
-        _ text: ArraySlice<Unicode.Scalar>, threshold: Int, maximumLength: Int = 20
+        _ text: ArraySlice<Unicode.Scalar>,
+        threshold: Int,
+        maximumLength: Int = 20
     ) -> [Unicode.Scalar] {
         let scalars = Array(text)
         let count = scalars.count
@@ -175,21 +179,24 @@ enum QwenOutput {
         var result: [Unicode.Scalar] = []
         var index = 0
         while index <= count - threshold * 2 {
-            for length in 1...maximumLength {
+            for length in 1 ... maximumLength {
                 if index + length * threshold > count { break }
-                let pattern = scalars[index..<(index + length)]
-                let repeats = (1..<threshold).allSatisfy { repetition in
+                let pattern = scalars[index ..< (index + length)]
+                let repeats = (1 ..< threshold).allSatisfy { repetition in
                     let start = index + repetition * length
-                    return scalars[start..<(start + length)] == pattern
+                    return scalars[start ..< (start + length)] == pattern
                 }
                 guard repeats else { continue }
                 var end = index + threshold * length
-                while end + length <= count, scalars[end..<(end + length)] == pattern {
+                while end + length <= count, scalars[end ..< (end + length)] == pattern {
                     end += length
                 }
                 result += pattern
                 result += fixPatternRepeats(
-                    scalars[end...], threshold: threshold, maximumLength: maximumLength)
+                    scalars[end...],
+                    threshold: threshold,
+                    maximumLength: maximumLength
+                )
                 return result
             }
             result.append(scalars[index])

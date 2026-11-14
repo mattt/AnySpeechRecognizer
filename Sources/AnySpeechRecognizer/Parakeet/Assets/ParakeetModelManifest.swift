@@ -23,7 +23,10 @@ struct ParakeetModelManifest: Sendable, Hashable, Codable {
         let liveEncoder: String?
 
         init(
-            encoder: String, decoder: String, joint: String, vocabulary: String,
+            encoder: String,
+            decoder: String,
+            joint: String,
+            vocabulary: String,
             liveEncoder: String? = nil
         ) {
             self.encoder = encoder
@@ -99,8 +102,12 @@ struct ParakeetModelManifest: Sendable, Hashable, Codable {
             .invalidManifest("The \(identifier) manifest is invalid: \(reason)")
         }
         try Self.validatePinnedFiles(
-            identifier: identifier, repository: repository, revision: revision, files: files,
-            components: components.paths)
+            identifier: identifier,
+            repository: repository,
+            revision: revision,
+            files: files,
+            components: components.paths
+        )
         // The base part must not depend on files of the optional live encoder.
         if let liveEncoder = components.liveEncoder {
             for component in components.requiredPaths
@@ -118,12 +125,13 @@ struct ParakeetModelManifest: Sendable, Hashable, Codable {
     static func isSafeRelativePath(_ path: String) -> Bool {
         !path.hasPrefix("/")
             && path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy(
-                isSafeComponent)
+                isSafeComponent
+            )
     }
 }
 
 extension Character {
     var isLowercaseHexDigit: Bool {
-        ("0"..."9").contains(self) || ("a"..."f").contains(self)
+        ("0" ... "9").contains(self) || ("a" ... "f").contains(self)
     }
 }

@@ -18,7 +18,8 @@ struct ParakeetOnDemandAssetTests {
     }
 
     func transcriber(
-        _ model: ParakeetSpeechModel, _ options: Set<SpeechTranscriber.ReportingOption> = []
+        _ model: ParakeetSpeechModel,
+        _ options: Set<SpeechTranscriber.ReportingOption> = []
     ) -> SpeechTranscriber {
         SpeechTranscriber(model: model, reportingOptions: options)
     }
@@ -31,7 +32,8 @@ struct ParakeetOnDemandAssetTests {
         #expect(manifest.files(in: .liveEncoder).map(\.path) == Self.livePaths)
         #expect(
             manifest.byteCount(of: .base) + manifest.byteCount(of: .liveEncoder)
-                == manifest.totalByteCount)
+                == manifest.totalByteCount
+        )
     }
 
     @Test func eachPartHasItsOwnMarker() async throws {
@@ -55,7 +57,9 @@ struct ParakeetOnDemandAssetTests {
             #expect(FileManager.default.fileExists(atPath: base.path))
             #expect(!FileManager.default.fileExists(atPath: live.path))
             let marker = try JSONDecoder().decode(
-                ModelAssetStore.VerificationMarker.self, from: Data(contentsOf: base))
+                ModelAssetStore.VerificationMarker.self,
+                from: Data(contentsOf: base)
+            )
             #expect(marker.subject.part == .base)
             #expect(marker.subject.files.map(\.path) == Self.basePaths)
             #expect(marker.fileNumbers.keys.sorted() == Self.basePaths)
@@ -63,14 +67,17 @@ struct ParakeetOnDemandAssetTests {
             try await store.install(manifest, parts: [.liveEncoder])
 
             let liveMarker = try JSONDecoder().decode(
-                ModelAssetStore.VerificationMarker.self, from: Data(contentsOf: live))
+                ModelAssetStore.VerificationMarker.self,
+                from: Data(contentsOf: live)
+            )
             #expect(liveMarker.subject.part == .liveEncoder)
             #expect(liveMarker.fileNumbers.keys.sorted() == Self.livePaths)
 
             // Removing the live encoder leaves the base installed.
             let directory = store.directory(for: manifest)
             try FileManager.default.removeItem(
-                at: directory.appending(path: Fixture.liveEncoderWeights))
+                at: directory.appending(path: Fixture.liveEncoderWeights)
+            )
             #expect(store.status(of: manifest, part: .liveEncoder) == .missing)
             #expect(store.status(of: manifest, part: .base) == .installed)
             try FileManager.default.removeItem(at: live)
@@ -128,7 +135,8 @@ struct ParakeetOnDemandAssetTests {
 
             // A module without volatile or fast results installs only the base files.
             let baseRequest = try #require(
-                try await AssetInventory.assetInstallationRequest(supporting: [file]))
+                try await AssetInventory.assetInstallationRequest(supporting: [file])
+            )
             #expect(baseRequest.progress.totalUnitCount == manifest.byteCount(of: .base))
             try await baseRequest.downloadAndInstall()
             #expect(baseRequest.progress.completedUnitCount == manifest.byteCount(of: .base))
@@ -144,8 +152,10 @@ struct ParakeetOnDemandAssetTests {
             #expect(await model.availability(for: .transcription(.init())) == .ready)
             #expect(
                 await model.availability(
-                    for: .transcription(.init(reportingOptions: [.fastResults])))
-                    == .missingAssets)
+                    for: .transcription(.init(reportingOptions: [.fastResults]))
+                )
+                    == .missingAssets
+            )
             #expect(try await AssetInventory.assetInstallationRequest(supporting: [file]) == nil)
             #expect(try await model.assetInstallationRequest() == nil)
             // Status checks make no requests.
@@ -153,7 +163,8 @@ struct ParakeetOnDemandAssetTests {
 
             // A module with volatile results adds only the live encoder.
             let liveRequest = try #require(
-                try await AssetInventory.assetInstallationRequest(supporting: [file, live]))
+                try await AssetInventory.assetInstallationRequest(supporting: [file, live])
+            )
             #expect(liveRequest.progress.totalUnitCount == manifest.byteCount(of: .liveEncoder))
             try await liveRequest.downloadAndInstall()
             for path in Self.basePaths { #expect(server.requestCount(for: path) == 1) }
@@ -161,7 +172,8 @@ struct ParakeetOnDemandAssetTests {
             #expect(await AssetInventory.status(forModules: [file, live, fast]) == .installed)
             #expect(
                 try await AssetInventory.assetInstallationRequest(supporting: [file, live, fast])
-                    == nil)
+                    == nil
+            )
         }
     }
 
@@ -177,7 +189,8 @@ struct ParakeetOnDemandAssetTests {
             ]
 
             let request = try #require(
-                try await AssetInventory.assetInstallationRequest(supporting: modules))
+                try await AssetInventory.assetInstallationRequest(supporting: modules)
+            )
             #expect(request.progress.totalUnitCount == manifest.totalByteCount)
             let recorder = ProgressRecorder(request.progress)
             try await request.downloadAndInstall()
@@ -202,13 +215,15 @@ struct ParakeetOnDemandAssetTests {
             let live = transcriber(model, [.volatileResults])
             let first = try #require(try await model.assetInstallationRequest())
             let second = try #require(
-                try await model.assetInstallationRequest(supporting: [.transcription(.init())]))
+                try await model.assetInstallationRequest(supporting: [.transcription(.init())])
+            )
             #expect(first.progress !== second.progress)
             // A combined request adds each model request's progress as a child,
             // which fails if another parent already has it.
             let combined = AssetInstallationRequest(combining: [first, second])
             let again = try #require(
-                try await AssetInventory.assetInstallationRequest(supporting: [live]))
+                try await AssetInventory.assetInstallationRequest(supporting: [live])
+            )
             _ = AssetInstallationRequest(combining: [again])
             try await combined.downloadAndInstall()
             #expect(combined.progress.fractionCompleted == 1)
@@ -224,7 +239,9 @@ struct ParakeetOnDemandAssetTests {
             let model = makeModel(store)
             let manifest = model.manifest
             let regular = ParakeetSpeechModel.EncoderSelection(
-                encoder: "Encoder.mlmodelc", forcedCommitEncoder: nil)
+                encoder: "Encoder.mlmodelc",
+                forcedCommitEncoder: nil
+            )
             try await store.install(manifest)
             #expect(model.encoderSelection(live: false) == regular)
             #expect(model.encoderSelection(live: true) == regular)
@@ -232,17 +249,26 @@ struct ParakeetOnDemandAssetTests {
                 await model.diagnostics().computeConfiguration.hasSuffix(
                     "file results use Encoder.mlmodelc; volatile and fast results use "
                         + "Encoder.mlmodelc because the live encoder Encoder8s.mlmodelc "
-                        + "is not installed"))
+                        + "is not installed"
+                )
+            )
 
             // Live encoder files without a verification marker are not used.
             for (path, data) in Fixture.liveFiles {
                 try await store.cache.storeData(
-                    data, repo: "Example/parakeet-test", kind: .model,
-                    revision: manifest.revision, filename: path, etag: Fixture.sha256(data))
+                    data,
+                    repo: "Example/parakeet-test",
+                    kind: .model,
+                    revision: manifest.revision,
+                    filename: path,
+                    etag: Fixture.sha256(data)
+                )
             }
             #expect(
                 FileManager.default.fileExists(
-                    atPath: model.directory.appending(path: Fixture.liveEncoderWeights).path))
+                    atPath: model.directory.appending(path: Fixture.liveEncoderWeights).path
+                )
+            )
             #expect(model.encoderSelection(live: true) == regular)
 
             let requests = server.downloads.count
@@ -257,7 +283,9 @@ struct ParakeetOnDemandAssetTests {
             #expect(
                 await model.diagnostics().computeConfiguration.hasSuffix(
                     "file results use Encoder.mlmodelc; volatile and fast results use "
-                        + "Encoder8s.mlmodelc, with Encoder.mlmodelc for forced commits"))
+                        + "Encoder8s.mlmodelc, with Encoder.mlmodelc for forced commits"
+                )
+            )
         }
     }
 
@@ -288,17 +316,24 @@ struct ParakeetOnDemandAssetTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         for name in ["Encoder.mlmodelc", "Decoder.mlmodelc", "JointDecisionv3.mlmodelc"] {
             try FileManager.default.createDirectory(
-                at: directory.appending(path: name), withIntermediateDirectories: true)
+                at: directory.appending(path: name),
+                withIntermediateDirectories: true
+            )
         }
         let model = ParakeetSpeechModel(assets: .directory(directory))
         let regular = ParakeetSpeechModel.EncoderSelection(
-            encoder: "Encoder.mlmodelc", forcedCommitEncoder: nil)
+            encoder: "Encoder.mlmodelc",
+            forcedCommitEncoder: nil
+        )
         #expect(model.encoderSelection(live: true) == regular)
         try FileManager.default.createDirectory(
-            at: directory.appending(path: "Encoder8s.mlmodelc"), withIntermediateDirectories: true)
+            at: directory.appending(path: "Encoder8s.mlmodelc"),
+            withIntermediateDirectories: true
+        )
         #expect(model.encoderSelection(live: false) == regular)
         #expect(
             model.encoderSelection(live: true)
-                == .init(encoder: "Encoder8s.mlmodelc", forcedCommitEncoder: "Encoder.mlmodelc"))
+                == .init(encoder: "Encoder8s.mlmodelc", forcedCommitEncoder: "Encoder.mlmodelc")
+        )
     }
 }

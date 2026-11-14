@@ -13,13 +13,21 @@ private func token(_ id: Int, frame: Int, frames: Int = 1, probability: Float = 
     -> ParakeetToken
 {
     ParakeetToken(
-        id: id, piece: pieces[id], startSample: frame * 1280,
-        endSample: (frame + frames) * 1280, probability: probability)
+        id: id,
+        piece: pieces[id],
+        startSample: frame * 1280,
+        endSample: (frame + frames) * 1280,
+        probability: probability
+    )
 }
 
 private func builder(origin: CMTime = .zero, received: Int = 1_000_000) -> ParakeetResultBuilder {
     var builder = ParakeetResultBuilder(
-        vocabulary: vocabulary, origin: origin, includeTiming: true, includeConfidence: true)
+        vocabulary: vocabulary,
+        origin: origin,
+        includeTiming: true,
+        includeConfidence: true
+    )
     builder.receivedSamples = received
     return builder
 }
@@ -35,7 +43,8 @@ private func text(_ results: [SpeechRecognitionResult]) -> String {
             token(0, frame: 0), token(1, frame: 1), token(2, frame: 2), token(3, frame: 3),
             token(4, frame: 5),
         ],
-        flush: false)
+        flush: false
+    )
     #expect(text(finals) == "Hello, world.")
     #expect(finals.allSatisfy { $0.isFinal })
     #expect(builder.hasPending)
@@ -56,7 +65,9 @@ private func text(_ results: [SpeechRecognitionResult]) -> String {
 @Test func pausesEndPhrases() {
     var builder = builder()
     let finals = builder.commit(
-        [token(4, frame: 0), token(5, frame: 30), token(6, frame: 31)], flush: false)
+        [token(4, frame: 0), token(5, frame: 30), token(6, frame: 31)],
+        flush: false
+    )
     #expect(text(finals) == "Again")
 }
 
@@ -68,13 +79,14 @@ private func text(_ results: [SpeechRecognitionResult]) -> String {
             token(2, frame: 0), token(3, frame: 1, frames: 5), token(4, frame: 5),
             token(5, frame: 20), token(6, frame: 50),
         ],
-        flush: false)
+        flush: false
+    )
     #expect(text(finals) == "world. Again and")
 }
 
 @Test func longPhrasesSplitAfterThirtyTwoWords() {
     var builder = builder()
-    let tokens = (0..<70).map { token(5, frame: $0) }
+    let tokens = (0 ..< 70).map { token(5, frame: $0) }
     let finals = builder.commit(tokens, flush: true)
     #expect(finals.count == 3)
     #expect(finals[0].text.characters.split(separator: " ").count == 32)
@@ -98,7 +110,9 @@ private func text(_ results: [SpeechRecognitionResult]) -> String {
 @Test func confidenceIsTheGeometricMeanOfTokenProbabilities() throws {
     var builder = builder()
     let finals = builder.commit(
-        [token(8, frame: 0, probability: 0.25), token(9, frame: 1, probability: 1)], flush: true)
+        [token(8, frame: 0, probability: 0.25), token(9, frame: 1, probability: 1)],
+        flush: true
+    )
     let run = try #require(finals.first?.text.runs.first)
     let confidence = try #require(run[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self])
     #expect(abs(confidence - 0.5) < 1e-9)

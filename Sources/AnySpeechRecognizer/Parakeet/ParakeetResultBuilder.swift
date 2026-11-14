@@ -33,7 +33,9 @@ struct ParakeetResultBuilder {
     var receivedSamples = 0
 
     init(
-        vocabulary: ParakeetVocabulary, origin: CMTime, includeTiming: Bool,
+        vocabulary: ParakeetVocabulary,
+        origin: CMTime,
+        includeTiming: Bool,
         includeConfidence: Bool
     ) {
         self.vocabulary = vocabulary
@@ -86,7 +88,7 @@ struct ParakeetResultBuilder {
             }
             // The extension reached the last word, which can still continue.
             if next == words.count && !flush { break }
-            results.append(publish(words[first..<next]))
+            results.append(publish(words[first ..< next]))
             first = next
             index = next
         }
@@ -122,7 +124,9 @@ struct ParakeetResultBuilder {
 
     /// Builds attributed text with one run per word, separated by single spaces.
     private func result(
-        _ words: ArraySlice<ParakeetVocabulary.Word>, tokens: [ParakeetToken], final: Bool
+        _ words: ArraySlice<ParakeetVocabulary.Word>,
+        tokens: [ParakeetToken],
+        final: Bool
     ) -> SpeechRecognitionResult {
         var text = AttributedString()
         var rangeStart: CMTime?
@@ -132,12 +136,16 @@ struct ParakeetResultBuilder {
             let wordTokens = tokens[word.tokens]
             let wordStart = max(time(wordTokens.first!.startSample), previousStart)
             let wordEnd = max(
-                time(min(wordTokens.last!.endSample, receivedSamples)), wordStart)
+                time(min(wordTokens.last!.endSample, receivedSamples)),
+                wordStart
+            )
             if offset > 0 || publishedText { text += AttributedString(" ") }
             var run = AttributedString(word.text)
             if includeTiming {
                 run[AttributeScopes.SpeechAttributes.TimeRangeAttribute.self] = CMTimeRange(
-                    start: wordStart, end: wordEnd)
+                    start: wordStart,
+                    end: wordEnd
+                )
             }
             if includeConfidence {
                 // The geometric mean of token probabilities. These values are not
@@ -146,7 +154,8 @@ struct ParakeetResultBuilder {
                     $0 + log(Double(max($1.probability, .leastNormalMagnitude)))
                 }
                 run[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self] = exp(
-                    logSum / Double(wordTokens.count))
+                    logSum / Double(wordTokens.count)
+                )
             }
             text += run
             rangeStart = rangeStart ?? wordStart
@@ -155,6 +164,9 @@ struct ParakeetResultBuilder {
         }
         let range = CMTimeRange(start: rangeStart ?? finalized, end: rangeEnd)
         return SpeechRecognitionResult(
-            text: text, range: range, resultsFinalizationTime: final ? range.end : finalized)
+            text: text,
+            range: range,
+            resultsFinalizationTime: final ? range.end : finalized
+        )
     }
 }

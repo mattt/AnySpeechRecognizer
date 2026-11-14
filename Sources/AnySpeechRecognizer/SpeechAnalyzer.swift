@@ -87,7 +87,9 @@ public final actor SpeechAnalyzer {
     ///   - analysisContext: Context for the modules.
     ///   - volatileRangeChangedHandler: Called when the volatile range changes.
     public init<InputSequence: AsyncSequence & Sendable>(
-        inputSequence: InputSequence, modules: [any SpeechModule], options: Options? = nil,
+        inputSequence: InputSequence,
+        modules: [any SpeechModule],
+        options: Options? = nil,
         analysisContext: AnalysisContext = .init(),
         volatileRangeChangedHandler:
             sending (
@@ -118,8 +120,11 @@ public final actor SpeechAnalyzer {
     ///   - finishAfterFile: Whether to finalize and finish after the file.
     ///   - volatileRangeChangedHandler: Called when the volatile range changes.
     public init(
-        inputAudioFile: AVAudioFile, modules: [any SpeechModule], options: Options? = nil,
-        analysisContext: AnalysisContext = .init(), finishAfterFile: Bool = false,
+        inputAudioFile: AVAudioFile,
+        modules: [any SpeechModule],
+        options: Options? = nil,
+        analysisContext: AnalysisContext = .init(),
+        finishAfterFile: Bool = false,
         volatileRangeChangedHandler:
             sending (
                 (
@@ -154,7 +159,8 @@ public final actor SpeechAnalyzer {
         for module in modules {
             guard let module = module as? any AnalyzerModule else {
                 error = SpeechRecognitionError.unsupportedConfiguration(
-                    "\(type(of: module)) is not a package speech module.")
+                    "\(type(of: module)) is not a package speech module."
+                )
                 continue
             }
             let binding = module.binding
@@ -162,7 +168,8 @@ public final actor SpeechAnalyzer {
                 error =
                     error
                     ?? SpeechRecognitionError.invalidSessionState(
-                        "A module already belongs to another analyzer.")
+                        "A module already belongs to another analyzer."
+                    )
                 continue
             }
             bindings.append(binding)
@@ -229,7 +236,9 @@ public final actor SpeechAnalyzer {
         guard !bindings.isEmpty else {
             throw await fail(
                 SpeechRecognitionError.unsupportedConfiguration(
-                    "An analyzer requires at least one module."))
+                    "An analyzer requires at least one module."
+                )
+            )
         }
         if state == .configured { state = .preparing }
         do {
@@ -256,7 +265,8 @@ public final actor SpeechAnalyzer {
             fail: { [weak self] error in _ = await self?.fail(error) },
             volatileRangeChanged: { [weak self] id, range in
                 await self?.updateVolatileRange(id, range)
-            })
+            }
+        )
     }
 
     /// Creates, prepares, and starts engines for new bindings.
@@ -275,7 +285,8 @@ public final actor SpeechAnalyzer {
                     self.bindings.filter { all.contains($0.id) }.compactMap { binding in
                         if case .native(let member) = binding.backend { return (binding, member) }
                         return nil
-                    })
+                    }
+                )
                 if let index = slots.firstIndex(where: { $0.engine.id == native.id }) {
                     slots[index].moduleIDs = all
                 }
@@ -289,7 +300,11 @@ public final actor SpeechAnalyzer {
             switch binding.backend {
             case .model(let model, let request):
                 let engine = ExecutorEngine(
-                    binding: binding, model: model, request: request, events: events)
+                    binding: binding,
+                    model: model,
+                    request: request,
+                    events: events
+                )
                 engines.append((engine, [binding.id]))
             case .diarization(let member):
                 let engine = DiarizationEngine(binding: binding, member: member, events: events)
@@ -301,7 +316,8 @@ public final actor SpeechAnalyzer {
         preparingEngines = engines.map(\.0)
         defer { preparingEngines.removeAll() }
         let prepared = try await withThrowingTaskGroup(
-            of: (Int, AVAudioFormat).self, returning: [(Int, AVAudioFormat)].self
+            of: (Int, AVAudioFormat).self,
+            returning: [(Int, AVAudioFormat)].self
         ) { group in
             for (index, (engine, _)) in engines.enumerated() {
                 group.addTask {
@@ -323,7 +339,9 @@ public final actor SpeechAnalyzer {
                     if !branch.isFinished {
                         _ = await self?.fail(
                             SpeechRecognitionError.invalidSessionState(
-                                "A module stopped reading input before input ended."))
+                                "A module stopped reading input before input ended."
+                            )
+                        )
                     }
                 } catch {
                     _ = await self?.fail(error)
@@ -407,7 +425,8 @@ public final actor SpeechAnalyzer {
     private func reserveInput() throws {
         guard !inputActive, !finishing else {
             throw SpeechRecognitionError.invalidSessionState(
-                "The analyzer is already reading input or finishing.")
+                "The analyzer is already reading input or finishing."
+            )
         }
         inputActive = true
     }
@@ -456,7 +475,9 @@ public final actor SpeechAnalyzer {
                 // Converted buffers can end a fraction of a frame before the source.
                 let converted = last - CMTime(value: 1, timescale: 1000)
                 try await slot.engine.waitUntilConsumed(
-                    through: converted, branch: slot.input.branch)
+                    through: converted,
+                    branch: slot.input.branch
+                )
             }
         }
         try checkUsable()
@@ -580,10 +601,16 @@ public final actor SpeechAnalyzer {
                     group.addTask {
                         if let time {
                             try await slot.engine.finish(
-                                after: time, branch: slot.input.branch, run: slot.run)
+                                after: time,
+                                branch: slot.input.branch,
+                                run: slot.run
+                            )
                         } else {
                             try await slot.engine.finishThroughEndOfInput(
-                                end: end, branch: slot.input.branch, run: slot.run)
+                                end: end,
+                                branch: slot.input.branch,
+                                run: slot.run
+                            )
                         }
                     }
                 }
@@ -684,7 +711,8 @@ public final actor SpeechAnalyzer {
         let kept = bindings.filter { newIDs.contains($0.id) }
         let removed = bindings.filter { !newIDs.contains($0.id) }
         let (added, error) = Self.bind(
-            newModules.filter { module in !kept.contains { $0.id == ObjectIdentifier(module) } })
+            newModules.filter { module in !kept.contains { $0.id == ObjectIdentifier(module) } }
+        )
         if let error { throw error }
         bindings = kept + added
         modules = newModules
@@ -709,7 +737,8 @@ public final actor SpeechAnalyzer {
                     bindings.filter { remaining.contains($0.id) }.compactMap { binding in
                         if case .native(let member) = binding.backend { return (binding, member) }
                         return nil
-                    })
+                    }
+                )
                 slots[index].moduleIDs = remaining
             }
         }
@@ -717,7 +746,10 @@ public final actor SpeechAnalyzer {
         for slot in slots
         where slot.engine.id != native?.id && !slot.moduleIDs.isDisjoint(with: removedIDs) {
             try await slot.engine.finishThroughEndOfInput(
-                end: end, branch: slot.input.branch, run: slot.run)
+                end: end,
+                branch: slot.input.branch,
+                run: slot.run
+            )
         }
         slots.removeAll { $0.engine.id != native?.id && !$0.moduleIDs.isDisjoint(with: removedIDs) }
     }
@@ -755,7 +787,10 @@ public final actor SpeechAnalyzer {
         volatileRange = union
         let reported = union ?? CMTimeRange(start: previous?.end ?? .zero, duration: .zero)
         volatileHandler?(
-            reported, reported.start != previous?.start, reported.end != previous?.end)
+            reported,
+            reported.start != previous?.start,
+            reported.end != previous?.end
+        )
     }
 
     // MARK: Formats
@@ -778,12 +813,15 @@ public final actor SpeechAnalyzer {
     ///   - naturalFormat: The format of the input, if known.
     /// - Returns: A format, or `nil` if no format is available.
     public static func bestAvailableAudioFormat(
-        compatibleWith modules: [any SpeechModule], considering naturalFormat: AVAudioFormat?
+        compatibleWith modules: [any SpeechModule],
+        considering naturalFormat: AVAudioFormat?
     ) async -> AVAudioFormat? {
         guard let groups = try? ModuleGroups(modules) else { return nil }
         if groups.models.isEmpty && groups.diarizers.isEmpty {
             return await Speech.SpeechAnalyzer.bestAvailableAudioFormat(
-                compatibleWith: groups.native, considering: naturalFormat)
+                compatibleWith: groups.native,
+                considering: naturalFormat
+            )
         }
         var lists: [[AVAudioFormat]] = []
         for module in modules { lists.append(await module.availableCompatibleAudioFormats) }

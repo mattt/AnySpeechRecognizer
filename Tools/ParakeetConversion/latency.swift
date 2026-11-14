@@ -44,7 +44,8 @@ configuration.computeUnits = units(unitName)
 
 if fresh {
     let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "bench-\(UUID().uuidString)")
+        "bench-\(UUID().uuidString)"
+    )
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     let copy = directory.appendingPathComponent(url.lastPathComponent)
     try FileManager.default.copyItem(at: url, to: copy)
@@ -64,26 +65,28 @@ for (name, description) in model.modelDescription.inputDescriptionsByName {
     case .int32:
         let value: Int32
         if name == "mel_length" {
-            value = Int32(model.modelDescription.inputDescriptionsByName["mel"]!.multiArrayConstraint!.shape[2].intValue)
+            value = Int32(
+                model.modelDescription.inputDescriptionsByName["mel"]!.multiArrayConstraint!.shape[2].intValue
+            )
         } else if name.hasSuffix("length") {
             value = 1
         } else {
             value = 100
         }
-        for index in 0..<array.count { array[index] = NSNumber(value: value) }
+        for index in 0 ..< array.count { array[index] = NSNumber(value: value) }
     default:
         array.withUnsafeMutableBufferPointer(ofType: Float.self) { pointer, _ in
-            for index in pointer.indices { pointer[index] = Float.random(in: -1...1) }
+            for index in pointer.indices { pointer[index] = Float.random(in: -1 ... 1) }
         }
     }
     features[name] = MLFeatureValue(multiArray: array)
 }
 let provider = try MLDictionaryFeatureProvider(dictionary: features)
 
-for _ in 0..<5 { _ = try model.prediction(from: provider) }
+for _ in 0 ..< 5 { _ = try model.prediction(from: provider) }
 var samples: [Double] = []
 samples.reserveCapacity(iterations)
-for _ in 0..<iterations {
+for _ in 0 ..< iterations {
     samples.append(try seconds { _ = try model.prediction(from: provider) })
 }
 samples.sort()

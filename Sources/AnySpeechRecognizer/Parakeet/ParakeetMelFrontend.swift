@@ -46,7 +46,7 @@ final class ParakeetMelFrontend {
     private var real: [Float]
     private var imaginary: [Float]
     /// Absolute hops whose log-mel values are in `cache`, at most `frameCount` of them.
-    private var cachedHops = 0..<0
+    private var cachedHops = 0 ..< 0
     /// Log-mel values by hop, `[melBinCount × frameCount]`; hop `h` is in column
     /// `h % frameCount`. Allocated by the first reusing window.
     private var cache: [Float] = []
@@ -58,7 +58,7 @@ final class ParakeetMelFrontend {
         guard let setup = vDSP_DFT_zrop_CreateSetup(nil, vDSP_Length(Self.fftLength), .FORWARD)
         else { fatalError("Accelerate cannot create a \(Self.fftLength)-point real DFT.") }
         self.setup = setup
-        window = (0..<Self.windowLength).map { index in
+        window = (0 ..< Self.windowLength).map { index in
             Float(0.5 - 0.5 * cos(2 * Double.pi * Double(index) / Double(Self.windowLength - 1)))
         }
         filterbank = Self.slaneyFilterbank()
@@ -97,7 +97,9 @@ final class ParakeetMelFrontend {
     /// - Returns: The number of valid mel frames.
     @discardableResult
     func compute(
-        _ samples: UnsafeBufferPointer<Float>, validSampleCount: Int, startHop: Int? = nil,
+        _ samples: UnsafeBufferPointer<Float>,
+        validSampleCount: Int,
+        startHop: Int? = nil,
         into output: UnsafeMutableBufferPointer<Float>
     ) -> Int {
         precondition(samples.count <= windowSamples && validSampleCount <= windowSamples)
@@ -109,34 +111,48 @@ final class ParakeetMelFrontend {
         let frames = frameCount
         if let startHop {
             computeReusingFrames(
-                sampleCount: min(samples.count, validSampleCount), validFrames: validFrames,
+                sampleCount: min(samples.count, validSampleCount),
+                validFrames: validFrames,
                 startHop: startHop,
-                into: output.baseAddress!)
+                into: output.baseAddress!
+            )
         } else {
-            computePower(Array(0..<validFrames), columns: frames)
+            computePower(Array(0 ..< validFrames), columns: frames)
             filterbank.withUnsafeBufferPointer { bank in
                 power.withUnsafeBufferPointer { power in
                     vDSP_mmul(
-                        bank.baseAddress!, 1, power.baseAddress!, 1, output.baseAddress!, 1,
-                        vDSP_Length(Self.melBinCount), vDSP_Length(frames),
-                        vDSP_Length(Self.binCount))
+                        bank.baseAddress!,
+                        1,
+                        power.baseAddress!,
+                        1,
+                        output.baseAddress!,
+                        1,
+                        vDSP_Length(Self.melBinCount),
+                        vDSP_Length(frames),
+                        vDSP_Length(Self.binCount)
+                    )
                 }
             }
-            for bin in 0..<Self.melBinCount {
+            for bin in 0 ..< Self.melBinCount {
                 Self.logarithm(output.baseAddress! + bin * frames, count: validFrames)
             }
         }
-        for bin in 0..<Self.melBinCount {
+        for bin in 0 ..< Self.melBinCount {
             normalize(
                 UnsafeMutableBufferPointer(
-                    rebasing: output[(bin * frames)..<(bin * frames + validFrames)]))
+                    rebasing: output[(bin * frames) ..< (bin * frames + validFrames)]
+                )
+            )
         }
         return validFrames
     }
 
     /// Writes log-mel values for the valid frames, reusing cached interior frames.
     private func computeReusingFrames(
-        sampleCount: Int, validFrames: Int, startHop: Int, into output: UnsafeMutablePointer<Float>
+        sampleCount: Int,
+        validFrames: Int,
+        startHop: Int,
+        into output: UnsafeMutablePointer<Float>
     ) {
         let frames = frameCount
         // Frame `k` reads window samples `k * hop - 200 ..< k * hop + 200`.
@@ -144,20 +160,27 @@ final class ParakeetMelFrontend {
         // end before the zero padding.
         let halfWindow = Self.windowLength / 2
         let interior =
-            2..<max(2, min(validFrames, (sampleCount - halfWindow) / Self.hopLength + 1))
+            2 ..< max(2, min(validFrames, (sampleCount - halfWindow) / Self.hopLength + 1))
         let lower = max(interior.lowerBound, cachedHops.lowerBound - startHop)
         let upper = min(interior.upperBound, cachedHops.upperBound - startHop)
-        let reused = lower < upper ? lower..<upper : validFrames..<validFrames
-        let missing = (0..<validFrames).filter { !reused.contains($0) }
+        let reused = lower < upper ? lower ..< upper : validFrames ..< validFrames
+        let missing = (0 ..< validFrames).filter { !reused.contains($0) }
         let computed = missing.count
         computePower(missing, columns: computed)
         filterbank.withUnsafeBufferPointer { bank in
             power.withUnsafeBufferPointer { power in
                 melColumns.withUnsafeMutableBufferPointer { mel in
                     vDSP_mmul(
-                        bank.baseAddress!, 1, power.baseAddress!, 1, mel.baseAddress!, 1,
-                        vDSP_Length(Self.melBinCount), vDSP_Length(computed),
-                        vDSP_Length(Self.binCount))
+                        bank.baseAddress!,
+                        1,
+                        power.baseAddress!,
+                        1,
+                        mel.baseAddress!,
+                        1,
+                        vDSP_Length(Self.melBinCount),
+                        vDSP_Length(computed),
+                        vDSP_Length(Self.binCount)
+                    )
                 }
             }
         }
@@ -167,24 +190,32 @@ final class ParakeetMelFrontend {
             Self.logarithm(mel, count: Self.melBinCount * computed)
             // The missing frames form at most two runs: before and after the reused frames.
             var column = 0
-            for run in [0..<min(validFrames, reused.lowerBound), reused.upperBound..<validFrames]
+            for run in [0 ..< min(validFrames, reused.lowerBound), reused.upperBound ..< validFrames]
             where !run.isEmpty {
-                for bin in 0..<Self.melBinCount {
+                for bin in 0 ..< Self.melBinCount {
                     (output + bin * frames + run.lowerBound).update(
-                        from: mel + bin * computed + column, count: run.count)
+                        from: mel + bin * computed + column,
+                        count: run.count
+                    )
                 }
                 store(
-                    run.clamped(to: interior), startHop: startHop, from: mel + column,
-                    firstFrame: run.lowerBound, stride: computed)
+                    run.clamped(to: interior),
+                    startHop: startHop,
+                    from: mel + column,
+                    firstFrame: run.lowerBound,
+                    stride: computed
+                )
                 column += run.count
             }
         }
         guard !reused.isEmpty else { return }
         cache.withUnsafeBufferPointer { cache in
             Self.forEachSlot(of: reused, startHop: startHop, frames: frames) { index, slot, count in
-                for bin in 0..<Self.melBinCount {
+                for bin in 0 ..< Self.melBinCount {
                     (output + bin * frames + index).update(
-                        from: cache.baseAddress! + bin * frames + slot, count: count)
+                        from: cache.baseAddress! + bin * frames + slot,
+                        count: count
+                    )
                 }
             }
         }
@@ -197,13 +228,16 @@ final class ParakeetMelFrontend {
     ///   - values: The log-mel values, where frame `k` of bin `b` is at
     ///     `b * stride + k - firstFrame`.
     private func store(
-        _ frames: Range<Int>, startHop: Int, from values: UnsafePointer<Float>, firstFrame: Int,
+        _ frames: Range<Int>,
+        startHop: Int,
+        from values: UnsafePointer<Float>,
+        firstFrame: Int,
         stride: Int
     ) {
         guard !frames.isEmpty else { return }
-        let hops = (startHop + frames.lowerBound)..<(startHop + frames.upperBound)
+        let hops = (startHop + frames.lowerBound) ..< (startHop + frames.upperBound)
         if hops.lowerBound > cachedHops.upperBound || cachedHops.isEmpty {
-            cachedHops = hops.lowerBound..<hops.lowerBound
+            cachedHops = hops.lowerBound ..< hops.lowerBound
         } else if hops.lowerBound < cachedHops.upperBound {
             // Earlier frames than the cache holds; a later window does not need them.
             return
@@ -211,20 +245,26 @@ final class ParakeetMelFrontend {
         let capacity = frameCount
         cache.withUnsafeMutableBufferPointer { cache in
             Self.forEachSlot(of: frames, startHop: startHop, frames: capacity) {
-                index, slot, count in
-                for bin in 0..<Self.melBinCount {
+                index,
+                slot,
+                count in
+                for bin in 0 ..< Self.melBinCount {
                     (cache.baseAddress! + bin * capacity + slot).update(
-                        from: values + bin * stride + index - firstFrame, count: count)
+                        from: values + bin * stride + index - firstFrame,
+                        count: count
+                    )
                 }
             }
         }
         cachedHops =
-            max(cachedHops.lowerBound, hops.upperBound - capacity)..<hops.upperBound
+            max(cachedHops.lowerBound, hops.upperBound - capacity) ..< hops.upperBound
     }
 
     /// Calls `body` with contiguous runs of window frames and their cache slots.
     private static func forEachSlot(
-        of indices: Range<Int>, startHop: Int, frames: Int,
+        of indices: Range<Int>,
+        startHop: Int,
+        frames: Int,
         _ body: (_ index: Int, _ slot: Int, _ count: Int) -> Void
     ) {
         var index = indices.lowerBound
@@ -253,8 +293,15 @@ final class ParakeetMelFrontend {
                 if audio > 1 {
                     var coefficient = -Self.preemphasis
                     vDSP_vsma(
-                        source, 1, &coefficient, source + 1, 1, signal + 1, 1,
-                        vDSP_Length(audio - 1))
+                        source,
+                        1,
+                        &coefficient,
+                        source + 1,
+                        1,
+                        signal + 1,
+                        1,
+                        vDSP_Length(audio - 1)
+                    )
                 }
                 if audio < end {
                     signal[audio] = -Self.preemphasis * source[audio - 1]
@@ -277,9 +324,14 @@ final class ParakeetMelFrontend {
                     window.withUnsafeBufferPointer { window in
                         frame.withUnsafeMutableBufferPointer { frame in
                             vDSP_vmul(
-                                padded.baseAddress! + index * Self.hopLength + offset, 1,
-                                window.baseAddress!, 1, frame.baseAddress! + offset, 1,
-                                vDSP_Length(Self.windowLength))
+                                padded.baseAddress! + index * Self.hopLength + offset,
+                                1,
+                                window.baseAddress!,
+                                1,
+                                frame.baseAddress! + offset,
+                                1,
+                                vDSP_Length(Self.windowLength)
+                            )
                         }
                     }
                 }
@@ -287,9 +339,12 @@ final class ParakeetMelFrontend {
                     even.withUnsafeMutableBufferPointer { even in
                         odd.withUnsafeMutableBufferPointer { odd in
                             var split = DSPSplitComplex(
-                                realp: even.baseAddress!, imagp: odd.baseAddress!)
+                                realp: even.baseAddress!,
+                                imagp: odd.baseAddress!
+                            )
                             frame.baseAddress!.withMemoryRebound(
-                                to: DSPComplex.self, capacity: half
+                                to: DSPComplex.self,
+                                capacity: half
                             ) {
                                 vDSP_ctoz($0, 2, &split, 1, vDSP_Length(half))
                             }
@@ -363,19 +418,20 @@ final class ParakeetMelFrontend {
             mel < 15 ? mel * 200 / 3 : 1000 * exp((log(6.4) / 27) * (mel - 15))
         }
         let maximum = mel(Double(sampleRate) / 2)
-        let edges = (0..<(melBinCount + 2)).map {
+        let edges = (0 ..< (melBinCount + 2)).map {
             hertz(maximum * Double($0) / Double(melBinCount + 1))
         }
         var weights = [Float](repeating: 0, count: melBinCount * binCount)
-        for bin in 0..<melBinCount {
+        for bin in 0 ..< melBinCount {
             let (lower, center, upper) = (edges[bin], edges[bin + 1], edges[bin + 2])
             let scale = 2 / (upper - lower)
-            for frequencyBin in 0..<binCount {
+            for frequencyBin in 0 ..< binCount {
                 let frequency = Double(frequencyBin * sampleRate) / Double(fftLength)
                 let rising = (frequency - lower) / (center - lower)
                 let falling = (upper - frequency) / (upper - center)
                 weights[bin * binCount + frequencyBin] = Float(
-                    max(0, min(rising, falling)) * scale)
+                    max(0, min(rising, falling)) * scale
+                )
             }
         }
         return weights

@@ -10,7 +10,8 @@ import Testing
     defer { try? FileManager.default.removeItem(at: url) }
     let gate = Gate()
     let executor = FakeExecutor(
-        snapshots: [snapshot()], prepareGate: duringPreparation ? gate : nil,
+        snapshots: [snapshot()],
+        prepareGate: duringPreparation ? gate : nil,
         analyzeGate: duringPreparation ? nil : gate
     )
     let transcriber = SpeechTranscriber(model: FakeModel(executor: executor))
@@ -41,7 +42,8 @@ import Testing
     let firstTranscriber = SpeechTranscriber(model: FakeModel(executor: firstExecutor))
     let first = SpeechAnalyzer(modules: [firstTranscriber])
     let secondTranscriber = SpeechTranscriber(
-        model: FakeModel(executor: FakeExecutor(snapshots: [snapshot("Second.")])))
+        model: FakeModel(executor: FakeExecutor(snapshots: [snapshot("Second.")]))
+    )
     let second = SpeechAnalyzer(modules: [secondTranscriber])
     let firstInput = Task { try await first.analyzeSequence(from: firstFile) }
     await firstExecutor.analyzeEntered.wait()

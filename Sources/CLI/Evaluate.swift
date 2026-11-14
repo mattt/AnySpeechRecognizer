@@ -23,20 +23,27 @@ struct Evaluate: CancellableCommand {
     @Option(
         help: ArgumentHelp(
             "A reference transcript for case-sensitive whitespace-token WER.",
-            valueName: "text-file"))
+            valueName: "text-file"
+        )
+    )
     var reference: String?
 
     @Option(
-        help: ArgumentHelp("Record cold/warm conditions; no cache is cleared.", valueName: "label"))
+        help: ArgumentHelp("Record cold/warm conditions; no cache is cleared.", valueName: "label")
+    )
     var cacheState = "unspecified"
 
     @Option(
         help: ArgumentHelp(
-            "Reference speaker segments for the diarization error rate.", valueName: "file"))
+            "Reference speaker segments for the diarization error rate.",
+            valueName: "file"
+        )
+    )
     var rttm: String?
 
     @Option(
-        help: ArgumentHelp("Unscored time around reference boundaries.", valueName: "seconds"))
+        help: ArgumentHelp("Unscored time around reference boundaries.", valueName: "seconds")
+    )
     var collar = 0.25
 
     func validate() throws {
@@ -50,38 +57,52 @@ struct Evaluate: CancellableCommand {
 
     @concurrent func execute() async throws {
         let analysis = try await Analysis.run(
-            file, model: model, results: results, diarizer: diarizer, json: true,
-            cacheState: cacheState)
+            file,
+            model: model,
+            results: results,
+            diarizer: diarizer,
+            json: true,
+            cacheState: cacheState
+        )
         let text = String(analysis.transcript.characters)
         let reference = try reference.map { try String(contentsOfFile: $0, encoding: .utf8) }
         let wer = reference.map { wordErrorRate(reference: $0, hypothesis: text) }
         let diarization = try rttm.map { path in
             DiarizationScore(
-                reference: try RTTM.read(path), hypothesis: analysis.speakers?.segments ?? [],
-                collar: collar)
+                reference: try RTTM.read(path),
+                hypothesis: analysis.speakers?.segments ?? [],
+                collar: collar
+            )
         }
         var usage = rusage()
         getrusage(RUSAGE_SELF, &usage)
         try writeJSON(
             EvaluationRecord(
-                type: "evaluation", elapsedSeconds: elapsed(since: analysis.started),
-                peakResidentBytes: Int64(usage.ru_maxrss), wordErrorRate: wer,
+                type: "evaluation",
+                elapsedSeconds: elapsed(since: analysis.started),
+                peakResidentBytes: Int64(usage.ru_maxrss),
+                wordErrorRate: wer,
                 finalSourceSeconds: analysis.audio.durationSeconds,
-                speakerCount: analysis.speakers.map(\.speakers.count), diarization: diarization
-            ))
+                speakerCount: analysis.speakers.map(\.speakers.count),
+                diarization: diarization
+            )
+        )
     }
 
     private func wordErrorRate(reference: String, hypothesis: String) -> Double {
         let expected = reference.split(whereSeparator: \.isWhitespace).map(String.init)
         let actual = hypothesis.split(whereSeparator: \.isWhitespace).map(String.init)
-        var previous = Array(0...expected.count)
+        var previous = Array(0 ... expected.count)
         for (row, word) in actual.enumerated() {
             var current = [row + 1]
             for (column, other) in expected.enumerated() {
                 current.append(
                     min(
-                        current[column] + 1, previous[column + 1] + 1,
-                        previous[column] + (word == other ? 0 : 1)))
+                        current[column] + 1,
+                        previous[column + 1] + 1,
+                        previous[column] + (word == other ? 0 : 1)
+                    )
+                )
             }
             previous = current
         }
