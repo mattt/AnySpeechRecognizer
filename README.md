@@ -599,9 +599,11 @@ Swift comes from the selected Xcode.
 | `mise run test` | Run the tests without model downloads. |
 | `mise run test:compatibility` | Build the [fixtures](Tests/Fixtures/Compatibility) with `import Speech` and with `import AnySpeechRecognizer`. |
 | `mise run test:integration` | Run opt-in tests with local recordings and installed assets. |
+| `mise run lint` | Check formatting with swift-format. |
+| `mise run format` | Format the Swift sources in place. |
 | `mise run evaluate` | Run `hear evaluate` on a local recording. |
 | `mise run prepare:apple` | Download and prepare Apple Speech assets. |
-| `mise run prepare:parakeet` | Download and prepare Parakeet assets. |
+| `mise run prepare:parakeet` | Download and prepare Parakeet models. |
 
 Integration tests read their inputs from environment variables:
 `ANYSPEECH_INTEGRATION_AUDIO` selects the Apple tests,
