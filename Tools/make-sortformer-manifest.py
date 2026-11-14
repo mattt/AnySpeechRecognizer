@@ -11,6 +11,9 @@ Usage:
     uv run Tools/make-sortformer-manifest.py --version v2.1 <revision> \
         > Sources/AnySpeechRecognizer/Diarization/SortformerModelManifest+V2_1.swift
 
+Then run `mise run format`,
+because swift-format sets the final layout of the generated source.
+
 Each manifest pins the files of one compiled model directory in a Hugging Face repository:
 v2 in mattt/diar-streaming-sortformer-4spk-v2-coreml, and v2.1 in
 mattt/diar-streaming-sortformer-4spk-v2.1-coreml, which Tools/SortformerConversion/v2.1 produces.
@@ -165,7 +168,7 @@ def main():
         "        files: [",
     ]
     for path, size, sha256 in files:
-        # Keep lines within swift-format's 100 columns.
+        # Keep lines short; `mise run format` sets the final layout.
         line = f"                path: {swift_string(path)}, size: {size:_},"
         if len(line) > 100:
             line = f"                path: {swift_string(path)},\n                size: {size:_},"
