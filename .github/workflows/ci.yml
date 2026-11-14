@@ -1,12 +1,61 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions: {}
 
 jobs:
-  test:
-    runs-on: macos-26
+  test-macos:
+    permissions:
+      contents: read
+    name: Swift ${{ matrix.swift }} on macOS ${{ matrix.macos }} with Xcode ${{ matrix.xcode }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      DEVELOPER_DIR: "/Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - macos: "26"
+            runner: macos-26
+            swift: "6.2"
+            xcode: "26.0"
+          - macos: "26"
+            runner: macos-26
+            swift: "6.3"
+            xcode: "26.6"
+          - macos: "27"
+            runner: xcode-27
+            swift: "6.4"
+            xcode: "27.0"
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - name: Test without model downloads
-        run: |
-          xcrun swift test
-          bash Tools/check-compatibility.sh
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache Swift Package Manager dependencies
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/org.swift.swiftpm
+            .build
+          key: ${{ runner.os }}-swift-${{ matrix.swift }}-spm-${{ hashFiles('Package.swift', 'Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-${{ matrix.swift }}-spm-
+
+      - name: Lint
+        run: swift format lint --strict --recursive .
+
+      - name: Build
+        run: swift build --build-tests
+
+      - name: Test
+        run: swift test --skip-build
+
+      # Builds each fixture with `import Speech` and with `import AnySpeechRecognizer`.
+      - name: Check compatibility with the Speech framework
+        run: bash Tools/check-compatibility.sh
