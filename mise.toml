@@ -1,20 +1,21 @@
-# Swift comes from Xcode, not from mise. No task downloads models unless its name says so.
+# Swift comes from Xcode or the Command Line Tools, not from mise.
+# No task downloads models unless its description says so.
 
 [tasks.setup]
 description = "Resolve Swift package dependencies without downloading models"
-run = "xcrun swift package resolve"
+run = "mise run _swift -- package resolve"
 
 [tasks.build]
 description = "Build the library and the hear CLI"
-run = "xcrun swift build"
+run = "mise run _swift -- build"
 
 [tasks."build:ios"]
 description = "Compile the library for iOS without code signing"
-run = "xcodebuild -scheme AnySpeechRecognizer -destination 'generic/platform=iOS' -derivedDataPath .build/ios CODE_SIGNING_ALLOWED=NO build -quiet"
+run = "xcodebuild build -scheme AnySpeechRecognizer -destination 'generic/platform=iOS' -derivedDataPath .build/ios CODE_SIGNING_ALLOWED=NO -quiet"
 
 [tasks.test]
 description = "Run the tests without model downloads"
-run = "xcrun swift test"
+run = "mise run _swift -- test"
 
 [tasks."test:compatibility"]
 description = "Build the compatibility fixtures against Speech and AnySpeechRecognizer"
@@ -24,12 +25,20 @@ run = "bash Tools/check-compatibility.sh"
 description = "Run opt-in recognition tests with local audio and installed assets"
 run = "bash Tools/run-integration-tests.sh"
 
+[tasks.lint]
+description = "Check formatting with swift-format"
+run = "mise run _swift -- format lint --strict --recursive ."
+
+[tasks.format]
+description = "Format the Swift sources in place with swift-format"
+run = "mise run _swift -- format format --in-place --recursive ."
+
 [tasks.evaluate]
 description = "Evaluate a local recording with an explicit backend and installed assets"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-exec xcrun swift run hear evaluate "$@"
+exec mise run _swift -- run hear evaluate "$@"
 '''
 
 [tasks."prepare:apple"]
@@ -37,13 +46,26 @@ description = "Download and prepare Apple Speech assets"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-exec xcrun swift run hear prepare --backend apple "$@"
+exec mise run _swift -- run hear prepare --backend apple "$@"
 '''
 
 [tasks."prepare:parakeet"]
-description = "Download, verify, and prepare the pinned Parakeet assets"
+description = "Download, verify, and prepare the pinned Parakeet models"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-exec xcrun swift run hear prepare --backend parakeet "$@"
+exec mise run _swift -- run hear prepare --backend parakeet "$@"
+'''
+
+[tasks."_swift"]
+hide = true
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    exec xcrun swift "$@"
+fi
+
+exec swift "$@"
 '''
