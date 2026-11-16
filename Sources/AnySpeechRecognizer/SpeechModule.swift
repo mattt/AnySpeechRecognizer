@@ -1,7 +1,10 @@
 import AVFoundation
 import CoreMedia
 import Foundation
-import Speech
+// The package uses Speech's own value types, whose members belong to Speech.
+// The re-export lets clients reach those members without `import Speech`,
+// which would make the package's names ambiguous.
+@_exported import Speech
 
 /// An analysis module that a ``SpeechAnalyzer`` can drive.
 ///
