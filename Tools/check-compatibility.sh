@@ -73,27 +73,29 @@ for fixture in Tests/Fixtures/Compatibility/*.swift; do
     "$fixture_dir/$name$member_import_suffix"
 done
 
-# The README tells clients not to import both modules in one file,
-# because shared names such as SpeechAnalyzer are ambiguous there.
-echo "Checking that a file that imports Speech and AnySpeechRecognizer is ambiguous"
+# The README says that names both modules declare are ambiguous in a file that imports both,
+# or resolve to this package's types, depending on the compiler.
+# The typed line compiles only if SpeechAnalyzer resolves to the package's type.
+echo "Checking a file that imports Speech and AnySpeechRecognizer"
 mkdir -p "$package_dir/Sources/BothImports"
 cat > "$package_dir/Sources/BothImports/main.swift" <<'SOURCE'
 import AnySpeechRecognizer
 import Speech
 
 print(SpeechAnalyzer.self)
+let _: AnySpeechRecognizer.SpeechAnalyzer.Type = SpeechAnalyzer.self
 SOURCE
 add_target "BothImports" ""
 write_manifest
 both_imports_log="$temporary_dir/BothImports.log"
 if xcrun swift build --package-path "$package_dir" --target BothImports > "$both_imports_log" 2>&1; then
-    echo "error: a file that imports Speech and AnySpeechRecognizer compiled;" \
-        "update the README's import advice" >&2
-    exit 1
-fi
-if ! grep -q "ambiguous" "$both_imports_log"; then
+    echo "Shared names resolve to AnySpeechRecognizer's types in a file that imports both modules"
+elif grep -q "error: .*ambiguous" "$both_imports_log"; then
+    echo "Shared names are ambiguous in a file that imports both modules"
+else
     cat "$both_imports_log" >&2
     echo "error: a file that imports Speech and AnySpeechRecognizer failed" \
-        "without an ambiguity error" >&2
+        "without an ambiguity error; if SpeechAnalyzer resolves to Speech's type," \
+        "update the README's import advice" >&2
     exit 1
 fi

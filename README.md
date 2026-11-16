@@ -191,8 +191,10 @@ and it reuses Speech value types such as `AnalyzerInput` and `AnalysisContext`.
 Package modules do not conform to `Speech.SpeechModule`,
 so the package analyzer does not accept Apple's module instances.
 Import only AnySpeechRecognizer, which re-exports Speech.
-Don't import both modules in one file,
-because names that both declare, such as `SpeechAnalyzer`, are ambiguous there.
+Don't import both modules in one file.
+Depending on the Swift version,
+names that both modules declare, such as `SpeechAnalyzer`,
+are either ambiguous in that file or resolve to this package's types.
 If a file must import both, qualify the shared names,
 such as `AnySpeechRecognizer.SpeechAnalyzer`.
 To use one of Apple's types, qualify its name, such as `Speech.SpeechTranscriber`;
