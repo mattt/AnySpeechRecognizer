@@ -34,7 +34,8 @@ The package does not implement the older `SFSpeechRecognizer` API.
 
 ## Requirements
 
-- Swift 6.2 or later
+- Swift 6.2 or later, with Xcode 26.1 or later
+  (the Speech SDK in Xcode 26.0 does not build the package)
 - macOS 26 or later, or iOS 26 or later
 - Apple silicon for the Parakeet and Sortformer models
 
