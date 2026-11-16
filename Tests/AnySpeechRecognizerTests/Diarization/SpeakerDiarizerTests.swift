@@ -8,16 +8,23 @@ import Testing
 /// Writes 16 kHz mono samples to a temporary WAV file.
 private func writeSamples(_ samples: [Float]) throws -> (URL, AVAudioFile) {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "anyspeech-diarization-\(UUID()).wav")
+        "anyspeech-diarization-\(UUID()).wav"
+    )
     let format = try #require(
         AVAudioFormat(
-            commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false))
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 16_000,
+            channels: 1,
+            interleaved: false
+        )
+    )
     do {
         var settings = format.settings
         settings[AVLinearPCMIsNonInterleaved] = false
         let output = try AVAudioFile(forWriting: url, settings: settings)
         let buffer = try #require(
-            AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)))
+            AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count))
+        )
         buffer.frameLength = AVAudioFrameCount(samples.count)
         samples.withUnsafeBufferPointer {
             buffer.floatChannelData![0].update(from: $0.baseAddress!, count: samples.count)
@@ -38,7 +45,9 @@ private let tones = toneSamples(duration: 12, low: [(0.5, 4), (8, 11)], high: [(
     let last = diarization([segment(1, 2.5, 2.9)], final: 2.9)
     let executor = FakeDiarizationExecutor(results: [volatile, first, second], deferred: [last])
     let diarizer = SpeakerDiarizer(
-        model: FakeDiarizationModel(executor: executor), reportingOptions: [.volatileResults])
+        model: FakeDiarizationModel(executor: executor),
+        reportingOptions: [.volatileResults]
+    )
     let analyzer = SpeechAnalyzer(modules: [diarizer])
     async let results = collect(diarizer)
     let end = try #require(try await analyzer.analyzeSequence(from: file))
@@ -56,7 +65,10 @@ private let tones = toneSamples(duration: 12, low: [(0.5, 4), (8, 11)], high: [(
     let invalid: [SpeakerDiarizer.Result] = [
         // A segment outside its result.
         .init(
-            segments: [segment(0, 0, 2)], range: range(0, 1), resultsFinalizationTime: seconds(1)),
+            segments: [segment(0, 0, 2)],
+            range: range(0, 1),
+            resultsFinalizationTime: seconds(1)
+        ),
         // A speaker the model cannot report.
         diarization([segment(7, 0, 1)]),
         // Segments out of order.
@@ -66,7 +78,8 @@ private let tones = toneSamples(duration: 12, low: [(0.5, 4), (8, 11)], high: [(
         let (url, file) = try audioFile(frames: 32_000)
         defer { try? FileManager.default.removeItem(at: url) }
         let diarizer = SpeakerDiarizer(
-            model: FakeDiarizationModel(executor: FakeDiarizationExecutor(results: [result])))
+            model: FakeDiarizationModel(executor: FakeDiarizationExecutor(results: [result]))
+        )
         let analyzer = SpeechAnalyzer(modules: [diarizer])
         await #expect(throws: SpeechRecognitionError.self) {
             try await analyzer.analyzeSequence(from: file)
@@ -108,7 +121,8 @@ private let tones = toneSamples(duration: 12, low: [(0.5, 4), (8, 11)], high: [(
     let diarizer = SpeakerDiarizer(model: missing)
     #expect(await AssetInventory.status(forModules: [transcriber, diarizer]) == .supported)
     let request = try #require(
-        try await AssetInventory.assetInstallationRequest(supporting: [transcriber, diarizer]))
+        try await AssetInventory.assetInstallationRequest(supporting: [transcriber, diarizer])
+    )
     try await request.downloadAndInstall()
     #expect(progress.completedUnitCount == 1)
 
@@ -133,9 +147,12 @@ private let tones = toneSamples(duration: 12, low: [(0.5, 4), (8, 11)], high: [(
                 snapshot("Hello.", start: 8_000, end: 64_000),
                 snapshot("Hi.", start: 72_000, end: 120_000),
             ],
-            deferred: [snapshot("Bye.", start: 128_000, end: 176_000)])
+            deferred: [snapshot("Bye.", start: 128_000, end: 176_000)]
+        )
         let transcriber = SpeechTranscriber(
-            model: FakeModel(executor: executor), attributeOptions: [.audioTimeRange])
+            model: FakeModel(executor: executor),
+            attributeOptions: [.audioTimeRange]
+        )
         let diarizer = SpeakerDiarizer(model: try toneModel())
         let modules: [any SpeechModule] = withDiarizer ? [transcriber, diarizer] : [transcriber]
         let analyzer = SpeechAnalyzer(modules: modules)
@@ -170,7 +187,7 @@ private let tones = toneSamples(duration: 12, low: [(0.5, 4), (8, 11)], high: [(
     var start = 0
     while start < tones.count {
         let stop = min(start + 1_600, tones.count)
-        continuation.yield(int16Input(tones[start..<stop], start: nil))
+        continuation.yield(int16Input(tones[start ..< stop], start: nil))
         start = stop
     }
     continuation.finish()

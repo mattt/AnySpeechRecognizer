@@ -9,7 +9,9 @@ struct ParakeetCacheLocationTests {
 
     func resolve(_ environment: [String: String]) -> String {
         ModelAssetStore.defaultCacheDirectory(
-            environment: environment, applicationSupport: support, home: home
+            environment: environment,
+            applicationSupport: support,
+            home: home
         ).standardizedFileURL.path
     }
 
@@ -21,7 +23,8 @@ struct ParakeetCacheLocationTests {
     @Test func sandboxedAppsUseApplicationSupport() {
         #expect(
             resolve(["APP_SANDBOX_CONTAINER_ID": "app"])
-                == "/tmp/support/AnySpeechRecognizer/HuggingFace/hub")
+                == "/tmp/support/AnySpeechRecognizer/HuggingFace/hub"
+        )
     }
 
     #if os(macOS)

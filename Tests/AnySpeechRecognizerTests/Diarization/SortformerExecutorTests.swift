@@ -18,11 +18,16 @@ struct SortformerExecutorTests {
     /// The results of both must still arrive in source order.
     @Test func finalizationDuringEmissionKeepsResultsInOrder() async throws {
         let samples = toneSamples(
-            duration: 20, low: [(1, 6), (12, 15)], high: [(6.5, 11), (16, 20)])
+            duration: 20,
+            low: [(1, 6), (12, 15)],
+            high: [(6.5, 11), (16, 20)]
+        )
         let executor = SortformerExecutor(model: try toneModel())
         let format = AudioFormats.monoFloat16k
         try await executor.prepare(
-            request: .init(reportingOptions: [.volatileResults]), format: format)
+            request: .init(reportingOptions: [.volatileResults]),
+            format: format
+        )
         let received = Received()
         let firstEmitted = Gate()
         let release = Gate()
@@ -37,10 +42,12 @@ struct SortformerExecutorTests {
                     await release.wait()
                 }
             },
-            volatile: { _ in })
+            volatile: { _ in }
+        )
 
         let buffer = try #require(
-            AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)))
+            AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count))
+        )
         buffer.frameLength = AVAudioFrameCount(samples.count)
         for (index, sample) in samples.enumerated() {
             buffer.floatChannelData![0][index] = sample
@@ -57,7 +64,7 @@ struct SortformerExecutorTests {
         await firstEmitted.wait()
         let finalization = Task { try await executor.finalize(through: audio.endTime) }
         // Give a finalization that does not wait for the earlier emission time to emit.
-        for _ in 0..<100 where received.all.count == 1 {
+        for _ in 0 ..< 100 where received.all.count == 1 {
             try await Task.sleep(for: .milliseconds(1))
         }
         await release.open()
@@ -76,6 +83,7 @@ struct SortformerExecutorTests {
         expectFinalizationContract(results)
         #expect(
             finalSegments(results).map(\.speaker.id) == [0, 1, 0, 1],
-            "Final segments: \(finalSegments(results))")
+            "Final segments: \(finalSegments(results))"
+        )
     }
 }

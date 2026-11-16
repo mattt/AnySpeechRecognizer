@@ -33,7 +33,9 @@ actor Gate {
 struct FakeModel: SpeechRecognitionModel {
     let modelID = "test/fake"
     var capabilities = SpeechRecognitionCapabilities(
-        transcription: .init(reportingOptions: [.volatileResults]), liveInput: true)
+        transcription: .init(reportingOptions: [.volatileResults]),
+        liveInput: true
+    )
     let executor: FakeExecutor
     func makeExecutor() -> any SpeechRecognitionExecutor { executor }
 }
@@ -58,8 +60,11 @@ actor FakeExecutor: SpeechRecognitionExecutor {
     private var sink: SpeechRecognitionResultSink?
 
     init(
-        snapshots: [SpeechRecognitionResult] = [], deferred: [SpeechRecognitionResult] = [],
-        prepareGate: Gate? = nil, analyzeGate: Gate? = nil, backendError: TestFailure? = nil
+        snapshots: [SpeechRecognitionResult] = [],
+        deferred: [SpeechRecognitionResult] = [],
+        prepareGate: Gate? = nil,
+        analyzeGate: Gate? = nil,
+        backendError: TestFailure? = nil
     ) {
         self.pending = snapshots
         self.deferred = deferred
@@ -69,7 +74,9 @@ actor FakeExecutor: SpeechRecognitionExecutor {
     }
 
     func prepare(
-        request: SpeechRecognitionRequest, format: AVAudioFormat, context: AnalysisContext
+        request: SpeechRecognitionRequest,
+        format: AVAudioFormat,
+        context: AnalysisContext
     ) async throws {
         prepareCount += 1
         self.format = format
@@ -122,26 +129,39 @@ actor FakeExecutor: SpeechRecognitionExecutor {
 }
 
 func snapshot(
-    _ text: String = "Hello.", start: Int64 = 0, end: Int64 = 16_000, final: Bool = true
+    _ text: String = "Hello.",
+    start: Int64 = 0,
+    end: Int64 = 16_000,
+    final: Bool = true
 ) -> SpeechRecognitionResult {
     let range = CMTimeRange(
-        start: CMTime(value: start, timescale: 16_000), end: CMTime(value: end, timescale: 16_000))
+        start: CMTime(value: start, timescale: 16_000),
+        end: CMTime(value: end, timescale: 16_000)
+    )
     return .init(
-        text: AttributedString(text), range: range,
-        resultsFinalizationTime: final ? range.end : range.start)
+        text: AttributedString(text),
+        range: range,
+        resultsFinalizationTime: final ? range.end : range.start
+    )
 }
 
 func audioFile(
-    sampleRate: Double = 16_000, channels: AVAudioChannelCount = 1, frames: Int = 16_000,
+    sampleRate: Double = 16_000,
+    channels: AVAudioChannelCount = 1,
+    frames: Int = 16_000,
     samples: [Float] = [0.25]
 ) throws -> (URL, AVAudioFile) {
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(
-        "anyspeech-test-\(UUID()).wav")
+        "anyspeech-test-\(UUID()).wav"
+    )
     let format = try #require(
         AVAudioFormat(
-            commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: channels,
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: sampleRate,
+            channels: channels,
             interleaved: false
-        ))
+        )
+    )
     do {
         var settings = format.settings
         settings[AVLinearPCMIsNonInterleaved] = false
@@ -151,8 +171,8 @@ func audioFile(
         var remaining = frames
         while remaining > 0 {
             buffer.frameLength = AVAudioFrameCount(min(remaining, 2048))
-            for channel in 0..<Int(channels) {
-                for frame in 0..<Int(buffer.frameLength) {
+            for channel in 0 ..< Int(channels) {
+                for frame in 0 ..< Int(buffer.frameLength) {
                     data[channel][frame] = samples[channel % samples.count]
                 }
             }
@@ -165,16 +185,21 @@ func audioFile(
 
 /// A mono Float32 buffer with a constant value.
 func pcmBuffer(
-    frames: Int, sampleRate: Double = 16_000, channels: AVAudioChannelCount = 1,
+    frames: Int,
+    sampleRate: Double = 16_000,
+    channels: AVAudioChannelCount = 1,
     value: Float = 0.25
 ) -> AVAudioPCMBuffer {
     let format = AVAudioFormat(
-        commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: channels,
-        interleaved: false)!
+        commonFormat: .pcmFormatFloat32,
+        sampleRate: sampleRate,
+        channels: channels,
+        interleaved: false
+    )!
     let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames))!
     buffer.frameLength = AVAudioFrameCount(frames)
-    for channel in 0..<Int(channels) {
-        for frame in 0..<frames { buffer.floatChannelData![channel][frame] = value }
+    for channel in 0 ..< Int(channels) {
+        for frame in 0 ..< frames { buffer.floatChannelData![channel][frame] = value }
     }
     return buffer
 }
@@ -183,10 +208,14 @@ func pcmBuffer(
 /// buffers on macOS 27.0.1, and Apple's native best format is Int16.
 func input(frames: Int, start: CMTime? = nil) -> AnalyzerInput {
     let format = AVAudioFormat(
-        commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
+        commonFormat: .pcmFormatInt16,
+        sampleRate: 16_000,
+        channels: 1,
+        interleaved: true
+    )!
     let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(frames))!
     buffer.frameLength = AVAudioFrameCount(frames)
-    for frame in 0..<frames { buffer.int16ChannelData![0][frame] = 8_192 }
+    for frame in 0 ..< frames { buffer.int16ChannelData![0][frame] = 8_192 }
     return AnalyzerInput(buffer: buffer, bufferStartTime: start)
 }
 
@@ -207,9 +236,10 @@ func texts(_ results: [SpeechTranscriber.Result]) -> [String] {
 
 /// Polls an actor-isolated condition until it holds.
 func eventually(
-    _ condition: @Sendable () async -> Bool, sourceLocation: SourceLocation = #_sourceLocation
+    _ condition: @Sendable () async -> Bool,
+    sourceLocation: SourceLocation = #_sourceLocation
 ) async {
-    for _ in 0..<2000 {
+    for _ in 0 ..< 2000 {
         if await condition() { return }
         try? await Task.sleep(for: .milliseconds(1))
     }

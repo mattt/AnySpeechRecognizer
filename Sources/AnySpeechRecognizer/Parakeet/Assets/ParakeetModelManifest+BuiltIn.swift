@@ -12,73 +12,118 @@ extension ParakeetModelManifest {
         revision: "f2f43eaa239d1ea45191c2a2d5bd0f980dae1b1f",
         contractVersion: 1,
         components: .init(
-            encoder: "Encoder.mlmodelc", decoder: "Decoder.mlmodelc",
-            joint: "JointDecisionv3.mlmodelc", vocabulary: "parakeet_vocab.json",
-            liveEncoder: "Encoder8s.mlmodelc"),
+            encoder: "Encoder.mlmodelc",
+            decoder: "Decoder.mlmodelc",
+            joint: "JointDecisionv3.mlmodelc",
+            vocabulary: "parakeet_vocab.json",
+            liveEncoder: "Encoder8s.mlmodelc"
+        ),
         files: [
             .init(
-                path: "Decoder.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "781bdb7da0eaba57523943db398977719471fb1b5b6b5a38cfbc1b3902df3b0c"),
+                path: "Decoder.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "781bdb7da0eaba57523943db398977719471fb1b5b6b5a38cfbc1b3902df3b0c"
+            ),
             .init(
-                path: "Decoder.mlmodelc/coremldata.bin", size: 1_075,
-                sha256: "826003d12e66c46b665f85ae8b7d1b5248e25cd944ece65c6a2300fc45ffa56f"),
+                path: "Decoder.mlmodelc/coremldata.bin",
+                size: 1_075,
+                sha256: "826003d12e66c46b665f85ae8b7d1b5248e25cd944ece65c6a2300fc45ffa56f"
+            ),
             .init(
-                path: "Decoder.mlmodelc/metadata.json", size: 3_993,
-                sha256: "1495f2b1a545b5f681ea12765c290acb82c120b0cbaecb9d72e29bc9af5aef6c"),
+                path: "Decoder.mlmodelc/metadata.json",
+                size: 3_993,
+                sha256: "1495f2b1a545b5f681ea12765c290acb82c120b0cbaecb9d72e29bc9af5aef6c"
+            ),
             .init(
-                path: "Decoder.mlmodelc/model.mil", size: 13_108,
-                sha256: "40f4167ce2b8032437dc133af8c255cf24a141a4c4913332ecac3e4590302198"),
+                path: "Decoder.mlmodelc/model.mil",
+                size: 13_108,
+                sha256: "40f4167ce2b8032437dc133af8c255cf24a141a4c4913332ecac3e4590302198"
+            ),
             .init(
-                path: "Decoder.mlmodelc/weights/weight.bin", size: 23_604_992,
-                sha256: "48adf0f0d47c406c8253d4f7fef967436a39da14f5a65e66d5a4b407be355d41"),
+                path: "Decoder.mlmodelc/weights/weight.bin",
+                size: 23_604_992,
+                sha256: "48adf0f0d47c406c8253d4f7fef967436a39da14f5a65e66d5a4b407be355d41"
+            ),
             .init(
-                path: "Encoder.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "c64a73ccb02108b1cddd918cbee4934c58aa66802821e0fd941e5b8df113b83b"),
+                path: "Encoder.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "c64a73ccb02108b1cddd918cbee4934c58aa66802821e0fd941e5b8df113b83b"
+            ),
             .init(
-                path: "Encoder.mlmodelc/coremldata.bin", size: 988,
-                sha256: "89750a553a443f1f9b201ab9d77c0fe3b7696d6bcb1f30954ff786be73f87440"),
+                path: "Encoder.mlmodelc/coremldata.bin",
+                size: 988,
+                sha256: "89750a553a443f1f9b201ab9d77c0fe3b7696d6bcb1f30954ff786be73f87440"
+            ),
             .init(
-                path: "Encoder.mlmodelc/metadata.json", size: 3_465,
-                sha256: "7f3b5a87f141c9e64a3052eed0bf99dee82b5cd87f27b99dadd3736e007877cc"),
+                path: "Encoder.mlmodelc/metadata.json",
+                size: 3_465,
+                sha256: "7f3b5a87f141c9e64a3052eed0bf99dee82b5cd87f27b99dadd3736e007877cc"
+            ),
             .init(
-                path: "Encoder.mlmodelc/model.mil", size: 1_002_653,
-                sha256: "46117c7632c7138dc0352fe8c81ca27341ae4083c720e3dc63b1fa265e3ff4c6"),
+                path: "Encoder.mlmodelc/model.mil",
+                size: 1_002_653,
+                sha256: "46117c7632c7138dc0352fe8c81ca27341ae4083c720e3dc63b1fa265e3ff4c6"
+            ),
             .init(
-                path: "Encoder.mlmodelc/weights/weight.bin", size: 594_211_328,
-                sha256: "8d2c79e15a4545e08fe3a21fe741e42b8bf24329db81de8fdfacd92388ea5a66"),
+                path: "Encoder.mlmodelc/weights/weight.bin",
+                size: 594_211_328,
+                sha256: "8d2c79e15a4545e08fe3a21fe741e42b8bf24329db81de8fdfacd92388ea5a66"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "ae7368fb92f24a2317e03603393b210555aa9a76e0ff48572e57293db707094c"),
+                path: "Encoder8s.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "ae7368fb92f24a2317e03603393b210555aa9a76e0ff48572e57293db707094c"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/coremldata.bin", size: 986,
-                sha256: "db987d940442536f464601b9fe3740211a8a25e579e8ef143480a3916c734047"),
+                path: "Encoder8s.mlmodelc/coremldata.bin",
+                size: 986,
+                sha256: "db987d940442536f464601b9fe3740211a8a25e579e8ef143480a3916c734047"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/metadata.json", size: 3_464,
-                sha256: "4620f5830b4f77e9245cf1a3e92562ddfa3746dcf71b68df418e0e1300eaecc7"),
+                path: "Encoder8s.mlmodelc/metadata.json",
+                size: 3_464,
+                sha256: "4620f5830b4f77e9245cf1a3e92562ddfa3746dcf71b68df418e0e1300eaecc7"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/model.mil", size: 851_182,
-                sha256: "e805fbb701fd8569df0cd812c2f5db4a397f6490ace1bd9bc37e06dc464a1d5f"),
+                path: "Encoder8s.mlmodelc/model.mil",
+                size: 851_182,
+                sha256: "e805fbb701fd8569df0cd812c2f5db4a397f6490ace1bd9bc37e06dc464a1d5f"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/weights/weight.bin", size: 589_927_296,
-                sha256: "3ea39e4aa533a4c86b1d1fdd91a3f2dfeace1d22d826f81445e829fa1df41adf"),
+                path: "Encoder8s.mlmodelc/weights/weight.bin",
+                size: 589_927_296,
+                sha256: "3ea39e4aa533a4c86b1d1fdd91a3f2dfeace1d22d826f81445e829fa1df41adf"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "1d38e7f0f21ed92f5b2116c563b18b12b887a3b4c337448447ffa208a7f4e1ae"),
+                path: "JointDecisionv3.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "1d38e7f0f21ed92f5b2116c563b18b12b887a3b4c337448447ffa208a7f4e1ae"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/coremldata.bin", size: 1_096,
-                sha256: "3ec14f58510fc00790e2384da4089d7e48dac30fe0f4af63b574df242c9fbd9b"),
+                path: "JointDecisionv3.mlmodelc/coremldata.bin",
+                size: 1_096,
+                sha256: "3ec14f58510fc00790e2384da4089d7e48dac30fe0f4af63b574df242c9fbd9b"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/metadata.json", size: 4_126,
-                sha256: "dfe353f290ea860dbcbd678f31c29aceb874a442880041caf3ef4ccf04edf8aa"),
+                path: "JointDecisionv3.mlmodelc/metadata.json",
+                size: 4_126,
+                sha256: "dfe353f290ea860dbcbd678f31c29aceb874a442880041caf3ef4ccf04edf8aa"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/model.mil", size: 11_775,
-                sha256: "8c67bd8cf06f42e9620279d4814a74990478febbc45e2e4f6ac7e79e6b8d256d"),
+                path: "JointDecisionv3.mlmodelc/model.mil",
+                size: 11_775,
+                sha256: "8c67bd8cf06f42e9620279d4814a74990478febbc45e2e4f6ac7e79e6b8d256d"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/weights/weight.bin", size: 12_642_764,
-                sha256: "4e0e63d840032f7f07ddb1d64446051166281e5491bf22da8a945c41f6eedb3e"),
+                path: "JointDecisionv3.mlmodelc/weights/weight.bin",
+                size: 12_642_764,
+                sha256: "4e0e63d840032f7f07ddb1d64446051166281e5491bf22da8a945c41f6eedb3e"
+            ),
             .init(
-                path: "parakeet_vocab.json", size: 151_122,
-                sha256: "7ec60e05f1b24480736ec0eed40900f4626bce1fa9a60fd700ec7e2a59198735"),
+                path: "parakeet_vocab.json",
+                size: 151_122,
+                sha256: "7ec60e05f1b24480736ec0eed40900f4626bce1fa9a60fd700ec7e2a59198735"
+            ),
         ],
         license: "CC-BY-4.0",
         attribution: """
@@ -97,73 +142,118 @@ extension ParakeetModelManifest {
         revision: "4038b9e5eced45b04703afb1dab0d30e5dc162b4",
         contractVersion: 1,
         components: .init(
-            encoder: "Encoder.mlmodelc", decoder: "Decoder.mlmodelc",
-            joint: "JointDecisionv3.mlmodelc", vocabulary: "parakeet_vocab.json",
-            liveEncoder: "Encoder8s.mlmodelc"),
+            encoder: "Encoder.mlmodelc",
+            decoder: "Decoder.mlmodelc",
+            joint: "JointDecisionv3.mlmodelc",
+            vocabulary: "parakeet_vocab.json",
+            liveEncoder: "Encoder8s.mlmodelc"
+        ),
         files: [
             .init(
-                path: "Decoder.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "bbe700f92f05bacb061b41116d3734462a640153b4526b33f64bac8fc5e59be3"),
+                path: "Decoder.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "bbe700f92f05bacb061b41116d3734462a640153b4526b33f64bac8fc5e59be3"
+            ),
             .init(
-                path: "Decoder.mlmodelc/coremldata.bin", size: 1_248,
-                sha256: "b4133f11bfe5e949deceee2732dad9d28927cf1b6ef79e6de46fc79fb6dc6164"),
+                path: "Decoder.mlmodelc/coremldata.bin",
+                size: 1_248,
+                sha256: "b4133f11bfe5e949deceee2732dad9d28927cf1b6ef79e6de46fc79fb6dc6164"
+            ),
             .init(
-                path: "Decoder.mlmodelc/metadata.json", size: 4_169,
-                sha256: "abe43846669727c9b76c21d45f4d53b7b06244ed31a5dcadf3c98b337af030cf"),
+                path: "Decoder.mlmodelc/metadata.json",
+                size: 4_169,
+                sha256: "abe43846669727c9b76c21d45f4d53b7b06244ed31a5dcadf3c98b337af030cf"
+            ),
             .init(
-                path: "Decoder.mlmodelc/model.mil", size: 13_108,
-                sha256: "40f4167ce2b8032437dc133af8c255cf24a141a4c4913332ecac3e4590302198"),
+                path: "Decoder.mlmodelc/model.mil",
+                size: 13_108,
+                sha256: "40f4167ce2b8032437dc133af8c255cf24a141a4c4913332ecac3e4590302198"
+            ),
             .init(
-                path: "Decoder.mlmodelc/weights/weight.bin", size: 23_604_992,
-                sha256: "02a0d219f281b9665bc10c8768649403b2eebbbf4b44c627041d948e0de11bb4"),
+                path: "Decoder.mlmodelc/weights/weight.bin",
+                size: 23_604_992,
+                sha256: "02a0d219f281b9665bc10c8768649403b2eebbbf4b44c627041d948e0de11bb4"
+            ),
             .init(
-                path: "Encoder.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "4827aabd1d6e0fa303d3438587b72feb466da24052dd4267620f2e3672cfeb2e"),
+                path: "Encoder.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "4827aabd1d6e0fa303d3438587b72feb466da24052dd4267620f2e3672cfeb2e"
+            ),
             .init(
-                path: "Encoder.mlmodelc/coremldata.bin", size: 1_161,
-                sha256: "69a133f103b30ac8fab26a173b439c848a79d0da43c214ef6a57f0dbca8adbbe"),
+                path: "Encoder.mlmodelc/coremldata.bin",
+                size: 1_161,
+                sha256: "69a133f103b30ac8fab26a173b439c848a79d0da43c214ef6a57f0dbca8adbbe"
+            ),
             .init(
-                path: "Encoder.mlmodelc/metadata.json", size: 3_641,
-                sha256: "db6e5bbb32e2c5c41b6aa6075622ce5b5ab0979313fc8de95d27e07c4ecc07b4"),
+                path: "Encoder.mlmodelc/metadata.json",
+                size: 3_641,
+                sha256: "db6e5bbb32e2c5c41b6aa6075622ce5b5ab0979313fc8de95d27e07c4ecc07b4"
+            ),
             .init(
-                path: "Encoder.mlmodelc/model.mil", size: 1_002_653,
-                sha256: "46117c7632c7138dc0352fe8c81ca27341ae4083c720e3dc63b1fa265e3ff4c6"),
+                path: "Encoder.mlmodelc/model.mil",
+                size: 1_002_653,
+                sha256: "46117c7632c7138dc0352fe8c81ca27341ae4083c720e3dc63b1fa265e3ff4c6"
+            ),
             .init(
-                path: "Encoder.mlmodelc/weights/weight.bin", size: 594_211_328,
-                sha256: "315ba01f33cadbf601d43ac7f5c86208b7aa75fdaa34705c9869d5abe3521c9b"),
+                path: "Encoder.mlmodelc/weights/weight.bin",
+                size: 594_211_328,
+                sha256: "315ba01f33cadbf601d43ac7f5c86208b7aa75fdaa34705c9869d5abe3521c9b"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "37031009401ceee11b74af74ea33dcf3e28d6ef3eeefc07709972cfb861269a5"),
+                path: "Encoder8s.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "37031009401ceee11b74af74ea33dcf3e28d6ef3eeefc07709972cfb861269a5"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/coremldata.bin", size: 1_159,
-                sha256: "6a6f11d2ea6b73f1ea96b7517bb6b3eea2847209a712401a2269c21cd9d230ca"),
+                path: "Encoder8s.mlmodelc/coremldata.bin",
+                size: 1_159,
+                sha256: "6a6f11d2ea6b73f1ea96b7517bb6b3eea2847209a712401a2269c21cd9d230ca"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/metadata.json", size: 3_640,
-                sha256: "74775f81cb22bf9af353b0a96176fd1c490a47f5da9ce45820fc8add15f880ae"),
+                path: "Encoder8s.mlmodelc/metadata.json",
+                size: 3_640,
+                sha256: "74775f81cb22bf9af353b0a96176fd1c490a47f5da9ce45820fc8add15f880ae"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/model.mil", size: 851_182,
-                sha256: "e805fbb701fd8569df0cd812c2f5db4a397f6490ace1bd9bc37e06dc464a1d5f"),
+                path: "Encoder8s.mlmodelc/model.mil",
+                size: 851_182,
+                sha256: "e805fbb701fd8569df0cd812c2f5db4a397f6490ace1bd9bc37e06dc464a1d5f"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/weights/weight.bin", size: 589_927_296,
-                sha256: "72bd25507a97974b6a5c48b452b680c38c6fb6e3f0ef63856cfbe66e25773cc7"),
+                path: "Encoder8s.mlmodelc/weights/weight.bin",
+                size: 589_927_296,
+                sha256: "72bd25507a97974b6a5c48b452b680c38c6fb6e3f0ef63856cfbe66e25773cc7"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "1c04eb2fe588aa0c6a05f82143ca065ea3f001b7fe2a3a42443bee9be533ef98"),
+                path: "JointDecisionv3.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "1c04eb2fe588aa0c6a05f82143ca065ea3f001b7fe2a3a42443bee9be533ef98"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/coremldata.bin", size: 1_269,
-                sha256: "a90cc88b1772379efdcd6bd729dcac941e6b25e2cc5bbd070b9e0ff3eb586c63"),
+                path: "JointDecisionv3.mlmodelc/coremldata.bin",
+                size: 1_269,
+                sha256: "a90cc88b1772379efdcd6bd729dcac941e6b25e2cc5bbd070b9e0ff3eb586c63"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/metadata.json", size: 4_302,
-                sha256: "40d8f4b8e9df3d82d1319f777fad0717f23bb43f06471fc1c9dce63014eda90d"),
+                path: "JointDecisionv3.mlmodelc/metadata.json",
+                size: 4_302,
+                sha256: "40d8f4b8e9df3d82d1319f777fad0717f23bb43f06471fc1c9dce63014eda90d"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/model.mil", size: 11_775,
-                sha256: "8c67bd8cf06f42e9620279d4814a74990478febbc45e2e4f6ac7e79e6b8d256d"),
+                path: "JointDecisionv3.mlmodelc/model.mil",
+                size: 11_775,
+                sha256: "8c67bd8cf06f42e9620279d4814a74990478febbc45e2e4f6ac7e79e6b8d256d"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/weights/weight.bin", size: 12_642_764,
-                sha256: "3f310b85b82341c53ec383025ab094a4e462ee1c592e1ad7c6bfe39cff66ca25"),
+                path: "JointDecisionv3.mlmodelc/weights/weight.bin",
+                size: 12_642_764,
+                sha256: "3f310b85b82341c53ec383025ab094a4e462ee1c592e1ad7c6bfe39cff66ca25"
+            ),
             .init(
-                path: "parakeet_vocab.json", size: 151_122,
-                sha256: "7ec60e05f1b24480736ec0eed40900f4626bce1fa9a60fd700ec7e2a59198735"),
+                path: "parakeet_vocab.json",
+                size: 151_122,
+                sha256: "7ec60e05f1b24480736ec0eed40900f4626bce1fa9a60fd700ec7e2a59198735"
+            ),
         ],
         license: "CC-BY-4.0",
         attribution: """
@@ -185,73 +275,118 @@ extension ParakeetModelManifest {
         revision: "a2f32b4bdf3062c32d1668b2bba2354ebfe6b06d",
         contractVersion: 1,
         components: .init(
-            encoder: "Encoder.mlmodelc", decoder: "Decoder.mlmodelc",
-            joint: "JointDecisionv3.mlmodelc", vocabulary: "parakeet_vocab.json",
-            liveEncoder: "Encoder8s.mlmodelc"),
+            encoder: "Encoder.mlmodelc",
+            decoder: "Decoder.mlmodelc",
+            joint: "JointDecisionv3.mlmodelc",
+            vocabulary: "parakeet_vocab.json",
+            liveEncoder: "Encoder8s.mlmodelc"
+        ),
         files: [
             .init(
-                path: "Decoder.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "2e79468263224a74ba1b8e2335103fce880e715ba37688632b335299f975bd0e"),
+                path: "Decoder.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "2e79468263224a74ba1b8e2335103fce880e715ba37688632b335299f975bd0e"
+            ),
             .init(
-                path: "Decoder.mlmodelc/coremldata.bin", size: 1_128,
-                sha256: "57e0d41b4eae03cbdb5c55e978346878ebe688333798a70687c7d64f19f1f1bb"),
+                path: "Decoder.mlmodelc/coremldata.bin",
+                size: 1_128,
+                sha256: "57e0d41b4eae03cbdb5c55e978346878ebe688333798a70687c7d64f19f1f1bb"
+            ),
             .init(
-                path: "Decoder.mlmodelc/metadata.json", size: 4_051,
-                sha256: "6fcb88f43877c9e532ac6bdc4800611a392f3903d49a05e7203f70849b79ac2c"),
+                path: "Decoder.mlmodelc/metadata.json",
+                size: 4_051,
+                sha256: "6fcb88f43877c9e532ac6bdc4800611a392f3903d49a05e7203f70849b79ac2c"
+            ),
             .init(
-                path: "Decoder.mlmodelc/model.mil", size: 13_104,
-                sha256: "4b83cdcedf9af8e4ce52d3ea27250b9fc00087720405698f9d452e31dedf0777"),
+                path: "Decoder.mlmodelc/model.mil",
+                size: 13_104,
+                sha256: "4b83cdcedf9af8e4ce52d3ea27250b9fc00087720405698f9d452e31dedf0777"
+            ),
             .init(
-                path: "Decoder.mlmodelc/weights/weight.bin", size: 14_429_952,
-                sha256: "96f990461a5986d5e7309ad1a0f36084fbf0f4b28aec35948f8b8d0dcbf8599e"),
+                path: "Decoder.mlmodelc/weights/weight.bin",
+                size: 14_429_952,
+                sha256: "96f990461a5986d5e7309ad1a0f36084fbf0f4b28aec35948f8b8d0dcbf8599e"
+            ),
             .init(
-                path: "Encoder.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "5224616d656de6f6dba0e4f01aee766ec7d0352443c363e352424c4685be96ce"),
+                path: "Encoder.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "5224616d656de6f6dba0e4f01aee766ec7d0352443c363e352424c4685be96ce"
+            ),
             .init(
-                path: "Encoder.mlmodelc/coremldata.bin", size: 1_041,
-                sha256: "222b9df6fe8c1e9ccaefd80b8cd31271b56ae074a3b0dee4c91f5394b7809832"),
+                path: "Encoder.mlmodelc/coremldata.bin",
+                size: 1_041,
+                sha256: "222b9df6fe8c1e9ccaefd80b8cd31271b56ae074a3b0dee4c91f5394b7809832"
+            ),
             .init(
-                path: "Encoder.mlmodelc/metadata.json", size: 3_552,
-                sha256: "308ba38b76fa06dfd7d9c35205a2a220fd1dfd099c5fe9417f7efe1f9c09e2f3"),
+                path: "Encoder.mlmodelc/metadata.json",
+                size: 3_552,
+                sha256: "308ba38b76fa06dfd7d9c35205a2a220fd1dfd099c5fe9417f7efe1f9c09e2f3"
+            ),
             .init(
-                path: "Encoder.mlmodelc/model.mil", size: 1_110_904,
-                sha256: "2947ef5883f9cf689de96dd814cc113f8f6c6f6b66dd2af935d99dbddafcfbe0"),
+                path: "Encoder.mlmodelc/model.mil",
+                size: 1_110_904,
+                sha256: "2947ef5883f9cf689de96dd814cc113f8f6c6f6b66dd2af935d99dbddafcfbe0"
+            ),
             .init(
-                path: "Encoder.mlmodelc/weights/weight.bin", size: 595_051_904,
-                sha256: "56294953e397e402e7aaa7b3cb420991035d55aa97b81eb488bef6fdc60c7e9a"),
+                path: "Encoder.mlmodelc/weights/weight.bin",
+                size: 595_051_904,
+                sha256: "56294953e397e402e7aaa7b3cb420991035d55aa97b81eb488bef6fdc60c7e9a"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "02b2142b907196284f161e9af03b6458bbf4a58e320b096f91fb6b5d9c787c71"),
+                path: "Encoder8s.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "02b2142b907196284f161e9af03b6458bbf4a58e320b096f91fb6b5d9c787c71"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/coremldata.bin", size: 1_039,
-                sha256: "eaf9dd8f692c133b8ef457041a718cd8bedb5038c2139e5733bf0df3984e37b2"),
+                path: "Encoder8s.mlmodelc/coremldata.bin",
+                size: 1_039,
+                sha256: "eaf9dd8f692c133b8ef457041a718cd8bedb5038c2139e5733bf0df3984e37b2"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/metadata.json", size: 3_551,
-                sha256: "8d10b93023bf9990cb1f95c823b5db4efe09fa7f3091c92d2c7ba2aa5f7b6e0a"),
+                path: "Encoder8s.mlmodelc/metadata.json",
+                size: 3_551,
+                sha256: "8d10b93023bf9990cb1f95c823b5db4efe09fa7f3091c92d2c7ba2aa5f7b6e0a"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/model.mil", size: 952_799,
-                sha256: "6dadb97f7544005ee378fd22d70d1933a4193473d9f6e4a3a03f4436e47a0fc4"),
+                path: "Encoder8s.mlmodelc/model.mil",
+                size: 952_799,
+                sha256: "6dadb97f7544005ee378fd22d70d1933a4193473d9f6e4a3a03f4436e47a0fc4"
+            ),
             .init(
-                path: "Encoder8s.mlmodelc/weights/weight.bin", size: 590_767_872,
-                sha256: "cb72e8d315530e4cfb2385ca1bb67479038df69e3c789588636cd2d13636586b"),
+                path: "Encoder8s.mlmodelc/weights/weight.bin",
+                size: 590_767_872,
+                sha256: "cb72e8d315530e4cfb2385ca1bb67479038df69e3c789588636cd2d13636586b"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/analytics/coremldata.bin", size: 243,
-                sha256: "b5a12dcdde7b28483d4f962468308f7a68881199f11b62b82a2c60d49d8056b2"),
+                path: "JointDecisionv3.mlmodelc/analytics/coremldata.bin",
+                size: 243,
+                sha256: "b5a12dcdde7b28483d4f962468308f7a68881199f11b62b82a2c60d49d8056b2"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/coremldata.bin", size: 1_151,
-                sha256: "e2b008cfd73857bc48f39bb0bd5cd2169a821a7986ab9ffb9dbcd017cd6fe511"),
+                path: "JointDecisionv3.mlmodelc/coremldata.bin",
+                size: 1_151,
+                sha256: "e2b008cfd73857bc48f39bb0bd5cd2169a821a7986ab9ffb9dbcd017cd6fe511"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/metadata.json", size: 4_154,
-                sha256: "5e3054bc7f545121645192d9f34387bf5c5b1c2393081b0980707ccbbcd99273"),
+                path: "JointDecisionv3.mlmodelc/metadata.json",
+                size: 4_154,
+                sha256: "5e3054bc7f545121645192d9f34387bf5c5b1c2393081b0980707ccbbcd99273"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/model.mil", size: 9_757,
-                sha256: "70a6989c94d37f5cdc0ba912fe45c11ebfc9202572e0df95d4142df39fcd399c"),
+                path: "JointDecisionv3.mlmodelc/model.mil",
+                size: 9_757,
+                sha256: "70a6989c94d37f5cdc0ba912fe45c11ebfc9202572e0df95d4142df39fcd399c"
+            ),
             .init(
-                path: "JointDecisionv3.mlmodelc/weights/weight.bin", size: 3_446_978,
-                sha256: "06831afa6d1beb0c0b10350ebf7886bc37638e951d14e738d7e06fbd2a05012f"),
+                path: "JointDecisionv3.mlmodelc/weights/weight.bin",
+                size: 3_446_978,
+                sha256: "06831afa6d1beb0c0b10350ebf7886bc37638e951d14e738d7e06fbd2a05012f"
+            ),
             .init(
-                path: "parakeet_vocab.json", size: 16_318,
-                sha256: "bcb3ff944f7ea2f1d06a003106d6d8a6e1d160fc69fa5e5895e8100b4f1bd738"),
+                path: "parakeet_vocab.json",
+                size: 16_318,
+                sha256: "bcb3ff944f7ea2f1d06a003106d6d8a6e1d160fc69fa5e5895e8100b4f1bd738"
+            ),
         ],
         license: "LicenseRef-NVIDIA-Open-Model-License",
         attribution: """

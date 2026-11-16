@@ -9,6 +9,9 @@ Usage:
     uv run Tools/make-qwen-manifest.py 1.7b@<revision> \
         > Sources/AnySpeechRecognizer/Qwen/QwenModelManifest+BuiltIn.swift
 
+Then run `mise run format`,
+because swift-format sets the final layout of the generated source.
+
 Without arguments, the script prints a table with no manifests, so that every size loads only
 from a staged directory. Each argument pins one size's published repository to a 40-character
 commit; omit `@<revision>` to resolve the repository's current `main` commit.
@@ -156,7 +159,7 @@ def render(preset, revision):
         "        files: [",
     ]
     for path, size, sha256 in files:
-        # Keep lines within swift-format's 100 columns.
+        # Keep lines short; `mise run format` sets the final layout.
         line = f"                path: {swift_string(path)}, size: {size:_},"
         if len(line) > 100:
             line = f"                path: {swift_string(path)},\n                size: {size:_},"

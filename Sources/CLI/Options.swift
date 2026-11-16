@@ -21,20 +21,26 @@ struct ModelOptions: ParsableArguments {
         help: ArgumentHelp(
             "Apple recognition locale (default: en-US), or a language that Qwen3-ASR must use "
                 + "(default: automatic).",
-            valueName: "identifier"))
+            valueName: "identifier"
+        )
+    )
     var locale: String?
 
     @Option(
         help: ArgumentHelp(
             "Parakeet variant (\(Self.parakeetVariants); default: v3) "
                 + "or Qwen3-ASR size (\(Self.qwenSizes); default: 1.7b).",
-            valueName: "version"))
+            valueName: "version"
+        )
+    )
     var version: String?
 
     @Option(
         help: ArgumentHelp(
             "A staged Parakeet or Qwen3-ASR directory, used without download.",
-            valueName: "path"))
+            valueName: "path"
+        )
+    )
     var modelDirectory: String?
 
     func validate() throws {
@@ -46,7 +52,8 @@ struct ModelOptions: ParsableArguments {
         case .parakeet:
             if locale != nil {
                 throw ValidationError(
-                    "Parakeet selects language automatically and does not accept --locale.")
+                    "Parakeet selects language automatically and does not accept --locale."
+                )
             }
             if let version, ParakeetSpeechModel.Variant(rawValue: version) == nil {
                 throw ValidationError("Parakeet variants are \(Self.parakeetVariants).")
@@ -65,12 +72,14 @@ struct ModelOptions: ParsableArguments {
         case .parakeet:
             ParakeetSpeechModel(
                 variant: version.flatMap(ParakeetSpeechModel.Variant.init(rawValue:)) ?? .v3,
-                assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn)
+                assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn
+            )
         case .qwen:
             QwenSpeechModel(
                 variant: version.flatMap(QwenSpeechModel.Variant.init(rawValue:)) ?? .large,
                 assets: modelDirectory.map { .directory(URL(fileURLWithPath: $0)) } ?? .builtIn,
-                language: locale.map { Locale.Language(identifier: $0) })
+                language: locale.map { Locale.Language(identifier: $0) }
+            )
         }
     }
 }
@@ -81,7 +90,8 @@ struct ResultOptions: ParsableArguments {
         help: """
             Request volatile results, as for live audio; transcribe and evaluate read the file \
             in 100 ms blocks.
-            """)
+            """
+    )
     var live = false
 
     @Flag(help: "Request fast results, which trade accuracy for latency.")
@@ -102,13 +112,17 @@ struct DiarizerOptions: ParsableArguments {
     @Option(
         help: ArgumentHelp(
             "Sortformer model version (default: v2). v2.1 is under the NVIDIA Open Model License.",
-            valueName: "version"))
+            valueName: "version"
+        )
+    )
     var diarizerVersion: SortformerDiarizationModel.Version?
 
     @Option(
         help: ArgumentHelp(
             "A staged compiled Sortformer model (.mlmodelc) of the selected version.",
-            valueName: "path"))
+            valueName: "path"
+        )
+    )
     var diarizerModel: String?
 
     @Option(help: ArgumentHelp("Core ML compute units for the diarizer.", valueName: "units"))
@@ -117,7 +131,9 @@ struct DiarizerOptions: ParsableArguments {
     @Option(
         help: ArgumentHelp(
             "Diarizer post-processing (default: callHome); none uses 0.5 thresholds.",
-            valueName: "preset"))
+            valueName: "preset"
+        )
+    )
     var diarizerPostProcessing: PostProcessingPreset?
 
     func validate() throws {
@@ -128,7 +144,8 @@ struct DiarizerOptions: ParsableArguments {
         else {
             throw ValidationError(
                 "--diarizer-model, --diarizer-version, and --diarizer-post-processing "
-                    + "require --diarize.")
+                    + "require --diarize."
+            )
         }
     }
 
@@ -140,7 +157,8 @@ struct DiarizerOptions: ParsableArguments {
             version: diarizerVersion ?? .v2,
             assets: diarizerModel.map { .compiledModel(URL(fileURLWithPath: $0)) } ?? .builtIn,
             computeUnits: diarizerComputeUnits,
-            postProcessing: (diarizerPostProcessing ?? .callHome).postProcessing)
+            postProcessing: (diarizerPostProcessing ?? .callHome).postProcessing
+        )
         return SpeakerDiarizer(model: model, reportingOptions: live ? [.volatileResults] : [])
     }
 }

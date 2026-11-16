@@ -13,14 +13,20 @@ import Testing
     var attributed = AttributedString(" e\u{301}, 世界!")
     let range = CMTimeRange(
         start: CMTime(value: 16_000, timescale: 16_000),
-        duration: CMTime(value: 16_000, timescale: 16_000))
+        duration: CMTime(value: 16_000, timescale: 16_000)
+    )
     attributed[AttributeScopes.SpeechAttributes.TimeRangeAttribute.self] = range
     attributed[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self] = 0.75
     let last = SpeechRecognitionResult(
-        text: attributed, range: range, resultsFinalizationTime: range.end)
+        text: attributed,
+        range: range,
+        resultsFinalizationTime: range.end
+    )
     let executor = FakeExecutor(snapshots: [first], deferred: [last])
     let transcriber = SpeechTranscriber(
-        model: FakeModel(executor: executor), attributeOptions: [.audioTimeRange])
+        model: FakeModel(executor: executor),
+        attributeOptions: [.audioTimeRange]
+    )
     let analyzer = SpeechAnalyzer(modules: [transcriber])
     async let results = collect(transcriber)
     try await analyzer.prepareToAnalyze(in: file.processingFormat)
@@ -60,8 +66,10 @@ import Testing
     for config in configurations {
         let executor = FakeExecutor()
         let transcriber = SpeechTranscriber(
-            model: FakeModel(executor: executor), transcriptionOptions: config.transcriptionOptions,
-            reportingOptions: config.reportingOptions, attributeOptions: config.attributeOptions
+            model: FakeModel(executor: executor),
+            transcriptionOptions: config.transcriptionOptions,
+            reportingOptions: config.reportingOptions,
+            attributeOptions: config.attributeOptions
         )
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         await #expect(throws: SpeechRecognitionError.self) {
@@ -87,7 +95,8 @@ import Testing
     let (url, file) = try audioFile()
     defer { try? FileManager.default.removeItem(at: url) }
     let transcriber = SpeechTranscriber(
-        model: FakeModel(executor: FakeExecutor(backendError: .backend)))
+        model: FakeModel(executor: FakeExecutor(backendError: .backend))
+    )
     let analyzer = SpeechAnalyzer(modules: [transcriber])
     do {
         _ = try await analyzer.analyzeSequence(from: file)
@@ -150,7 +159,8 @@ import Testing
     defer { try? FileManager.default.removeItem(at: url) }
     let result = snapshot()
     let transcriber = SpeechTranscriber(
-        model: FakeModel(executor: FakeExecutor(snapshots: [result, result])))
+        model: FakeModel(executor: FakeExecutor(snapshots: [result, result]))
+    )
     let analyzer = SpeechAnalyzer(modules: [transcriber])
     await #expect(throws: SpeechRecognitionError.self) {
         _ = try await analyzer.analyzeSequence(from: file)
@@ -177,11 +187,12 @@ import Testing
     let (url, file) = try audioFile(frames: 16_000)
     defer { try? FileManager.default.removeItem(at: url) }
     let maximum = ResultChannel<SpeechTranscriber.Result>.maximumResults
-    let snapshots = (0...maximum).map {
+    let snapshots = (0 ... maximum).map {
         snapshot("a", start: Int64($0), end: Int64($0 + 1))
     }
     let transcriber = SpeechTranscriber(
-        model: FakeModel(executor: FakeExecutor(snapshots: snapshots)))
+        model: FakeModel(executor: FakeExecutor(snapshots: snapshots))
+    )
     let analyzer = SpeechAnalyzer(modules: [transcriber])
     do {
         _ = try await analyzer.analyzeSequence(from: file)
@@ -250,9 +261,15 @@ import Testing
     let one = SpeechTranscriber(model: FakeModel(executor: FakeExecutor()))
     let two = SpeechTranscriber(model: FakeModel(executor: FakeExecutor()))
     let natural = AVAudioFormat(
-        commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)
+        commonFormat: .pcmFormatFloat32,
+        sampleRate: 16_000,
+        channels: 1,
+        interleaved: false
+    )
     let format = await SpeechAnalyzer.bestAvailableAudioFormat(
-        compatibleWith: [one, two], considering: natural)
+        compatibleWith: [one, two],
+        considering: natural
+    )
     #expect(format?.sampleRate == 16_000)
     #expect(format?.channelCount == 1)
 }

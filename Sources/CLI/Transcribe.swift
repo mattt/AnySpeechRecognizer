@@ -23,8 +23,13 @@ struct Transcribe: CancellableCommand {
 
     @concurrent func execute() async throws {
         let analysis = try await Analysis.run(
-            file, model: model, results: results, diarizer: diarizer, json: json,
-            cacheState: cacheState)
+            file,
+            model: model,
+            results: results,
+            diarizer: diarizer,
+            json: json,
+            cacheState: cacheState
+        )
         guard !json else { return }
         if let speakers = analysis.speakers {
             // A speaker-attributed transcript, one turn per line.

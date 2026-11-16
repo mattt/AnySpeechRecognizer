@@ -86,7 +86,8 @@ public struct SpeakerTimeline: Sendable, Hashable {
                 let start = max(segment.range.start, boundary)
                 return .init(
                     speaker: segment.speaker,
-                    range: CMTimeRange(start: start, end: segment.range.end))
+                    range: CMTimeRange(start: start, end: segment.range.end)
+                )
             }
         } else {
             volatileSegments = result.segments
@@ -126,13 +127,16 @@ public struct SpeakerTimeline: Sendable, Hashable {
     ///   - maximumGap: The largest distance to a segment that does not overlap the range.
     /// - Returns: A speaker, or `nil` when no segment is close enough.
     public func speaker(
-        for range: CMTimeRange, maximumGap: CMTime = CMTime(value: 1, timescale: 2)
+        for range: CMTimeRange,
+        maximumGap: CMTime = CMTime(value: 1, timescale: 2)
     ) -> SpeakerDiarizer.Speaker? {
         Self.speaker(for: range, in: allSegments, maximumGap: maximumGap)
     }
 
     static func speaker(
-        for range: CMTimeRange, in segments: [SpeakerDiarizer.Segment], maximumGap: CMTime
+        for range: CMTimeRange,
+        in segments: [SpeakerDiarizer.Segment],
+        maximumGap: CMTime
     ) -> SpeakerDiarizer.Speaker? {
         var overlaps: [SpeakerDiarizer.Speaker: (duration: CMTime, start: CMTime)] = [:]
         var nearest: (distance: CMTime, start: CMTime, speaker: SpeakerDiarizer.Speaker)?
@@ -148,7 +152,9 @@ public struct SpeakerTimeline: Sendable, Hashable {
                 continue
             }
             let distance = max(
-                .zero, max(segment.range.start - range.end, range.start - segment.range.end))
+                .zero,
+                max(segment.range.start - range.end, range.start - segment.range.end)
+            )
             guard distance <= maximumGap else { continue }
             if let current = nearest {
                 let closer =
@@ -185,7 +191,8 @@ public struct SpeakerTimeline: Sendable, Hashable {
     ///   - maximumGap: The largest distance from a word to a segment that does not overlap it.
     /// - Returns: The attributed transcript.
     public func attributing(
-        _ text: AttributedString, maximumGap: CMTime = CMTime(value: 1, timescale: 2)
+        _ text: AttributedString,
+        maximumGap: CMTime = CMTime(value: 1, timescale: 2)
     ) -> AttributedString {
         let segments = allSegments
         var attributed = text
@@ -194,7 +201,8 @@ public struct SpeakerTimeline: Sendable, Hashable {
                 continue
             }
             attributed[run.range][
-                AttributeScopes.AnySpeechRecognizerAttributes.SpeakerAttribute.self] =
+                AttributeScopes.AnySpeechRecognizerAttributes.SpeakerAttribute.self
+            ] =
                 Self.speaker(for: range, in: segments, maximumGap: maximumGap)
         }
         return attributed

@@ -9,6 +9,9 @@ Usage:
     uv run Tools/make-parakeet-manifest.py v3@<revision> ultra@<revision> \
         > Sources/AnySpeechRecognizer/Parakeet/Assets/ParakeetModelManifest+BuiltIn.swift
 
+Then run `mise run format`,
+because swift-format sets the final layout of the generated source.
+
 Omit `@<revision>` to resolve the repository's current `main` commit.
 Each preset names an optional live encoder, a shorter fixed-window encoder for live input.
 The manifest lists it only when the revision contains it.

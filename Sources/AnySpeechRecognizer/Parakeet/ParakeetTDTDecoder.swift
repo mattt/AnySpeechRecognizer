@@ -78,9 +78,13 @@ struct ParakeetTDTDecoder {
     ///     duration, and a blank there can predict a duration that skips the next token.
     /// - Returns: The frame index where decoding stops, `end` or later.
     func decode(
-        _ encoder: ParakeetEncoderOutput, from start: Int, to end: Int,
-        context: inout ParakeetDecoderContext, engine: any ParakeetInferenceEngine,
-        frameOffset: Int = 0, previousTokenEnd: Int = 0,
+        _ encoder: ParakeetEncoderOutput,
+        from start: Int,
+        to end: Int,
+        context: inout ParakeetDecoderContext,
+        engine: any ParakeetInferenceEngine,
+        frameOffset: Int = 0,
+        previousTokenEnd: Int = 0,
         into tokens: inout [ParakeetDecodedToken]
     ) throws -> Int {
         precondition(start >= 0 && end <= encoder.frameCount)
@@ -104,13 +108,20 @@ struct ParakeetTDTDecoder {
             if discardsFramesAtSymbolLimit, symbols == 0 { frameContext = context }
             tokens.append(
                 ParakeetDecodedToken(
-                    id: decision.token, frame: frame + frameOffset, duration: decision.duration,
-                    probability: decision.probability))
+                    id: decision.token,
+                    frame: frame + frameOffset,
+                    duration: decision.duration,
+                    probability: decision.probability
+                )
+            )
             if let reset = sentenceEndContexts[decision.token] {
                 context = reset
             } else {
                 try engine.predict(
-                    token: decision.token, state: &context.state, output: &context.output)
+                    token: decision.token,
+                    state: &context.state,
+                    output: &context.output
+                )
                 context.lastToken = decision.token
             }
             symbols += 1
@@ -136,24 +147,41 @@ struct ParakeetTDTDecoder {
     /// to `end` with a copy of that context.
     /// Blanks before `previousTokenEnd` advance at most to it, as in `decode`.
     func decodeWindow(
-        _ encoder: ParakeetEncoderOutput, from start: Int, commit: Int, end: Int,
-        context: ParakeetDecoderContext, engine: any ParakeetInferenceEngine, frameOffset: Int,
+        _ encoder: ParakeetEncoderOutput,
+        from start: Int,
+        commit: Int,
+        end: Int,
+        context: ParakeetDecoderContext,
+        engine: any ParakeetInferenceEngine,
+        frameOffset: Int,
         previousTokenEnd: Int = 0
     ) throws -> ParakeetWindowDecoding {
         var committedContext = context
         var result = ParakeetWindowDecoding(context: context, overshoot: 0)
         let resume = try decode(
-            encoder, from: start, to: commit, context: &committedContext, engine: engine,
-            frameOffset: frameOffset, previousTokenEnd: previousTokenEnd,
-            into: &result.committed)
+            encoder,
+            from: start,
+            to: commit,
+            context: &committedContext,
+            engine: engine,
+            frameOffset: frameOffset,
+            previousTokenEnd: previousTokenEnd,
+            into: &result.committed
+        )
         result.context = committedContext
         result.overshoot = resume - commit
         if end > resume {
             var lookaheadContext = committedContext
             _ = try decode(
-                encoder, from: resume, to: end, context: &lookaheadContext,
-                engine: engine, frameOffset: frameOffset, previousTokenEnd: previousTokenEnd,
-                into: &result.lookahead)
+                encoder,
+                from: resume,
+                to: end,
+                context: &lookaheadContext,
+                engine: engine,
+                frameOffset: frameOffset,
+                previousTokenEnd: previousTokenEnd,
+                into: &result.lookahead
+            )
         }
         return result
     }

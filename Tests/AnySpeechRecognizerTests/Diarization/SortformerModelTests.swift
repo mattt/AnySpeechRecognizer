@@ -29,15 +29,22 @@ enum SortformerFixtures {
 
     static func samples(_ url: URL) throws -> [Float] {
         let file = try AVAudioFile(
-            forReading: url, commonFormat: .pcmFormatFloat32, interleaved: false)
+            forReading: url,
+            commonFormat: .pcmFormatFloat32,
+            interleaved: false
+        )
         guard file.processingFormat.sampleRate == 16_000, file.processingFormat.channelCount == 1
         else { throw SpeechRecognitionError.invalidAudio("Use 16 kHz mono audio.") }
         let buffer = try #require(
             AVAudioPCMBuffer(
-                pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)))
+                pcmFormat: file.processingFormat,
+                frameCapacity: AVAudioFrameCount(file.length)
+            )
+        )
         try file.read(into: buffer)
         return Array(
-            UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength)))
+            UnsafeBufferPointer(start: buffer.floatChannelData![0], count: Int(buffer.frameLength))
+        )
     }
 
     static func floats(_ path: String) throws -> [Float] {
@@ -56,14 +63,15 @@ struct SortformerModelTests {
     func melFeaturesMatchNeMo() throws {
         let samples = try SortformerFixtures.samples(try #require(SortformerFixtures.audio))
         let reference = try SortformerFixtures.floats(
-            try #require(SortformerFixtures.reference) + ".mel.f32")
+            try #require(SortformerFixtures.reference) + ".mel.f32"
+        )
         let frontend = SortformerMelFrontend()
         // Feed 100 ms blocks so the incremental path is exercised.
         samples.withUnsafeBufferPointer { samples in
             var start = 0
             while start < samples.count {
                 let end = min(start + 1_600, samples.count)
-                frontend.append(UnsafeBufferPointer(rebasing: samples[start..<end]))
+                frontend.append(UnsafeBufferPointer(rebasing: samples[start ..< end]))
                 start = end
             }
         }
@@ -72,7 +80,7 @@ struct SortformerModelTests {
         #expect(frontend.frameCount * bins == reference.count)
         var computed = [Float](repeating: 0, count: frontend.frameCount * bins)
         computed.withUnsafeMutableBufferPointer {
-            frontend.copyFrames(0..<frontend.frameCount, into: $0.baseAddress!)
+            frontend.copyFrames(0 ..< frontend.frameCount, into: $0.baseAddress!)
         }
         var maximum: Float = 0
         var total: Double = 0
@@ -89,24 +97,29 @@ struct SortformerModelTests {
     func predictionsMatchNeMo() throws {
         let samples = try SortformerFixtures.samples(try #require(SortformerFixtures.audio))
         let reference = try SortformerFixtures.floats(
-            try #require(SortformerFixtures.reference) + ".preds.f32")
+            try #require(SortformerFixtures.reference) + ".preds.f32"
+        )
         let model = try SortformerFixtures.model()
         let pipeline = SortformerPipeline(
             inference: try model.makeInference(model.modelURL, model.computeUnits.coreML),
-            parameters: model.postProcessing.segmenterParameters, reportsVolatileResults: false)
+            parameters: model.postProcessing.segmenterParameters,
+            reportsVolatileResults: false
+        )
         pipeline.recordedProbabilities = []
         try samples.withUnsafeBufferPointer { samples in
             var start = 0
             while start < samples.count {
                 let end = min(start + 4_096, samples.count)
                 _ = try pipeline.append(
-                    UnsafeBufferPointer(rebasing: samples[start..<end]),
-                    at: CMTime(value: CMTimeValue(start), timescale: 16_000))
+                    UnsafeBufferPointer(rebasing: samples[start ..< end]),
+                    at: CMTime(value: CMTimeValue(start), timescale: 16_000)
+                )
                 start = end
             }
         }
         _ = try pipeline.finalize(
-            through: CMTime(value: CMTimeValue(samples.count - 1), timescale: 16_000))
+            through: CMTime(value: CMTimeValue(samples.count - 1), timescale: 16_000)
+        )
         let computed = try #require(pipeline.recordedProbabilities)
         #expect(computed.count == reference.count)
         var maximum: Float = 0
@@ -122,7 +135,8 @@ struct SortformerModelTests {
         let agreement = Double(agreements) / Double(max(1, count))
         print(
             "Prediction difference from NeMo: mean \(mean), maximum \(maximum), "
-                + "agreement at 0.5 \(agreement)")
+                + "agreement at 0.5 \(agreement)"
+        )
         #expect(mean < 0.02)
         #expect(agreement > 0.98)
     }
@@ -147,12 +161,13 @@ struct SortformerModelTests {
         async let collected = collect(diarizer)
         let half = samples.count / 2
         let first = AsyncStream<AnalyzerInput> { continuation in
-            continuation.yield(int16Input(samples[0..<half], start: .zero))
+            continuation.yield(int16Input(samples[0 ..< half], start: .zero))
             continuation.finish()
         }
         _ = try await analyzer.analyzeSequence(first)
         try await analyzer.finalize(
-            through: CMTime(value: CMTimeValue(half - 1), timescale: 16_000))
+            through: CMTime(value: CMTimeValue(half - 1), timescale: 16_000)
+        )
         let gap = CMTime(value: CMTimeValue(half + 16_000), timescale: 16_000)
         let second = AsyncStream<AnalyzerInput> { continuation in
             continuation.yield(int16Input(samples[half...], start: gap))
@@ -167,7 +182,9 @@ struct SortformerModelTests {
 
     private func diarize(_ url: URL, live: Bool) async throws -> SpeakerTimeline {
         let diarizer = SpeakerDiarizer(
-            model: try SortformerFixtures.model(), reportingOptions: live ? [.volatileResults] : [])
+            model: try SortformerFixtures.model(),
+            reportingOptions: live ? [.volatileResults] : []
+        )
         let analyzer = SpeechAnalyzer(modules: [diarizer])
         async let collected = collect(diarizer)
         if live {
@@ -176,7 +193,7 @@ struct SortformerModelTests {
                 var start = 0
                 while start < samples.count {
                     let end = min(start + 1_600, samples.count)
-                    continuation.yield(int16Input(samples[start..<end], start: nil))
+                    continuation.yield(int16Input(samples[start ..< end], start: nil))
                     start = end
                 }
                 continuation.finish()
@@ -197,9 +214,15 @@ struct SortformerModelTests {
 /// A 16 kHz mono Int16 input from Float32 samples.
 func int16Input(_ samples: ArraySlice<Float>, start: CMTime?) -> AnalyzerInput {
     let format = AVAudioFormat(
-        commonFormat: .pcmFormatInt16, sampleRate: 16_000, channels: 1, interleaved: true)!
+        commonFormat: .pcmFormatInt16,
+        sampleRate: 16_000,
+        channels: 1,
+        interleaved: true
+    )!
     let buffer = AVAudioPCMBuffer(
-        pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count))!
+        pcmFormat: format,
+        frameCapacity: AVAudioFrameCount(samples.count)
+    )!
     buffer.frameLength = AVAudioFrameCount(samples.count)
     for (index, sample) in samples.enumerated() {
         buffer.int16ChannelData![0][index] = Int16(clamping: Int((sample * 32_768).rounded()))

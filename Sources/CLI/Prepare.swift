@@ -21,7 +21,9 @@ struct Prepare: CancellableCommand {
         let diarizer = diarizer.diarizer(live: results.live)
         // The transcriber's options select the assets, such as Parakeet's live encoder.
         let transcriber = SpeechTranscriber(
-            model: model, reportingOptions: results.reportingOptions)
+            model: model,
+            reportingOptions: results.reportingOptions
+        )
         let modules: [any SpeechModule] = [transcriber] + (diarizer.map { [$0] } ?? [])
         if let request = try await AssetInventory.assetInstallationRequest(supporting: modules) {
             let download = Task { try await request.downloadAndInstall() }
@@ -38,7 +40,8 @@ struct Prepare: CancellableCommand {
                         while !Task.isCancelled {
                             let fraction = request.progress.fractionCompleted
                             FileHandle.standardError.write(
-                                Data("Asset progress: \(Int(fraction * 100))%\n".utf8))
+                                Data("Asset progress: \(Int(fraction * 100))%\n".utf8)
+                            )
                             try await Task.sleep(for: .seconds(1))
                         }
                     }

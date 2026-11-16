@@ -17,11 +17,11 @@ struct ParakeetMelFrontendTests {
     }
 
     func tone(_ frequency: Double, count: Int, amplitude: Float = 0.3) -> [Float] {
-        (0..<count).map { amplitude * Float(sin(2 * Double.pi * frequency * Double($0) / 16_000)) }
+        (0 ..< count).map { amplitude * Float(sin(2 * Double.pi * frequency * Double($0) / 16_000)) }
     }
 
     func strongestBin(_ mel: [Float], frame: Int) -> Int {
-        (0..<128).max { mel[$0 * 1501 + frame] < mel[$1 * 1501 + frame] }!
+        (0 ..< 128).max { mel[$0 * 1501 + frame] < mel[$1 * 1501 + frame] }!
     }
 
     /// The encoder input keeps `N / 160 + 1` frames; NeMo 2.5 and later count `N / 160` as valid.
@@ -39,7 +39,7 @@ struct ParakeetMelFrontendTests {
     /// The generated signal of `Tools/ParakeetConversion/mel_reference.py`.
     func referenceSignal() -> [Float] {
         var state: UInt32 = 1
-        return (0..<ParakeetMelReference.sampleCount).map { index in
+        return (0 ..< ParakeetMelReference.sampleCount).map { index in
             state = state &* 1_664_525 &+ 1_013_904_223
             let noise = Double(state >> 8) / 16_777_216 - 0.5
             let time = Double(index) / 16_000
@@ -66,13 +66,14 @@ struct ParakeetMelFrontendTests {
         for (frameIndex, frame) in reference.frames.enumerated() {
             for (binIndex, bin) in ParakeetMelReference.bins.enumerated() {
                 let difference = abs(
-                    mel[bin * frontend.frameCount + frame] - reference.values[frameIndex][binIndex])
+                    mel[bin * frontend.frameCount + frame] - reference.values[frameIndex][binIndex]
+                )
                 maximum = max(maximum, difference)
             }
         }
         #expect(maximum < 1e-3, "maximum difference \(maximum)")
-        for bin in 0..<128 {
-            let row = (bin * frontend.frameCount)..<((bin + 1) * frontend.frameCount)
+        for bin in 0 ..< 128 {
+            let row = (bin * frontend.frameCount) ..< ((bin + 1) * frontend.frameCount)
             #expect(mel[row].dropFirst(frames).allSatisfy { $0 == 0 })
         }
     }
@@ -92,12 +93,12 @@ struct ParakeetMelFrontendTests {
         #expect(frames == 625)
         #expect(mel.allSatisfy { $0.isFinite })
         for bin in [10, 40, 90] {
-            let row = mel[(bin * 1501)..<(bin * 1501 + frames)]
+            let row = mel[(bin * 1501) ..< (bin * 1501 + frames)]
             let mean = row.reduce(0, +) / Float(frames)
             let variance = row.map { ($0 - mean) * ($0 - mean) }.reduce(0, +) / Float(frames - 1)
             #expect(abs(mean) < 1e-3)
             #expect(abs(variance.squareRoot() - 1) < 1e-3)
-            #expect(mel[(bin * 1501 + frames)..<((bin + 1) * 1501)].allSatisfy { $0 == 0 })
+            #expect(mel[(bin * 1501 + frames) ..< ((bin + 1) * 1501)].allSatisfy { $0 == 0 })
         }
     }
 
@@ -113,7 +114,7 @@ struct ParakeetMelFrontendTests {
         }
         #expect(bins == bins.sorted() && Set(bins).count == bins.count)
         // Slaney bins are linear below 1 kHz, about 23 Hz wide at this resolution.
-        #expect((9...12).contains(bins[0]))
+        #expect((9 ... 12).contains(bins[0]))
     }
 
     /// Live windows reuse cached frames; the result must equal computing every frame.
@@ -121,12 +122,13 @@ struct ParakeetMelFrontendTests {
     func reusedFramesMatchTheFullComputation(windowSamples: Int) {
         // Noisy speech-like audio: a few tones with a slow envelope and pseudo-random noise.
         var generator = SystemRandomNumberGenerator()
-        let audio = (0..<(windowSamples * 3)).map { index -> Float in
+        let audio = (0 ..< (windowSamples * 3)).map { index -> Float in
             let time = Double(index) / 16_000
             let envelope = Float(0.5 + 0.5 * sin(2 * Double.pi * 0.7 * time))
             let voiced = Float(
-                sin(2 * Double.pi * 220 * time) + 0.5 * sin(2 * Double.pi * 1_300 * time))
-            return envelope * 0.2 * voiced + Float.random(in: -0.02...0.02, using: &generator)
+                sin(2 * Double.pi * 220 * time) + 0.5 * sin(2 * Double.pi * 1_300 * time)
+            )
+            return envelope * 0.2 * voiced + Float.random(in: -0.02 ... 0.02, using: &generator)
         }
         let reusing = ParakeetMelFrontend(windowSamples: windowSamples)
         let full = ParakeetMelFrontend(windowSamples: windowSamples)
@@ -134,7 +136,7 @@ struct ParakeetMelFrontendTests {
         // Sliding windows that end inside the audio, a window that reaches the end, windows
         // that start earlier than the cache, and a jump that leaves a gap.
         var windows: [(start: Int, count: Int)] = []
-        for step in 0..<12 {
+        for step in 0 ..< 12 {
             windows.append((step * 15_360, min(windowSamples, 37 * 1_280 + step * 15_360 + 1_000)))
         }
         windows += [(11 * 15_360, windowSamples), (5 * 15_360, windowSamples - 3_000)]
@@ -147,7 +149,7 @@ struct ParakeetMelFrontendTests {
             var actual = [Float](repeating: .nan, count: size)
             let valid = min(windowSamples, (count + 1_279) / 1_280 * 1_280)
             audio.withUnsafeBufferPointer { audio in
-                let slice = UnsafeBufferPointer(rebasing: audio[start..<(start + count)])
+                let slice = UnsafeBufferPointer(rebasing: audio[start ..< (start + count)])
                 _ = expected.withUnsafeMutableBufferPointer {
                     full.compute(slice, validSampleCount: valid, into: $0)
                 }

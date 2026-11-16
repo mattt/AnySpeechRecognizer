@@ -26,16 +26,21 @@ struct QwenRecognizerTests {
         let audioTokens = 104 + 2 * 13 + 4
         let prompt = try #require(engine.prompts.first)
         #expect(
-            prompt == [T.prefix] + Array(repeating: T.audioPad, count: audioTokens) + [T.suffix])
+            prompt == [T.prefix] + Array(repeating: T.audioPad, count: audioTokens) + [T.suffix]
+        )
         let rows = try #require(engine.promptAudio.first)
         #expect(rows.first == 0 && rows.last == 0)
-        #expect(rows[1..<105].allSatisfy { $0 == 800 })
-        #expect(rows[105..<(1 + audioTokens)].allSatisfy { $0 == 230 })
+        #expect(rows[1 ..< 105].allSatisfy { $0 == 800 })
+        #expect(rows[105 ..< (1 + audioTokens)].allSatisfy { $0 == 230 })
         #expect(
             transcript
                 == .init(
-                    language: "English", text: "Hello world", tokens: T.englishReply,
-                    reachedContextLimit: false))
+                    language: "English",
+                    text: "Hello world",
+                    tokens: T.englishReply,
+                    reachedContextLimit: false
+                )
+        )
     }
 
     /// A forced language appends its prefill, and the output is all transcript.
@@ -75,16 +80,16 @@ struct QwenRecognizerTests {
 struct QwenSegmenterTests {
     /// The boundary is in the quietest 100 ms within 5 seconds of the 30-second target.
     @Test func cutsAtTheQuietestPoint() {
-        let samples = QwenTestSupport.tone(seconds: 45, silence: 27.0..<27.3)
+        let samples = QwenTestSupport.tone(seconds: 45, silence: 27.0 ..< 27.3)
         let boundary = samples.withUnsafeBufferPointer { QwenSegmenter.boundary(in: $0) }
-        #expect((27 * 16_000)..<Int(27.3 * 16_000) ~= boundary)
+        #expect((27 * 16_000) ..< Int(27.3 * 16_000) ~= boundary)
     }
 
     /// Silence outside the search window does not move the boundary out of it.
     @Test func searchesOnlyNearTheTarget() {
-        let samples = QwenTestSupport.tone(seconds: 45, silence: 10..<12)
+        let samples = QwenTestSupport.tone(seconds: 45, silence: 10 ..< 12)
         let boundary = samples.withUnsafeBufferPointer { QwenSegmenter.boundary(in: $0) }
-        #expect((25 * 16_000)...(35 * 16_000) ~= boundary)
+        #expect((25 * 16_000) ... (35 * 16_000) ~= boundary)
     }
 
     @Test func handlesShortInput() {

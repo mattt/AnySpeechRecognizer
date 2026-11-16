@@ -40,7 +40,8 @@ struct ParakeetVocabulary: Sendable {
         for (key, piece) in object {
             guard let id = Int(key), pieces.indices.contains(id) else {
                 throw SpeechRecognitionError.missingAssets(
-                    "The Parakeet vocabulary IDs are not contiguous.")
+                    "The Parakeet vocabulary IDs are not contiguous."
+                )
             }
             pieces[id] = piece
         }
@@ -77,8 +78,8 @@ struct ParakeetVocabulary: Sendable {
         var start: Int?
         func close(at end: Int) {
             guard let first = start else { return }
-            let text = Self.text(pieces: pieces[first..<end])
-            if !text.isEmpty { words.append(Word(text: text, tokens: first..<end)) }
+            let text = Self.text(pieces: pieces[first ..< end])
+            if !text.isEmpty { words.append(Word(text: text, tokens: first ..< end)) }
             start = nil
         }
         for (index, piece) in pieces.enumerated() where !isControl(piece) {

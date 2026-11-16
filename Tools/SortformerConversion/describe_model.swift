@@ -42,7 +42,9 @@ guard CommandLine.arguments.count == 2 else {
 let configuration = MLModelConfiguration()
 configuration.computeUnits = .cpuOnly
 let model = try MLModel(
-    contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]), configuration: configuration)
+    contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]),
+    configuration: configuration
+)
 let description = model.modelDescription
 var metadata: [String: Any] = [:]
 for (key, value) in description.metadata {
@@ -54,5 +56,7 @@ let output: [String: Any] = [
     "metadata": metadata,
 ]
 let data = try JSONSerialization.data(
-    withJSONObject: output, options: [.prettyPrinted, .sortedKeys])
+    withJSONObject: output,
+    options: [.prettyPrinted, .sortedKeys]
+)
 print(String(decoding: data, as: UTF8.self))

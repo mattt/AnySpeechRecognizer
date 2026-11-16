@@ -101,8 +101,10 @@ struct SpeakerSegmenter: Sendable {
 
     private mutating func close(_ speaker: Int, at end: CMTime) {
         let interval = Interval(
-            start: tracks[speaker].runStart, end: max(end, tracks[speaker].runStart),
-            exempt: tracks[speaker].runExempt)
+            start: tracks[speaker].runStart,
+            end: max(end, tracks[speaker].runStart),
+            exempt: tracks[speaker].runExempt
+        )
         tracks[speaker].speaking = false
         tracks[speaker].runExempt = false
         Self.insert(interval, into: &tracks[speaker].closed)
@@ -128,7 +130,10 @@ struct SpeakerSegmenter: Sendable {
             tracks[speaker].closed = tracks[speaker].closed.compactMap { interval in
                 guard interval.start < end else { return nil }
                 return Interval(
-                    start: interval.start, end: min(interval.end, end), exempt: interval.exempt)
+                    start: interval.start,
+                    end: min(interval.end, end),
+                    exempt: interval.exempt
+                )
             }
         }
         frontier = max(frontier, end)
@@ -144,7 +149,8 @@ struct SpeakerSegmenter: Sendable {
         if track.speaking {
             Self.insert(
                 Interval(start: track.runStart, end: frontier, exempt: track.runExempt || forced),
-                into: &candidates)
+                into: &candidates
+            )
             openIndex = candidates.count - 1
         }
         var active: [Interval] = []
@@ -214,7 +220,9 @@ struct SpeakerSegmenter: Sendable {
                 if end > start {
                     segments.append(
                         .init(
-                            speaker: .init(id: speaker), range: CMTimeRange(start: start, end: end))
+                            speaker: .init(id: speaker),
+                            range: CMTimeRange(start: start, end: end)
+                        )
                     )
                 }
             }
@@ -229,7 +237,8 @@ struct SpeakerSegmenter: Sendable {
                     track.runExempt = true
                 } else {
                     closed.append(
-                        Interval(start: max(interval.start, time), end: interval.end, exempt: true))
+                        Interval(start: max(interval.start, time), end: interval.end, exempt: true)
+                    )
                 }
             }
             for interval in dropped where interval.end > time {
@@ -258,8 +267,10 @@ struct SpeakerSegmenter: Sendable {
         let start = segments.map(\.range.start).min() ?? previous
         let end = segments.map(\.range.end).max() ?? time
         return SpeakerDiarizer.Result(
-            segments: segments, range: CMTimeRange(start: start, end: end),
-            resultsFinalizationTime: time)
+            segments: segments,
+            range: CMTimeRange(start: start, end: end),
+            resultsFinalizationTime: time
+        )
     }
 
     /// A volatile result from the finalization boundary through `end`,
@@ -269,7 +280,8 @@ struct SpeakerSegmenter: Sendable {
     ///   - end: The end of the preview, at most the received audio.
     /// - Returns: The volatile result, or `nil` when no audio follows the boundary.
     func volatileResult(
-        preview: [(start: CMTime, end: CMTime, probabilities: ArraySlice<Float>)], end: CMTime
+        preview: [(start: CMTime, end: CMTime, probabilities: ArraySlice<Float>)],
+        end: CMTime
     ) -> SpeakerDiarizer.Result? {
         var copy = self
         for frame in preview {
@@ -285,8 +297,10 @@ struct SpeakerSegmenter: Sendable {
                 if stop > start {
                     segments.append(
                         .init(
-                            speaker: .init(id: speaker), range: CMTimeRange(start: start, end: stop)
-                        ))
+                            speaker: .init(id: speaker),
+                            range: CMTimeRange(start: start, end: stop)
+                        )
+                    )
                 }
             }
         }
@@ -295,7 +309,9 @@ struct SpeakerSegmenter: Sendable {
                 ? lhs.speaker < rhs.speaker : lhs.range.start < rhs.range.start
         }
         return SpeakerDiarizer.Result(
-            segments: segments, range: CMTimeRange(start: finalized, end: rangeEnd),
-            resultsFinalizationTime: finalized)
+            segments: segments,
+            range: CMTimeRange(start: finalized, end: rangeEnd),
+            resultsFinalizationTime: finalized
+        )
     }
 }

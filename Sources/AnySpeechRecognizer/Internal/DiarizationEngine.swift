@@ -45,13 +45,16 @@ actor DiarizationEngine: AnalysisEngine {
         case .ready, .preparing: break
         case .missingAssets:
             throw SpeechRecognitionError.missingAssets(
-                "Install assets for \(model.modelID) with AssetInventory before analysis.")
+                "Install assets for \(model.modelID) with AssetInventory before analysis."
+            )
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
-                "The device does not support \(model.modelID).")
+                "The device does not support \(model.modelID)."
+            )
         case .unsupportedLanguage:
             throw SpeechRecognitionError.unsupportedLanguage(
-                "The language configuration is unsupported by \(model.modelID).")
+                "The language configuration is unsupported by \(model.modelID)."
+            )
         }
         try Task.checkCancellation()
         try await executor.prepare(request: member.request, format: format)
@@ -62,7 +65,8 @@ actor DiarizationEngine: AnalysisEngine {
         let id = id
         let events = events
         let (ranges, continuation) = AsyncStream<CMTimeRange?>.makeStream(
-            bufferingPolicy: .bufferingNewest(1))
+            bufferingPolicy: .bufferingNewest(1)
+        )
         let forwarding = Task {
             for await range in ranges { await events.volatileRangeChanged(id, range) }
         }
@@ -86,7 +90,9 @@ actor DiarizationEngine: AnalysisEngine {
             try validate(result)
             try member.deliver(result)
             finalization = max(
-                finalization ?? result.resultsFinalizationTime, result.resultsFinalizationTime)
+                finalization ?? result.resultsFinalizationTime,
+                result.resultsFinalizationTime
+            )
         } catch {
             let error = recognitionError(error)
             await events.fail(error)
@@ -108,7 +114,8 @@ actor DiarizationEngine: AnalysisEngine {
             !result.isFinal || result.resultsFinalizationTime >= range.end
         else {
             throw SpeechRecognitionError.invalidResult(
-                "A diarization result has invalid, overlapping, or unfinalized source timing.")
+                "A diarization result has invalid, overlapping, or unfinalized source timing."
+            )
         }
         let maximum = member.model.capabilities.maximumSpeakerCount
         var previous: CMTime?
@@ -118,11 +125,12 @@ actor DiarizationEngine: AnalysisEngine {
                 segmentRange.duration.isNumeric, segmentRange.duration >= .zero,
                 segmentRange.start >= range.start, segmentRange.end <= range.end,
                 previous.map({ segmentRange.start >= $0 }) ?? true,
-                (0..<maximum).contains(segment.speaker.id)
+                (0 ..< maximum).contains(segment.speaker.id)
             else {
                 throw SpeechRecognitionError.invalidResult(
                     "A diarization segment is outside its result, out of order, "
-                        + "or has an unknown speaker.")
+                        + "or has an unknown speaker."
+                )
             }
             previous = segmentRange.start
         }

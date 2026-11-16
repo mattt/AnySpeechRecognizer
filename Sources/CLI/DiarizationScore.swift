@@ -53,36 +53,44 @@ struct DiarizationScore: Encodable {
         let referenceSpeakers = Array(Set(reference.map(\.speaker))).sorted()
         let hypothesisSpeakers = Array(Set(hypothesis.map(\.speaker.id))).sorted()
         let end = max(
-            reference.map(\.end).max() ?? 0, hypothesis.map(\.range.end.seconds).max() ?? 0)
+            reference.map(\.end).max() ?? 0,
+            hypothesis.map(\.range.end.seconds).max() ?? 0
+        )
         let frames = Int((end / Self.frameSeconds).rounded(.up)) + 1
         func activity(_ intervals: [(Int, Double, Double)], speakers: Int) -> [[Bool]] {
             var active = Array(repeating: [Bool](repeating: false, count: frames), count: speakers)
             for (speaker, start, stop) in intervals {
                 let first = max(0, Int((start / Self.frameSeconds).rounded()))
                 let last = min(frames, Int((stop / Self.frameSeconds).rounded()))
-                for frame in first..<max(first, last) { active[speaker][frame] = true }
+                for frame in first ..< max(first, last) { active[speaker][frame] = true }
             }
             return active
         }
         let referenceIndex = Dictionary(
-            uniqueKeysWithValues: referenceSpeakers.enumerated().map { ($1, $0) })
+            uniqueKeysWithValues: referenceSpeakers.enumerated().map { ($1, $0) }
+        )
         let hypothesisIndex = Dictionary(
-            uniqueKeysWithValues: hypothesisSpeakers.enumerated().map { ($1, $0) })
+            uniqueKeysWithValues: hypothesisSpeakers.enumerated().map { ($1, $0) }
+        )
         let referenceActivity = activity(
             reference.map { (referenceIndex[$0.speaker]!, $0.start, $0.end) },
-            speakers: referenceSpeakers.count)
+            speakers: referenceSpeakers.count
+        )
         let hypothesisActivity = activity(
             hypothesis.map {
                 (hypothesisIndex[$0.speaker.id]!, $0.range.start.seconds, $0.range.end.seconds)
-            }, speakers: hypothesisSpeakers.count)
+            },
+            speakers: hypothesisSpeakers.count
+        )
 
         // Overlap of each hypothesis and reference speaker, for the optimal mapping.
         var overlap = Array(
             repeating: [Int](repeating: 0, count: referenceSpeakers.count),
-            count: hypothesisSpeakers.count)
+            count: hypothesisSpeakers.count
+        )
         for h in hypothesisSpeakers.indices {
             for r in referenceSpeakers.indices {
-                for frame in 0..<frames
+                for frame in 0 ..< frames
                 where hypothesisActivity[h][frame] && referenceActivity[r][frame] {
                     overlap[h][r] += 1
                 }
@@ -95,7 +103,7 @@ struct DiarizationScore: Encodable {
             for boundary in [segment.start, segment.end] {
                 let first = max(0, Int(((boundary - collar) / Self.frameSeconds).rounded()))
                 let last = min(frames, Int(((boundary + collar) / Self.frameSeconds).rounded()))
-                for frame in first..<max(first, last) { unscored[frame] = true }
+                for frame in first ..< max(first, last) { unscored[frame] = true }
             }
         }
         func score(skipping skipped: [Bool]) -> Components {
@@ -103,7 +111,7 @@ struct DiarizationScore: Encodable {
             var missed = 0
             var falseAlarm = 0
             var confusion = 0
-            for frame in 0..<frames where !skipped[frame] {
+            for frame in 0 ..< frames where !skipped[frame] {
                 let references = referenceSpeakers.indices.filter { referenceActivity[$0][frame] }
                 let hypotheses = hypothesisSpeakers.indices.filter { hypothesisActivity[$0][frame] }
                 let correct = hypotheses.filter { h in
@@ -116,10 +124,13 @@ struct DiarizationScore: Encodable {
             }
             let seconds = { (frames: Int) -> Double in Double(frames) * Self.frameSeconds }
             return Components(
-                scoredSpeakerSeconds: seconds(total), missedSeconds: seconds(missed),
-                falseAlarmSeconds: seconds(falseAlarm), confusionSeconds: seconds(confusion),
+                scoredSpeakerSeconds: seconds(total),
+                missedSeconds: seconds(missed),
+                falseAlarmSeconds: seconds(falseAlarm),
+                confusionSeconds: seconds(confusion),
                 diarizationErrorRate: Double(missed + falseAlarm + confusion)
-                    / Double(max(total, 1)))
+                    / Double(max(total, 1))
+            )
         }
         referenceSpeakerCount = referenceSpeakers.count
         hypothesisSpeakerCount = hypothesisSpeakers.count
@@ -147,7 +158,7 @@ struct DiarizationScore: Encodable {
             current.append(nil)
             search(h + 1, score)
             current.removeLast()
-            for r in 0..<references where !used.contains(r) {
+            for r in 0 ..< references where !used.contains(r) {
                 used.insert(r)
                 current.append(r)
                 search(h + 1, score + overlap[h][r])

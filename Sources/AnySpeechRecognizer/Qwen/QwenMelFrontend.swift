@@ -30,10 +30,10 @@ final class QwenMelFrontend {
         let length = Self.fftLength
         let bins = Self.binCount
         var basis = [Float](repeating: 0, count: length * 2 * bins)
-        for sample in 0..<length {
+        for sample in 0 ..< length {
             // torch.hann_window is periodic by default.
             let window = 0.5 - 0.5 * cos(2 * Double.pi * Double(sample) / Double(length))
-            for bin in 0..<bins {
+            for bin in 0 ..< bins {
                 let angle = 2 * Double.pi * Double(sample * bin % length) / Double(length)
                 basis[sample * 2 * bins + bin] = Float(window * cos(angle))
                 basis[sample * 2 * bins + bins + bin] = Float(-window * sin(angle))
@@ -62,7 +62,7 @@ final class QwenMelFrontend {
         padded.withUnsafeMutableBufferPointer { padded in
             let base = padded.baseAddress!
             (base + pad).update(from: source, count: count)
-            for offset in 1...pad {
+            for offset in 1 ... pad {
                 base[pad - offset] = source[offset]
                 base[pad + count - 1 + offset] = source[count - 1 - offset]
             }
@@ -72,33 +72,62 @@ final class QwenMelFrontend {
         var framed = [Float](repeating: 0, count: frames * length)
         padded.withUnsafeBufferPointer { padded in
             framed.withUnsafeMutableBufferPointer { framed in
-                for frame in 0..<frames {
+                for frame in 0 ..< frames {
                     (framed.baseAddress! + frame * length).update(
-                        from: padded.baseAddress! + frame * Self.hopLength, count: length)
+                        from: padded.baseAddress! + frame * Self.hopLength,
+                        count: length
+                    )
                 }
             }
         }
         var spectrum = [Float](repeating: 0, count: frames * 2 * bins)
         vDSP_mmul(
-            framed, 1, basis, 1, &spectrum, 1, vDSP_Length(frames), vDSP_Length(2 * bins),
-            vDSP_Length(length))
+            framed,
+            1,
+            basis,
+            1,
+            &spectrum,
+            1,
+            vDSP_Length(frames),
+            vDSP_Length(2 * bins),
+            vDSP_Length(length)
+        )
         var power = [Float](repeating: 0, count: frames * bins)
         spectrum.withUnsafeBufferPointer { spectrum in
             power.withUnsafeMutableBufferPointer { power in
-                for frame in 0..<frames {
+                for frame in 0 ..< frames {
                     let row = spectrum.baseAddress! + frame * 2 * bins
                     let real = row
                     let imaginary = row + bins
                     let output = power.baseAddress! + frame * bins
                     vDSP_vmma(
-                        real, 1, real, 1, imaginary, 1, imaginary, 1, output, 1, vDSP_Length(bins))
+                        real,
+                        1,
+                        real,
+                        1,
+                        imaginary,
+                        1,
+                        imaginary,
+                        1,
+                        output,
+                        1,
+                        vDSP_Length(bins)
+                    )
                 }
             }
         }
         var mel = [Float](repeating: 0, count: frames * Self.melBinCount)
         vDSP_mmul(
-            power, 1, filterbank, 1, &mel, 1, vDSP_Length(frames), vDSP_Length(Self.melBinCount),
-            vDSP_Length(bins))
+            power,
+            1,
+            filterbank,
+            1,
+            &mel,
+            1,
+            vDSP_Length(frames),
+            vDSP_Length(Self.melBinCount),
+            vDSP_Length(bins)
+        )
         var floor: Float = 1e-10
         var ceiling = Float.greatestFiniteMagnitude
         vDSP_vclip(mel, 1, &floor, &ceiling, &mel, 1, vDSP_Length(mel.count))
@@ -126,14 +155,14 @@ final class QwenMelFrontend {
             mel < 15 ? mel * 200 / 3 : 1000 * exp(log(6.4) * (mel - 15) / 27)
         }
         let maximum = mel(Double(sampleRate / 2))
-        let edges = (0..<(melBinCount + 2)).map {
+        let edges = (0 ..< (melBinCount + 2)).map {
             hertz(maximum * Double($0) / Double(melBinCount + 1))
         }
         var weights = [Float](repeating: 0, count: melBinCount * binCount)
-        for bin in 0..<melBinCount {
+        for bin in 0 ..< melBinCount {
             let (lower, center, upper) = (edges[bin], edges[bin + 1], edges[bin + 2])
             let scale = 2 / (upper - lower)
-            for frequencyBin in 0..<binCount {
+            for frequencyBin in 0 ..< binCount {
                 let frequency = Double(frequencyBin) * Double(sampleRate / 2) / Double(binCount - 1)
                 let rising = (frequency - lower) / (center - lower)
                 let falling = (upper - frequency) / (upper - center)

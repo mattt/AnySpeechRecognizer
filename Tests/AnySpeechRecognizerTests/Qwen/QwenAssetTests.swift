@@ -27,11 +27,14 @@ struct QwenAssetTests {
             contractVersion: 1,
             files: files.keys.sorted().map { path in
                 .init(
-                    path: path, size: Int64(files[path]!.count),
-                    sha256: ModelFixture.sha256(files[path]!))
+                    path: path,
+                    size: Int64(files[path]!.count),
+                    sha256: ModelFixture.sha256(files[path]!)
+                )
             },
             license: "Apache-2.0",
-            attribution: "Test fixture.")
+            attribution: "Test fixture."
+        )
     }
 
     @Test func manifestsNeedEveryComponent() throws {
@@ -61,13 +64,18 @@ struct QwenAssetTests {
             let store = server.makeStore(root: root)
             let manifest = Self.manifest()
             let model = QwenSpeechModel(
-                variant: .large, assets: .builtIn, manifest: manifest, store: store)
+                variant: .large,
+                assets: .builtIn,
+                manifest: manifest,
+                store: store
+            )
             let transcriber = SpeechTranscriber(model: model)
             #expect(await model.availability() == .missingAssets)
             #expect(await AssetInventory.status(forModules: [transcriber]) == .supported)
 
             let request = try #require(
-                try await AssetInventory.assetInstallationRequest(supporting: [transcriber]))
+                try await AssetInventory.assetInstallationRequest(supporting: [transcriber])
+            )
             try await request.downloadAndInstall()
 
             #expect(await model.availability() == .ready)
@@ -77,7 +85,8 @@ struct QwenAssetTests {
             #expect(directory == store.directory(for: manifest))
             for path in Self.files.keys {
                 #expect(
-                    FileManager.default.fileExists(atPath: directory.appending(path: path).path))
+                    FileManager.default.fileExists(atPath: directory.appending(path: path).path)
+                )
             }
             #expect(model.attribution == "Test fixture.")
             #expect(model.modelID == "qwen3-asr-test")
@@ -91,8 +100,11 @@ struct QwenAssetTests {
     @Test func sizesWithoutAManifestNeedAStagedDirectory() async throws {
         try await withTemporaryModelRoot { root in
             let model = QwenSpeechModel(
-                variant: .small, assets: .builtIn, manifest: nil,
-                store: StubModelServer(files: [:]).makeStore(root: root))
+                variant: .small,
+                assets: .builtIn,
+                manifest: nil,
+                store: StubModelServer(files: [:]).makeStore(root: root)
+            )
             #expect(model.directory == nil)
             #expect(await model.availability() == .missingAssets)
             await #expect(throws: SpeechRecognitionError.self) {
@@ -101,8 +113,10 @@ struct QwenAssetTests {
             let executor = QwenExecutor(model: model)
             await #expect(throws: SpeechRecognitionError.self) {
                 try await executor.prepare(
-                    request: .transcription(.init()), format: AudioFormats.monoFloat16k,
-                    context: .init())
+                    request: .transcription(.init()),
+                    format: AudioFormats.monoFloat16k,
+                    context: .init()
+                )
             }
         }
     }

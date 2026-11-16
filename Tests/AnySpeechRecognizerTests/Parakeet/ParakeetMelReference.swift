@@ -15,7 +15,8 @@ enum ParakeetMelReference {
     }
 
     static let roundedUp = Case(
-        validSampleCount: 17920, validFrameCount: 112,
+        validSampleCount: 17920,
+        validFrameCount: 112,
         frames: [0, 1, 2, 56, 101, 102, 110, 111],
         values: [
             [
@@ -51,10 +52,12 @@ enum ParakeetMelReference {
                 -1.64679, -2.82939, -2.36572, -2.75203, -2.83804, -3.01265, -3.40035, -3.19915,
                 -3.1771, -3.3642, -3.4798, -3.2776, -3.62968, -3.68018, -3.69119, -3.72099,
             ],
-        ])
+        ]
+    )
 
     static let exact = Case(
-        validSampleCount: 16517, validFrameCount: 103,
+        validSampleCount: 16517,
+        validFrameCount: 103,
         frames: [0, 1, 2, 51, 101, 102],
         values: [
             [
@@ -81,5 +84,6 @@ enum ParakeetMelReference {
                 -1.3959, 0.0442668, -0.417618, -0.97335, 0.167877, 0.841098, -0.361838, -2.60852,
                 0.375586, -0.703216, -1.81858, -0.0722006, -0.182167, -1.25006, 0.734636, 1.51021,
             ],
-        ])
+        ]
+    )
 }

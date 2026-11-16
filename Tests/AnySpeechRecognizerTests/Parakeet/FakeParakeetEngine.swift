@@ -24,13 +24,23 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     private(set) var predictCount = 0
 
     static let description = ParakeetModelDescription(
-        windowSamples: 24 * 1280 + 640, melBinCount: 128, melFrameCount: 197,
-        encoderFrameCount: 25, samplesPerEncoderFrame: 1280, encoderHiddenSize: 2,
-        decoderHiddenSize: 2, decoderLayerCount: 1, vocabularySize: 10, durations: [0, 1, 2, 3, 4])
+        windowSamples: 24 * 1280 + 640,
+        melBinCount: 128,
+        melFrameCount: 197,
+        encoderFrameCount: 25,
+        samplesPerEncoderFrame: 1280,
+        encoderHiddenSize: 2,
+        decoderHiddenSize: 2,
+        decoderLayerCount: 1,
+        vocabularySize: 10,
+        durations: [0, 1, 2, 3, 4]
+    )
 
     /// A window twice as long, with 48 whole encoder frames.
     static let longDescription = description.withEncoderWindow(
-        melFrameCount: 389, encoderFrameCount: 49)
+        melFrameCount: 389,
+        encoderFrameCount: 49
+    )
 
     /// - Parameters:
     ///   - forcedCommitWindow: Whether the engine has the longer forced-commit window.
@@ -52,9 +62,13 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     ///     In a pause, Parakeet decoded text that the audio does not contain from the
     ///     initial context, such as "Продолжение следует" in German speech.
     init(
-        tokenDuration: Int = 1, forcedCommitWindow: Bool = false, innerBlankDuration: Int? = nil,
-        blanksAfterSentenceEnd: Bool = false, blanksAfterSpeechStart: Bool = false,
-        silenceToken: Int? = nil, fillerToken: Int? = nil
+        tokenDuration: Int = 1,
+        forcedCommitWindow: Bool = false,
+        innerBlankDuration: Int? = nil,
+        blanksAfterSentenceEnd: Bool = false,
+        blanksAfterSpeechStart: Bool = false,
+        silenceToken: Int? = nil,
+        fillerToken: Int? = nil
     ) {
         model = Self.description
         forcedCommitModel = forcedCommitWindow ? Self.longDescription : nil
@@ -69,7 +83,7 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
         var bins: [Int: Int] = [:]
         for token in ToneSpeech.tokens {
             var samples = [Float](repeating: 0, count: model.windowSamples)
-            ToneSpeech.write(token: token, frames: 10..<13, into: &samples, offset: 0)
+            ToneSpeech.write(token: token, frames: 10 ..< 13, into: &samples, offset: 0)
             var mel = [Float](repeating: 0, count: model.melBinCount * model.melFrameCount)
             samples.withUnsafeBufferPointer { samples in
                 mel.withUnsafeMutableBufferPointer {
@@ -83,7 +97,7 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
 
     static func strongestBin(_ mel: [Float], frame: Int, frames: Int) -> (bin: Int, value: Float) {
         var best = (bin: 0, value: -Float.infinity)
-        for bin in 0..<128 where mel[bin * frames + frame] > best.value {
+        for bin in 0 ..< 128 where mel[bin * frames + frame] > best.value {
             best = (bin, mel[bin * frames + frame])
         }
         return best
@@ -100,7 +114,8 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     }
 
     func encode(
-        mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {
         encodeCount += 1
@@ -108,7 +123,8 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     }
 
     func encodeForcedCommit(
-        mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {
         forcedCommitEncodeCount += 1
@@ -116,34 +132,44 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     }
 
     private func encode(
-        _ mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
-        model: ParakeetModelDescription, into output: inout ParakeetEncoderOutput
+        _ mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
+        model: ParakeetModelDescription,
+        into output: inout ParakeetEncoderOutput
     ) {
         precondition(mel.count == model.melBinCount * model.melFrameCount)
         var frames = validFrameCount
-        for _ in 0..<3 { frames = frames == 0 ? 0 : (frames - 1) / 2 + 1 }
+        for _ in 0 ..< 3 { frames = frames == 0 ? 0 : (frames - 1) / 2 + 1 }
         output.validFrameCount = frames
         let mel = Array(mel)
-        for frame in 0..<model.encoderFrameCount {
+        for frame in 0 ..< model.encoderFrameCount {
             output.features[frame * 2] = Float(
                 tone(
-                    mel, frame: frame, validMelFrames: validFrameCount,
-                    melFrames: model.melFrameCount))
+                    mel,
+                    frame: frame,
+                    validMelFrames: validFrameCount,
+                    melFrames: model.melFrameCount
+                )
+            )
             output.features[frame * 2 + 1] = Float(
                 tone(
-                    mel, frame: frame - 1, validMelFrames: validFrameCount,
-                    melFrames: model.melFrameCount))
+                    mel,
+                    frame: frame - 1,
+                    validMelFrames: validFrameCount,
+                    melFrames: model.melFrameCount
+                )
+            )
         }
         if blanksAfterSpeechStart, output.features[0] != 0 {
             for index in output.features.indices { output.features[index] = 0 }
         }
         let period = Float(ToneSpeech.sentenceEnd)
         if blanksAfterSentenceEnd,
-            let onset = (1..<model.encoderFrameCount).first(where: {
+            let onset = (1 ..< model.encoderFrameCount).first(where: {
                 output.features[$0 * 2] == period && output.features[$0 * 2 + 1] != period
             })
         {
-            for frame in min(onset + 3, model.encoderFrameCount)..<model.encoderFrameCount {
+            for frame in min(onset + 3, model.encoderFrameCount) ..< model.encoderFrameCount {
                 output.features[frame * 2] = 0
                 output.features[frame * 2 + 1] = 0
             }
@@ -158,7 +184,8 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
     }
 
     func joint(
-        encoderFrame: UnsafeBufferPointer<Float>, decoderOutput: UnsafeBufferPointer<Float>
+        encoderFrame: UnsafeBufferPointer<Float>,
+        decoderOutput: UnsafeBufferPointer<Float>
     ) throws -> ParakeetJointDecision {
         let current = Int(encoderFrame[0])
         let previous = Int(encoderFrame[1])
@@ -174,7 +201,10 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
         if let innerBlankDuration, current != 0, Int(decoderOutput[0]) == current {
             // A frame inside the duration of the token just emitted.
             return ParakeetJointDecision(
-                token: model.blankID, probability: 0.8, duration: innerBlankDuration)
+                token: model.blankID,
+                probability: 0.8,
+                duration: innerBlankDuration
+            )
         }
         return ParakeetJointDecision(token: model.blankID, probability: 0.8, duration: 1)
     }
@@ -182,7 +212,7 @@ final class FakeParakeetEngine: ParakeetInferenceEngine {
 
 /// Builds tone audio from a token script.
 enum ToneSpeech {
-    static let tokens = Array(1...9)
+    static let tokens = Array(1 ... 9)
     static let vocabulary = ParakeetVocabulary(pieces: [
         "<unk>", "\u{2581}one", "\u{2581}two", "\u{2581}th", "ree", ",", ".", "\u{2581}four",
         "\u{2581}five", "\u{2581}six",
@@ -195,11 +225,12 @@ enum ToneSpeech {
 
     /// Writes a tone for `token` over encoder `frames` of the absolute timeline.
     static func write(token: Int, frames: Range<Int>, into samples: inout [Float], offset: Int) {
-        for index in (frames.lowerBound * 1280)..<(frames.upperBound * 1280) {
+        for index in (frames.lowerBound * 1280) ..< (frames.upperBound * 1280) {
             let local = index - offset
             guard samples.indices.contains(local) else { continue }
             samples[local] = Float(
-                0.3 * sin(2 * Double.pi * frequency(token) * Double(index) / 16_000))
+                0.3 * sin(2 * Double.pi * frequency(token) * Double(index) / 16_000)
+            )
         }
     }
 
@@ -211,11 +242,11 @@ enum ToneSpeech {
         let frames = lead + count * spacing + trailing
         var samples = [Float](repeating: 0, count: frames * 1280)
         var expected: [(Int, Int)] = []
-        for index in 0..<count {
+        for index in 0 ..< count {
             // Neighbors always differ, so each segment has a clear onset.
             let token = tokens[(index * 4) % tokens.count]
             let onset = lead + index * spacing
-            write(token: token, frames: onset..<(onset + 3), into: &samples, offset: 0)
+            write(token: token, frames: onset ..< (onset + 3), into: &samples, offset: 0)
             expected.append((token, onset))
         }
         return (samples, expected)

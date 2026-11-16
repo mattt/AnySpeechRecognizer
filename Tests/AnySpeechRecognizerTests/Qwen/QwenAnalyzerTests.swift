@@ -27,13 +27,18 @@ struct QwenAnalyzer {
     func directText() throws -> String {
         let directory = QwenFixtures.modelDirectory!
         let configuration = try QwenModelConfiguration(
-            contentsOf: directory.appending(path: CoreMLQwenEngine.configurationName))
+            contentsOf: directory.appending(path: CoreMLQwenEngine.configurationName)
+        )
         let engine = try CoreMLQwenEngine(
-            directory: directory, configuration: configuration, encoderComputeUnits: .cpuAndGPU,
-            decoderComputeUnits: .cpuAndGPU)
+            directory: directory,
+            configuration: configuration,
+            encoderComputeUnits: .cpuAndGPU,
+            decoderComputeUnits: .cpuAndGPU
+        )
         let vocabulary = try QwenVocabulary(
             contentsOf: directory.appending(path: CoreMLQwenEngine.vocabularyName),
-            skipping: Set(configuration.skippedTokenIds))
+            skipping: Set(configuration.skippedTokenIds)
+        )
         let recognizer = QwenRecognizer(engine: engine, vocabulary: vocabulary, prefill: nil)
         return try recognizer.transcribe(ParakeetFixtures.samples(audio)).text
     }
@@ -52,7 +57,9 @@ struct QwenAnalyzer {
         #expect(zip(values, values.dropFirst()).allSatisfy { $0.range.end <= $1.range.start })
         // `time` is the start of the last sample; the last segment ends after that sample.
         let end = CMTime(
-            value: file.length, timescale: CMTimeScale(file.processingFormat.sampleRate))
+            value: file.length,
+            timescale: CMTimeScale(file.processingFormat.sampleRate)
+        )
         #expect(values.last?.range.end == end)
         // A recording of up to 40 seconds is one segment.
         if Double(file.length) / file.processingFormat.sampleRate <= 40 {

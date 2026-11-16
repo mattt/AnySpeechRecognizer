@@ -12,36 +12,55 @@ extension SortformerModelManifest {
         model: "SortformerLowLatency.mlmodelc",
         files: [
             .init(
-                path: "SortformerLowLatency.mlmodelc/analytics/coremldata.bin", size: 202,
-                sha256: "8c2f1c962220de0b01558a1d2507153f9d4871c6c857d24c67892c213a64208e"),
+                path: "SortformerLowLatency.mlmodelc/analytics/coremldata.bin",
+                size: 202,
+                sha256: "8c2f1c962220de0b01558a1d2507153f9d4871c6c857d24c67892c213a64208e"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/coremldata.bin", size: 2_059,
-                sha256: "bf9c131a9616f9c8590bb0423a942c1e6dd561d9369ca2791e5cfe354779307b"),
+                path: "SortformerLowLatency.mlmodelc/coremldata.bin",
+                size: 2_059,
+                sha256: "bf9c131a9616f9c8590bb0423a942c1e6dd561d9369ca2791e5cfe354779307b"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model0/analytics/coremldata.bin", size: 108,
-                sha256: "5a8281049b2a65a3be541cfd9f949e84b8fe1c5251ce90e46da1626fed54e58a"),
+                path: "SortformerLowLatency.mlmodelc/model0/analytics/coremldata.bin",
+                size: 108,
+                sha256: "5a8281049b2a65a3be541cfd9f949e84b8fe1c5251ce90e46da1626fed54e58a"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model0/coremldata.bin", size: 633,
-                sha256: "6edb89bfb1d9d5ce85e58dbbe5251daac63e263567ac59b43293e7e6eb10b887"),
+                path: "SortformerLowLatency.mlmodelc/model0/coremldata.bin",
+                size: 633,
+                sha256: "6edb89bfb1d9d5ce85e58dbbe5251daac63e263567ac59b43293e7e6eb10b887"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model0/model.mil", size: 32_526,
-                sha256: "3b7132ccf2762d5922616e76193563dae010c18e96c1436eb51ab563b3c572db"),
+                path: "SortformerLowLatency.mlmodelc/model0/model.mil",
+                size: 32_526,
+                sha256: "3b7132ccf2762d5922616e76193563dae010c18e96c1436eb51ab563b3c572db"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model0/weights/0-weight.bin", size: 8_948_544,
-                sha256: "ad40d62ccd7a0943d2cd9cc8eeee7f27116e58cf6532ab43196b34142fc86583"),
+                path: "SortformerLowLatency.mlmodelc/model0/weights/0-weight.bin",
+                size: 8_948_544,
+                sha256: "ad40d62ccd7a0943d2cd9cc8eeee7f27116e58cf6532ab43196b34142fc86583"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model1/analytics/coremldata.bin", size: 108,
-                sha256: "5a8281049b2a65a3be541cfd9f949e84b8fe1c5251ce90e46da1626fed54e58a"),
+                path: "SortformerLowLatency.mlmodelc/model1/analytics/coremldata.bin",
+                size: 108,
+                sha256: "5a8281049b2a65a3be541cfd9f949e84b8fe1c5251ce90e46da1626fed54e58a"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model1/coremldata.bin", size: 593,
-                sha256: "047ead9870de214f9932a8703ef0f97eee4768607eb4a4afeb61d99814c4f4f3"),
+                path: "SortformerLowLatency.mlmodelc/model1/coremldata.bin",
+                size: 593,
+                sha256: "047ead9870de214f9932a8703ef0f97eee4768607eb4a4afeb61d99814c4f4f3"
+            ),
             .init(
-                path: "SortformerLowLatency.mlmodelc/model1/model.mil", size: 1_710_333,
-                sha256: "03ba4b7efaf14f9f423c436a90f3a917a5dbfdc62b2e38761e7eafe51f4f0553"),
+                path: "SortformerLowLatency.mlmodelc/model1/model.mil",
+                size: 1_710_333,
+                sha256: "03ba4b7efaf14f9f423c436a90f3a917a5dbfdc62b2e38761e7eafe51f4f0553"
+            ),
             .init(
                 path: "SortformerLowLatency.mlmodelc/model1/weights/1-weight.bin",
                 size: 235_580_992,
-                sha256: "e8ebd6767429fd224671b79ad2a3e3cd8bd34f83373ff84fca2f5387414191a0"),
+                sha256: "e8ebd6767429fd224671b79ad2a3e3cd8bd34f83373ff84fca2f5387414191a0"
+            ),
         ],
         license: "CC-BY-4.0",
         attribution: """

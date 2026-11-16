@@ -46,7 +46,7 @@ final class SortformerMelFrontend {
         guard let setup = vDSP_DFT_zrop_CreateSetup(nil, vDSP_Length(Self.fftLength), .FORWARD)
         else { fatalError("Accelerate cannot create a \(Self.fftLength)-point real DFT.") }
         self.setup = setup
-        window = (0..<Self.windowLength).map { index in
+        window = (0 ..< Self.windowLength).map { index in
             Float(0.5 - 0.5 * cos(2 * Double.pi * Double(index) / Double(Self.windowLength - 1)))
         }
         filterbank = ParakeetMelFrontend.slaneyFilterbank()
@@ -99,7 +99,8 @@ final class SortformerMelFrontend {
             output.update(
                 from: features.baseAddress! + (frames.lowerBound - featureOffset)
                     * Self.melBinCount,
-                count: frames.count * Self.melBinCount)
+                count: frames.count * Self.melBinCount
+            )
         }
     }
 
@@ -123,7 +124,7 @@ final class SortformerMelFrontend {
         let offset = (Self.fftLength - Self.windowLength) / 2
         frame.withUnsafeMutableBufferPointer { frame in
             frame.update(repeating: 0)
-            for position in 0..<Self.windowLength {
+            for position in 0 ..< Self.windowLength {
                 let sample = start + position
                 guard sample >= 0, sample < sampleCount else { continue }
                 frame[offset + position] = emphasized[sample - sampleOffset] * window[position]
@@ -154,8 +155,16 @@ final class SortformerMelFrontend {
             power.withUnsafeBufferPointer { power in
                 mel.withUnsafeMutableBufferPointer { mel in
                     vDSP_mmul(
-                        bank.baseAddress!, 1, power.baseAddress!, 1, mel.baseAddress!, 1,
-                        vDSP_Length(Self.melBinCount), 1, vDSP_Length(Self.binCount))
+                        bank.baseAddress!,
+                        1,
+                        power.baseAddress!,
+                        1,
+                        mel.baseAddress!,
+                        1,
+                        vDSP_Length(Self.melBinCount),
+                        1,
+                        vDSP_Length(Self.binCount)
+                    )
                 }
             }
         }

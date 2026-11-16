@@ -10,8 +10,11 @@ import Testing
 struct FakeDiarizationModel: SpeakerDiarizationModel {
     var modelID = "test/fake-diarization"
     var capabilities = SpeakerDiarizationCapabilities(
-        maximumSpeakerCount: 4, overlappingSpeech: true, liveInput: true,
-        reportingOptions: [.volatileResults])
+        maximumSpeakerCount: 4,
+        overlappingSpeech: true,
+        liveInput: true,
+        reportingOptions: [.volatileResults]
+    )
     let executor: FakeDiarizationExecutor
     var availability = SpeechRecognitionAvailability.ready
     var installation: AssetInstallationRequest?
@@ -82,16 +85,21 @@ func segment(_ speaker: Int, _ start: Double, _ end: Double) -> SpeakerDiarizer.
 }
 
 func diarization(
-    _ segments: [SpeakerDiarizer.Segment], range: CMTimeRange? = nil, final: Double? = nil
+    _ segments: [SpeakerDiarizer.Segment],
+    range: CMTimeRange? = nil,
+    final: Double? = nil
 ) -> SpeakerDiarizer.Result {
     let hull =
         range
         ?? CMTimeRange(
             start: segments.map(\.range.start).min() ?? .zero,
-            end: segments.map(\.range.end).max() ?? .zero)
+            end: segments.map(\.range.end).max() ?? .zero
+        )
     return .init(
-        segments: segments, range: hull,
-        resultsFinalizationTime: final.map(seconds) ?? hull.end)
+        segments: segments,
+        range: hull,
+        resultsFinalizationTime: final.map(seconds) ?? hull.end
+    )
 }
 
 /// A Sortformer stand-in that labels each 80 ms row by the frequency of a test tone:
@@ -106,7 +114,7 @@ final class ToneInference: SortformerInference {
 
     static func embeddingRows(_ frames: Int) -> Int {
         var length = frames
-        for _ in 0..<3 { length = (length - 1) / 2 + 1 }
+        for _ in 0 ..< 3 { length = (length - 1) / 2 + 1 }
         return frames > 0 ? length : 0
     }
 
@@ -121,19 +129,21 @@ final class ToneInference: SortformerInference {
         let offset = speakerCache.count / size + fifo.count / size
         let rows = Self.embeddingRows(chunkFrames)
         var predictions = [Float](repeating: 0.02, count: configuration.predictionRows * speakers)
-        for row in 0..<rows {
+        for row in 0 ..< rows {
             var low: Float = -.infinity
             var high: Float = -.infinity
-            for frame in (row * 8)..<min(row * 8 + 8, chunkFrames) {
-                for bin in 0..<40 { low = max(low, chunk[frame * bins + bin]) }
-                for bin in 64..<bins { high = max(high, chunk[frame * bins + bin]) }
+            for frame in (row * 8) ..< min(row * 8 + 8, chunkFrames) {
+                for bin in 0 ..< 40 { low = max(low, chunk[frame * bins + bin]) }
+                for bin in 64 ..< bins { high = max(high, chunk[frame * bins + bin]) }
             }
             if low > -6 { predictions[(offset + row) * speakers + 0] = 0.95 }
             if high > -6 { predictions[(offset + row) * speakers + 1] = 0.95 }
         }
         return SortformerPrediction(
-            predictions: predictions, embeddings: [Float](repeating: 0, count: rows * size),
-            embeddingCount: rows)
+            predictions: predictions,
+            embeddings: [Float](repeating: 0, count: rows * size),
+            embeddingCount: rows
+        )
     }
 }
 
@@ -142,9 +152,10 @@ func toneSamples(duration: Double, low: [(Double, Double)], high: [(Double, Doub
     var samples = [Float](repeating: 0, count: Int(duration * 16_000))
     for (ranges, frequency) in [(low, 300.0), (high, 3_000.0)] {
         for (start, end) in ranges {
-            for index in Int(start * 16_000)..<min(samples.count, Int(end * 16_000)) {
+            for index in Int(start * 16_000) ..< min(samples.count, Int(end * 16_000)) {
                 samples[index] += Float(
-                    0.3 * sin(2 * Double.pi * frequency * Double(index) / 16_000))
+                    0.3 * sin(2 * Double.pi * frequency * Double(index) / 16_000)
+                )
             }
         }
     }
@@ -156,30 +167,39 @@ func toneModel(postProcessing: SortformerDiarizationModel.PostProcessing = .none
     -> SortformerDiarizationModel
 {
     let directory = FileManager.default.temporaryDirectory.appending(
-        path: "anyspeech-tone-\(UUID().uuidString).mlmodelc")
+        path: "anyspeech-tone-\(UUID().uuidString).mlmodelc"
+    )
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     try Data().write(to: directory.appending(path: "coremldata.bin"))
     return SortformerDiarizationModel(
-        assets: .compiledModel(directory), postProcessing: postProcessing,
-        manifest: .builtIn, store: .shared, makeInference: { _, _ in ToneInference() })
+        assets: .compiledModel(directory),
+        postProcessing: postProcessing,
+        manifest: .builtIn,
+        store: .shared,
+        makeInference: { _, _ in ToneInference() }
+    )
 }
 
 /// Runs a pipeline over samples in blocks and returns every result.
 func runPipeline(
-    _ samples: [Float], block: Int, volatile: Bool = false,
+    _ samples: [Float],
+    block: Int,
+    volatile: Bool = false,
     postProcessing: SortformerDiarizationModel.PostProcessing = .none,
     origin: CMTime = .zero
 ) throws -> [SpeakerDiarizer.Result] {
     let pipeline = SortformerPipeline(
-        inference: ToneInference(), parameters: postProcessing.segmenterParameters,
-        reportsVolatileResults: volatile)
+        inference: ToneInference(),
+        parameters: postProcessing.segmenterParameters,
+        reportsVolatileResults: volatile
+    )
     var results: [SpeakerDiarizer.Result] = []
     try samples.withUnsafeBufferPointer { samples in
         var start = 0
         while start < samples.count {
             let end = min(start + block, samples.count)
             results += try pipeline.append(
-                UnsafeBufferPointer(rebasing: samples[start..<end]),
+                UnsafeBufferPointer(rebasing: samples[start ..< end]),
                 at: origin + CMTime(value: CMTimeValue(start), timescale: 16_000)
             ).results
             start = end
@@ -202,7 +222,8 @@ func finalSegments(_ results: [SpeakerDiarizer.Result]) -> [SpeakerDiarizer.Segm
 /// Checks the finalization contract: final results never overlap or precede an earlier
 /// finalization, and volatile results start at the current boundary.
 func expectFinalizationContract(
-    _ results: [SpeakerDiarizer.Result], sourceLocation: SourceLocation = #_sourceLocation
+    _ results: [SpeakerDiarizer.Result],
+    sourceLocation: SourceLocation = #_sourceLocation
 ) {
     var boundary: CMTime?
     for result in results {

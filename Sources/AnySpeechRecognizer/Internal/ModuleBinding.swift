@@ -38,8 +38,11 @@ protocol AnalyzerModule: AnyObject, Sendable {
 extension ModuleBinding {
     /// Builds a binding for a transcription-style module with a typed result channel.
     static func transcription<Result: ChannelResult>(
-        owner: AnyObject, channel: ResultChannel<Result>, native: (any Speech.SpeechModule)?,
-        model: any SpeechRecognitionModel, request: SpeechRecognitionRequest,
+        owner: AnyObject,
+        channel: ResultChannel<Result>,
+        native: (any Speech.SpeechModule)?,
+        model: any SpeechRecognitionModel,
+        request: SpeechRecognitionRequest,
         convert: @escaping @Sendable (SpeechRecognitionResult) -> Result,
         forwardNative: @escaping @Sendable () async throws -> Void
     ) -> ModuleBinding {
@@ -50,9 +53,12 @@ extension ModuleBinding {
                 .model(model, request)
             }
         return ModuleBinding(
-            id: ObjectIdentifier(owner), backend: backend, attach: { channel.attach() },
+            id: ObjectIdentifier(owner),
+            backend: backend,
+            attach: { channel.attach() },
             deliver: { try channel.publish(convert($0)) },
-            finish: { channel.finish(throwing: $0, discardBuffered: $1) })
+            finish: { channel.finish(throwing: $0, discardBuffered: $1) }
+        )
     }
 }
 

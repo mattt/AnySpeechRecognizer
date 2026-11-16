@@ -25,7 +25,8 @@ struct ParakeetModelTests {
         if FileManager.default.fileExists(atPath: directory.appending(path: name).path) {
             let regular =
                 FileManager.default.fileExists(
-                    atPath: directory.appending(path: "Encoder_v2.mlmodelc").path)
+                    atPath: directory.appending(path: "Encoder_v2.mlmodelc").path
+                )
                 ? "Encoder_v2.mlmodelc" : "Encoder.mlmodelc"
             var options = CoreMLParakeetEngine.Configuration()
             options.encoderName = name
@@ -49,16 +50,21 @@ struct ParakeetModelTests {
 
     /// Appends audio in blocks and processes after each block, then ends the input.
     func run(
-        _ samples: [Float], configuration: ParakeetRecognizer.Configuration, block: Int,
+        _ samples: [Float],
+        configuration: ParakeetRecognizer.Configuration,
+        block: Int,
         engine: CoreMLParakeetEngine
     ) throws -> Run {
         let recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: try vocabulary(), configuration: configuration)
+            engine: engine,
+            vocabulary: try vocabulary(),
+            configuration: configuration
+        )
         var run = Run()
         var offset = 0
         while offset < samples.count {
             let end = min(samples.count, offset + block)
-            recognizer.append(Array(samples[offset..<end]))
+            recognizer.append(Array(samples[offset ..< end]))
             offset = end
             let clock = ContinuousClock.now
             let update = try recognizer.process(endOfInput: offset == samples.count)
@@ -92,38 +98,58 @@ struct ParakeetModelTests {
         let fileSeconds = (ContinuousClock.now - clock) / .seconds(1)
         let fileText = ParakeetFixtures.text(file.committed, vocabulary: vocabulary)
         print(
-            "long file mode (\(fileSeconds) s for \(Double(samples.count) / 16_000) s):", fileText)
+            "long file mode (\(fileSeconds) s for \(Double(samples.count) / 16_000) s):",
+            fileText
+        )
         #expect(
             zip(file.committed, file.committed.dropFirst()).allSatisfy {
                 $0.startSample <= $1.startSample
-            })
+            }
+        )
 
         if let path = ParakeetFixtures.environment["ANYSPEECH_PARAKEET_LONG_REFERENCE"] {
             let reference = try String(contentsOfFile: path, encoding: .utf8)
             let edits = ParakeetFixtures.wordDifferences(
-                Self.normalized(reference), Self.normalized(fileText))
+                Self.normalized(reference),
+                Self.normalized(fileText)
+            )
             print("long file mode vs reference text:", edits)
         }
 
         let liveSetup = try liveEngine(engine)
         let live = try run(
-            samples, configuration: liveSetup.configuration, block: 1_600, engine: liveSetup.engine)
+            samples,
+            configuration: liveSetup.configuration,
+            block: 1_600,
+            engine: liveSetup.engine
+        )
         let liveText = ParakeetFixtures.text(live.committed, vocabulary: vocabulary)
         print("long live mode:", liveText)
         print(
             "long live mode vs file mode words:",
-            ParakeetFixtures.wordDifferences(fileText, liveText))
+            ParakeetFixtures.wordDifferences(fileText, liveText)
+        )
         if let path = ParakeetFixtures.environment["ANYSPEECH_PARAKEET_LONG_REFERENCE"] {
             let reference = try String(contentsOfFile: path, encoding: .utf8)
             let edits = ParakeetFixtures.wordDifferences(
-                Self.normalized(reference), Self.normalized(liveText))
+                Self.normalized(reference),
+                Self.normalized(liveText)
+            )
             print("long live mode vs reference text:", edits)
         }
         let sorted = live.durations.sorted()
         print(
-            "live process seconds: mean", sorted.reduce(0, +) / Double(sorted.count),
-            "p50", sorted[sorted.count / 2], "p95", sorted[sorted.count * 95 / 100],
-            "max", sorted.last ?? 0, "calls", sorted.count)
+            "live process seconds: mean",
+            sorted.reduce(0, +) / Double(sorted.count),
+            "p50",
+            sorted[sorted.count / 2],
+            "p95",
+            sorted[sorted.count * 95 / 100],
+            "max",
+            sorted.last ?? 0,
+            "calls",
+            sorted.count
+        )
         // Audio latency: how much audio arrived after a token before it became final or volatile.
         var commitDelays: [Int] = []
         var firstSeen: [Int: Int] = [:]
@@ -140,9 +166,11 @@ struct ParakeetModelTests {
         print(
             "live commit delay seconds: median",
             Double(commitDelays[commitDelays.count / 2]) / 16_000,
-            "max", Double(commitDelays.last ?? 0) / 16_000,
+            "max",
+            Double(commitDelays.last ?? 0) / 16_000,
             "volatile first-seen delay median",
-            Double(volatileDelays[volatileDelays.count / 2]) / 16_000)
+            Double(volatileDelays[volatileDelays.count / 2]) / 16_000
+        )
         let changes = live.updates.indices.dropFirst().filter {
             live.updates[$0].volatile != live.updates[$0 - 1].volatile
         }.count
@@ -153,7 +181,8 @@ struct ParakeetModelTests {
             #expect(update.volatile.allSatisfy { $0.startSample >= update.committedThroughSample })
             if index > 0 {
                 #expect(
-                    update.committedThroughSample >= live.updates[index - 1].committedThroughSample)
+                    update.committedThroughSample >= live.updates[index - 1].committedThroughSample
+                )
             }
         }
     }
@@ -171,7 +200,8 @@ struct ParakeetModelTests {
     func liveModeKeepsPunctuationOnRepetitiveSpeech() throws {
         let environment = ParakeetFixtures.environment
         let url = URL(
-            fileURLWithPath: try #require(environment["ANYSPEECH_PARAKEET_REPETITIVE_AUDIO"]))
+            fileURLWithPath: try #require(environment["ANYSPEECH_PARAKEET_REPETITIVE_AUDIO"])
+        )
         let seconds =
             environment["ANYSPEECH_PARAKEET_REPETITIVE_SECONDS"].flatMap(Double.init) ?? 120
         let samples = Array(try ParakeetFixtures.samples(url).prefix(Int(seconds * 16_000)))
@@ -183,18 +213,27 @@ struct ParakeetModelTests {
         let file = ParakeetFixtures.text(
             try run(samples, configuration: .file, block: 16_000, engine: engine).committed
                 .filter { $0.startSample < cutoff },
-            vocabulary: vocabulary)
+            vocabulary: vocabulary
+        )
         let liveSetup = try liveEngine(engine)
         let live = try run(
-            samples, configuration: liveSetup.configuration, block: 1_600, engine: liveSetup.engine)
+            samples,
+            configuration: liveSetup.configuration,
+            block: 1_600,
+            engine: liveSetup.engine
+        )
         let liveText = ParakeetFixtures.text(
-            live.committed.filter { $0.startSample < cutoff }, vocabulary: vocabulary)
+            live.committed.filter { $0.startSample < cutoff },
+            vocabulary: vocabulary
+        )
         func sentences(_ text: String) -> Int { text.filter { ".?!".contains($0) }.count }
         func capitals(_ text: String) -> Int {
             text.split(separator: " ").filter { $0.first?.isUppercase == true }.count
         }
         let edits = ParakeetFixtures.wordDifferences(
-            Self.normalized(file), Self.normalized(liveText))
+            Self.normalized(file),
+            Self.normalized(liveText)
+        )
         print(
             "repetitive \(seconds) s: file sentences=\(sentences(file)) capitals=\(capitals(file))",
             "live sentences=\(sentences(liveText)) capitals=\(capitals(liveText))",
@@ -208,6 +247,10 @@ struct ParakeetModelTests {
         print(
             "repetitive live process seconds: mean",
             durations.reduce(0, +) / Double(durations.count),
-            "p95", durations[durations.count * 95 / 100], "max", durations.last ?? 0)
+            "p95",
+            durations[durations.count * 95 / 100],
+            "max",
+            durations.last ?? 0
+        )
     }
 }

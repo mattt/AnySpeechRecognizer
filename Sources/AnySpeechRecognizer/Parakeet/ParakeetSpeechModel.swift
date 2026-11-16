@@ -28,7 +28,10 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
         /// NVIDIA Parakeet Unified EN 0.6B, an RNN-T model that recognizes English only,
         /// licensed under the NVIDIA Open Model License.
         public static let unified = Self(
-            rawValue: "unified", manifest: .unified, modelDescription: .unified)
+            rawValue: "unified",
+            manifest: .unified,
+            modelDescription: .unified
+        )
 
         /// Every variant with built-in assets.
         public static let allCases: [Self] = [.v3, .ultra, .unified]
@@ -49,7 +52,8 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
         }
 
         private init(
-            rawValue: String, manifest: ParakeetModelManifest,
+            rawValue: String,
+            manifest: ParakeetModelManifest,
             modelDescription: ParakeetModelDescription
         ) {
             self.rawValue = rawValue
@@ -119,8 +123,10 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
     public let capabilities = SpeechRecognitionCapabilities(
         transcription: .init(
             reportingOptions: [.volatileResults, .fastResults],
-            attributeOptions: [.audioTimeRange, .transcriptionConfidence]),
-        liveInput: true)
+            attributeOptions: [.audioTimeRange, .transcriptionConfidence]
+        ),
+        liveInput: true
+    )
 
     /// Creates a configuration without loading, inference, or downloads.
     /// - Parameters:
@@ -128,18 +134,25 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
     ///   - assets: The source of model files.
     ///   - computeUnits: The compute units for the encoder.
     public init(
-        variant: Variant = .v3, assets: Assets = .builtIn,
+        variant: Variant = .v3,
+        assets: Assets = .builtIn,
         computeUnits: ComputeUnits = .cpuAndNeuralEngine
     ) {
         self.init(
-            variant: variant, assets: assets, computeUnits: computeUnits,
-            manifest: variant.manifest, store: .shared)
+            variant: variant,
+            assets: assets,
+            computeUnits: computeUnits,
+            manifest: variant.manifest,
+            store: .shared
+        )
     }
 
     /// Creates a configuration with a specific manifest and store, for tests.
     init(
-        variant: Variant = .v3, assets: Assets = .builtIn,
-        computeUnits: ComputeUnits = .cpuAndNeuralEngine, manifest: ParakeetModelManifest,
+        variant: Variant = .v3,
+        assets: Assets = .builtIn,
+        computeUnits: ComputeUnits = .cpuAndNeuralEngine,
+        manifest: ParakeetModelManifest,
         store: ModelAssetStore
     ) {
         self.variant = variant
@@ -234,12 +247,14 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
         case .ready: return nil
         case .unsupportedHardware:
             throw SpeechRecognitionError.unavailableProvider(
-                "The Parakeet runtime requires Apple silicon.")
+                "The Parakeet runtime requires Apple silicon."
+            )
         default: break
         }
         guard case .builtIn = assets else {
             throw SpeechRecognitionError.missingAssets(
-                "Stage the Parakeet encoder, decoder, joint, and vocabulary in \(directory.path).")
+                "Stage the Parakeet encoder, decoder, joint, and vocabulary in \(directory.path)."
+            )
         }
         let manifest = manifest
         let store = store
@@ -294,14 +309,16 @@ public struct ParakeetSpeechModel: SpeechRecognitionModel {
             : "volatile and fast results use \(live.encoder) because the live encoder "
                 + "\(liveEncoder) is not installed"
         return .init(
-            provider: "AnySpeechRecognizer Parakeet", modelID: modelID,
+            provider: "AnySpeechRecognizer Parakeet",
+            modelID: modelID,
             runtimeVersion: "Core ML",
             modelRepository: builtIn ? manifest.repository : directory.path,
             modelRevision: builtIn ? manifest.revision : nil,
             computeConfiguration:
                 "encoder \(computeUnits.rawValue); decoder and joint cpuAndNeuralEngine; "
                 + "no language constraint; file results use \(file.encoder); \(liveDescription)",
-            capabilities: capabilities)
+            capabilities: capabilities
+        )
     }
 }
 
@@ -331,18 +348,22 @@ actor ParakeetExecutor: SpeechRecognitionExecutor {
     init(model: ParakeetSpeechModel) { self.model = model }
 
     func prepare(
-        request: SpeechRecognitionRequest, format: AVAudioFormat, context: AnalysisContext
+        request: SpeechRecognitionRequest,
+        format: AVAudioFormat,
+        context: AnalysisContext
     ) async throws {
         try request.validate(for: model.capabilities)
         guard format.sampleRate == 16_000, format.channelCount == 1,
             format.commonFormat == .pcmFormatFloat32, !format.isInterleaved
         else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "Parakeet requires 16 kHz mono Float32 input.")
+                "Parakeet requires 16 kHz mono Float32 input."
+            )
         }
         guard case .transcription(let transcription) = request else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "Parakeet does not support DictationTranscriber.")
+                "Parakeet does not support DictationTranscriber."
+            )
         }
         let options = transcription.reportingOptions
         let fast = options.contains(.fastResults)
@@ -360,36 +381,46 @@ actor ParakeetExecutor: SpeechRecognitionExecutor {
             // A staged directory for a different variant fails here, before the encoder loads,
             // instead of decoding with the wrong blank token.
             let vocabulary = try ParakeetVocabulary(
-                contentsOf: directory.appending(path: manifest.components.vocabulary))
+                contentsOf: directory.appending(path: manifest.components.vocabulary)
+            )
             guard vocabulary.count == description.vocabularySize else {
                 throw SpeechRecognitionError.unsupportedConfiguration(
                     "The Parakeet vocabulary in \(directory.path) has \(vocabulary.count) tokens, "
                         + "but the \(variant.rawValue) variant has "
-                        + "\(description.vocabularySize). Select the variant of the model files.")
+                        + "\(description.vocabularySize). Select the variant of the model files."
+                )
             }
             var options = CoreMLParakeetEngine.Configuration()
             options.encoderComputeUnits = units
             options.encoderName = selection.encoder
             options.forcedCommitEncoderName = selection.forcedCommitEncoder
             let engine = try CoreMLParakeetEngine(
-                directory: directory, configuration: options, model: description)
+                directory: directory,
+                configuration: options,
+                model: description
+            )
             return (UncheckedEngine(engine), vocabulary)
         }.value
         try Task.checkCancellation()
         guard !cancelled else { throw CancellationError() }
         let windowFrames = engine.value.model.windowFrames
         use(
-            engine.value, vocabulary: vocabulary, request: request,
+            engine.value,
+            vocabulary: vocabulary,
+            request: request,
             configuration: fast
                 ? .fast(windowFrames: windowFrames)
-                : live ? .live(windowFrames: windowFrames) : .file)
+                : live ? .live(windowFrames: windowFrames) : .file
+        )
     }
 
     /// Serves a validated request with a loaded engine and recognizer configuration.
     /// Tests call this method directly with a fake engine.
     func use(
-        _ engine: sending any ParakeetInferenceEngine, vocabulary: ParakeetVocabulary,
-        request: SpeechRecognitionRequest, configuration: ParakeetRecognizer.Configuration
+        _ engine: sending any ParakeetInferenceEngine,
+        vocabulary: ParakeetVocabulary,
+        request: SpeechRecognitionRequest,
+        configuration: ParakeetRecognizer.Configuration
     ) {
         self.engine = engine
         self.vocabulary = vocabulary
@@ -424,12 +455,17 @@ actor ParakeetExecutor: SpeechRecognitionExecutor {
     private func startSegment(at origin: CMTime) throws {
         guard let engine, let vocabulary, let request else { throw CancellationError() }
         recognizer = try ParakeetRecognizer(
-            engine: engine, vocabulary: vocabulary, configuration: configuration)
+            engine: engine,
+            vocabulary: vocabulary,
+            configuration: configuration
+        )
         if builder == nil {
             builder = ParakeetResultBuilder(
-                vocabulary: vocabulary, origin: origin,
+                vocabulary: vocabulary,
+                origin: origin,
                 includeTiming: request.includesAudioTimeRange,
-                includeConfidence: request.includesConfidence)
+                includeConfidence: request.includesConfidence
+            )
         } else {
             builder?.restart(at: origin)
         }
@@ -479,7 +515,8 @@ actor ParakeetExecutor: SpeechRecognitionExecutor {
         let sample =
             Int(
                 CMTimeConvertScale(offset, timescale: 16_000, method: .roundTowardPositiveInfinity)
-                    .value) + 1
+                    .value
+            ) + 1
         try await publish(recognizer.process(finalizeThrough: sample), flush: true)
     }
 

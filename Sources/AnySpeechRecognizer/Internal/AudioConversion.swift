@@ -29,7 +29,8 @@ final class StreamConverter {
         {
             guard source.startTime >= expectedStart else {
                 throw SpeechRecognitionError.invalidAudio(
-                    "Input buffers overlap in source time.")
+                    "Input buffers overlap in source time."
+                )
             }
             converted += try flush()
         }
@@ -74,7 +75,8 @@ final class StreamConverter {
             format.sampleRate.rounded() == format.sampleRate
         else {
             throw SpeechRecognitionError.invalidAudio(
-                "Input audio must have channels and a positive integral sample rate.")
+                "Input audio must have channels and a positive integral sample rate."
+            )
         }
         input = format
         segmentStart = start
@@ -83,8 +85,11 @@ final class StreamConverter {
         let channels = output.channelCount == 1 ? 1 : format.channelCount
         guard
             let mixed = AVAudioFormat(
-                commonFormat: .pcmFormatFloat32, sampleRate: format.sampleRate,
-                channels: channels, interleaved: false)
+                commonFormat: .pcmFormatFloat32,
+                sampleRate: format.sampleRate,
+                channels: channels,
+                interleaved: false
+            )
         else {
             throw SpeechRecognitionError.invalidAudio("Cannot describe the intermediate format.")
         }
@@ -92,12 +97,16 @@ final class StreamConverter {
         if format.commonFormat != .pcmFormatFloat32 || format.isInterleaved {
             guard
                 let float = AVAudioFormat(
-                    commonFormat: .pcmFormatFloat32, sampleRate: format.sampleRate,
-                    channels: format.channelCount, interleaved: false),
+                    commonFormat: .pcmFormatFloat32,
+                    sampleRate: format.sampleRate,
+                    channels: format.channelCount,
+                    interleaved: false
+                ),
                 let converter = AVAudioConverter(from: format, to: float)
             else {
                 throw SpeechRecognitionError.invalidAudio(
-                    "Cannot convert the input sample format.")
+                    "Cannot convert the input sample format."
+                )
             }
             floatConverter = converter
         }
@@ -106,7 +115,8 @@ final class StreamConverter {
         {
             guard let converter = AVAudioConverter(from: mixed, to: output) else {
                 throw SpeechRecognitionError.invalidAudio(
-                    "Cannot convert input audio to the module format.")
+                    "Cannot convert input audio to the module format."
+                )
             }
             rateConverter = converter
         }
@@ -119,7 +129,9 @@ final class StreamConverter {
         if let floatConverter {
             guard
                 let float = AVAudioPCMBuffer(
-                    pcmFormat: floatConverter.outputFormat, frameCapacity: buffer.frameLength)
+                    pcmFormat: floatConverter.outputFormat,
+                    frameCapacity: buffer.frameLength
+                )
             else { throw SpeechRecognitionError.invalidAudio("Cannot allocate audio.") }
             try floatConverter.convert(to: float, from: buffer)
             source = float
@@ -130,17 +142,19 @@ final class StreamConverter {
             let destination = mono.floatChannelData?[0]
         else {
             throw SpeechRecognitionError.invalidAudio(
-                "The input does not contain floating-point samples.")
+                "The input does not contain floating-point samples."
+            )
         }
         mono.frameLength = source.frameLength
         let count = Int(source.format.channelCount)
-        for frame in 0..<Int(source.frameLength) {
+        for frame in 0 ..< Int(source.frameLength) {
             var sample: Double = 0
-            for channel in 0..<count { sample += Double(channels[channel][frame]) }
+            for channel in 0 ..< count { sample += Double(channels[channel][frame]) }
             let average = Float(sample / Double(count))
             guard average.isFinite else {
                 throw SpeechRecognitionError.invalidAudio(
-                    "The input contains nonfinite audio samples.")
+                    "The input contains nonfinite audio samples."
+                )
             }
             destination[frame] = average
         }
@@ -148,7 +162,9 @@ final class StreamConverter {
     }
 
     private func resample(
-        _ buffer: AVAudioPCMBuffer?, with converter: AVAudioConverter, endOfStream: Bool
+        _ buffer: AVAudioPCMBuffer?,
+        with converter: AVAudioConverter,
+        endOfStream: Bool
     ) throws -> [TimedAudioBuffer] {
         let ratio = output.sampleRate / converter.inputFormat.sampleRate
         let frames = Double(buffer?.frameLength ?? 0) * ratio
@@ -201,7 +217,8 @@ struct InputTimeline {
             buffer.format.channelCount > 0
         else {
             throw SpeechRecognitionError.invalidAudio(
-                "Input audio must have channels and a positive integral sample rate.")
+                "Input audio must have channels and a positive integral sample rate."
+            )
         }
         var start = startTime ?? lastEnd ?? .zero
         guard start.isNumeric, start >= .zero else {
@@ -213,7 +230,8 @@ struct InputTimeline {
             if start < lastEnd {
                 guard lastEnd - start <= frame else {
                     throw SpeechRecognitionError.invalidAudio(
-                        "Input buffers overlap in source time.")
+                        "Input buffers overlap in source time."
+                    )
                 }
                 start = lastEnd
             } else if start - lastEnd <= frame {

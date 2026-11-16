@@ -105,7 +105,9 @@ final class ModelAssetStore: Sendable {
         -> URL
     {
         applicationSupport.appending(
-            path: "AnySpeechRecognizer/HuggingFace/hub", directoryHint: .isDirectory)
+            path: "AnySpeechRecognizer/HuggingFace/hub",
+            directoryHint: .isDirectory
+        )
     }
     /// `~/Library/Application Support/AnySpeechRecognizer/Verified`, inside the app container
     /// when the app is sandboxed.
@@ -130,8 +132,10 @@ final class ModelAssetStore: Sendable {
     ///   - maximumConcurrentDownloads: The number of files of one part that download
     ///     at the same time.
     init(
-        cache: HubCache = defaultCache, markerDirectory: URL = defaultMarkerDirectory,
-        session: URLSession = URLSession(configuration: .default), host: URL? = nil,
+        cache: HubCache = defaultCache,
+        markerDirectory: URL = defaultMarkerDirectory,
+        session: URLSession = URLSession(configuration: .default),
+        host: URL? = nil,
         maximumConcurrentDownloads: Int = 4
     ) {
         self.cache = cache
@@ -165,7 +169,8 @@ final class ModelAssetStore: Sendable {
         let digest = SHA256.hash(data: data).prefix(8).map { String(format: "%02x", $0) }
         let name = manifest.repository.replacing("/", with: "--")
         return markerDirectory.appending(
-            path: "\(name)--\(manifest.revision)--\(part.rawValue)--\(digest.joined()).json")
+            path: "\(name)--\(manifest.revision)--\(part.rawValue)--\(digest.joined()).json"
+        )
     }
 
     /// Checks one part's verification marker, file sizes, and file numbers
@@ -191,7 +196,8 @@ final class ModelAssetStore: Sendable {
     /// Checks that a caller-staged directory contains every component by name.
     /// Staged directories have no manifest, so this check does not verify sizes or digests.
     static func status(
-        ofStagedDirectory directory: URL, components: ParakeetModelManifest.Components
+        ofStagedDirectory directory: URL,
+        components: ParakeetModelManifest.Components
     ) -> Status {
         components.missingPaths(in: directory).isEmpty ? .installed : .missing
     }
@@ -235,8 +241,7 @@ final class ModelAssetStore: Sendable {
     /// - Throws: `ModelAssetError`, a swift-huggingface or `URLError` error,
     ///   a file system error, or `CancellationError`.
     @discardableResult
-    func install(_ manifest: some PinnedModelManifest, parts: [Part] = [.base]) async throws -> URL
-    {
+    func install(_ manifest: some PinnedModelManifest, parts: [Part] = [.base]) async throws -> URL {
         try manifest.validate()
         excludePackageCacheFromBackup()
         let requested = manifest.parts.filter { parts.contains($0) }
@@ -268,7 +273,9 @@ final class ModelAssetStore: Sendable {
             let directory = directory(for: manifest)
             let files = manifest.files(in: part)
             let counter = ByteCounter(
-                progress: installation.progress, total: manifest.byteCount(of: part))
+                progress: installation.progress,
+                total: manifest.byteCount(of: part)
+            )
             if status(of: manifest, part: part) == .installed {
                 for file in files { counter.update(file.path, bytes: file.size) }
                 return directory
@@ -284,7 +291,7 @@ final class ModelAssetStore: Sendable {
             let numbers = try await withThrowingTaskGroup(of: (String, UInt64).self) { group in
                 var remaining = files.makeIterator()
                 var numbers: [String: UInt64] = [:]
-                for _ in 0..<maximumConcurrentDownloads {
+                for _ in 0 ..< maximumConcurrentDownloads {
                     guard let file = remaining.next() else { break }
                     group.addTask { try await self.fetch(file, of: manifest, counter: counter) }
                 }
@@ -297,9 +304,13 @@ final class ModelAssetStore: Sendable {
             }
 
             try FileManager.default.createDirectory(
-                at: markerDirectory, withIntermediateDirectories: true)
+                at: markerDirectory,
+                withIntermediateDirectories: true
+            )
             let record = VerificationMarker(
-                subject: subject(for: manifest, part: part), fileNumbers: numbers)
+                subject: subject(for: manifest, part: part),
+                fileNumbers: numbers
+            )
             try JSONEncoder().encode(record).write(to: marker, options: .atomic)
             return directory
         }
@@ -308,7 +319,8 @@ final class ModelAssetStore: Sendable {
     /// Downloads one file into the cache unless it is there, then verifies it.
     /// - Returns: The file's path and the file system number of its contents.
     private func fetch(
-        _ file: ParakeetModelManifest.File, of manifest: some PinnedModelManifest,
+        _ file: ParakeetModelManifest.File,
+        of manifest: some PinnedModelManifest,
         counter: ByteCounter
     ) async throws -> (String, UInt64) {
         try Task.checkCancellation()
@@ -319,8 +331,11 @@ final class ModelAssetStore: Sendable {
         defer { observation.invalidate() }
         do {
             _ = try await client.downloadFile(
-                at: file.path, from: Self.repo(manifest), revision: manifest.revision,
-                progress: progress)
+                at: file.path,
+                from: Self.repo(manifest),
+                revision: manifest.revision,
+                progress: progress
+            )
         } catch let error as URLError where error.code == .cancelled && Task.isCancelled {
             throw CancellationError()
         }
@@ -336,7 +351,8 @@ final class ModelAssetStore: Sendable {
     /// when either does not match, so that a later install downloads it again.
     /// - Returns: The file system number of the file's contents.
     private func verify(
-        _ file: ParakeetModelManifest.File, of manifest: some PinnedModelManifest
+        _ file: ParakeetModelManifest.File,
+        of manifest: some PinnedModelManifest
     ) throws -> UInt64 {
         let url = directory(for: manifest).appending(path: file.path)
         func reject(_ reason: String) -> ModelAssetError {
@@ -345,7 +361,9 @@ final class ModelAssetStore: Sendable {
         }
         guard let info = Self.fileInfo(url) else {
             throw ModelAssetError.verificationFailed(
-                path: file.path, reason: "the file is not in the cache at the pinned revision.")
+                path: file.path,
+                reason: "the file is not in the cache at the pinned revision."
+            )
         }
         guard info.size == file.size else {
             throw reject("expected \(file.size) bytes, received \(info.size) bytes.")
@@ -372,10 +390,13 @@ final class ModelAssetStore: Sendable {
         -> VerificationMarker.Subject
     {
         .init(
-            repository: manifest.repository, revision: manifest.revision,
-            contractVersion: manifest.contractVersion, part: part,
+            repository: manifest.repository,
+            revision: manifest.revision,
+            contractVersion: manifest.contractVersion,
+            part: part,
             files: manifest.files(in: part),
-            snapshot: directory(for: manifest).standardizedFileURL.path)
+            snapshot: directory(for: manifest).standardizedFileURL.path
+        )
     }
 
     private func key(for manifest: some PinnedModelManifest, part: Part) -> String {

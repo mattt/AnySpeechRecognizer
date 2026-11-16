@@ -6,10 +6,15 @@ import Testing
 /// An engine whose encoder frames carry the joint decision: `[token, duration]`, with -1 for blank.
 private final class ScriptedEngine: ParakeetInferenceEngine {
     let model = ParakeetModelDescription(
-        encoderHiddenSize: 2, decoderHiddenSize: 1, decoderLayerCount: 1, vocabularySize: 10)
+        encoderHiddenSize: 2,
+        decoderHiddenSize: 1,
+        decoderLayerCount: 1,
+        vocabularySize: 10
+    )
 
     func encode(
-        mel: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        mel: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: inout ParakeetEncoderOutput
     ) throws {}
 
@@ -21,12 +26,15 @@ private final class ScriptedEngine: ParakeetInferenceEngine {
     }
 
     func joint(
-        encoderFrame: UnsafeBufferPointer<Float>, decoderOutput: UnsafeBufferPointer<Float>
+        encoderFrame: UnsafeBufferPointer<Float>,
+        decoderOutput: UnsafeBufferPointer<Float>
     ) throws -> ParakeetJointDecision {
         let token = Int(encoderFrame[0])
         return ParakeetJointDecision(
-            token: token < 0 ? model.blankID : token, probability: 0.5,
-            duration: Int(encoderFrame[1]))
+            token: token < 0 ? model.blankID : token,
+            probability: 0.5,
+            duration: Int(encoderFrame[1])
+        )
     }
 
     static func frames(_ script: [(token: Int, duration: Int)]) -> ParakeetEncoderOutput {
@@ -57,8 +65,14 @@ struct ParakeetTDTDecoderTests {
         var context = try ParakeetDecoderContext.initial(engine: engine)
         var tokens: [ParakeetDecodedToken] = []
         let stop = try ParakeetTDTDecoder().decode(
-            encoder, from: 0, to: 8, context: &context, engine: engine, frameOffset: 100,
-            into: &tokens)
+            encoder,
+            from: 0,
+            to: 8,
+            context: &context,
+            engine: engine,
+            frameOffset: 100,
+            into: &tokens
+        )
         // Frame 1 is skipped by the first duration; frame 3 skips frames 4 and 5.
         #expect(tokens.map(\.id) == [1, 2, 3])
         #expect(tokens.map(\.frame) == [100, 102, 106])
@@ -74,15 +88,27 @@ struct ParakeetTDTDecoderTests {
         var context = try ParakeetDecoderContext.initial(engine: engine)
         var tokens: [ParakeetDecodedToken] = []
         _ = try ParakeetTDTDecoder().decode(
-            encoder, from: 0, to: 6, context: &context, engine: engine, previousTokenEnd: 2,
-            into: &tokens)
+            encoder,
+            from: 0,
+            to: 6,
+            context: &context,
+            engine: engine,
+            previousTokenEnd: 2,
+            into: &tokens
+        )
         #expect(tokens.map(\.id) == [5, 6])
         #expect(tokens.map(\.frame) == [2, 4])
         // Without the limit, the first blank skips token 5.
         context = try ParakeetDecoderContext.initial(engine: engine)
         tokens = []
         _ = try ParakeetTDTDecoder().decode(
-            encoder, from: 0, to: 6, context: &context, engine: engine, into: &tokens)
+            encoder,
+            from: 0,
+            to: 6,
+            context: &context,
+            engine: engine,
+            into: &tokens
+        )
         #expect(tokens.map(\.id) == [6])
     }
 
@@ -91,7 +117,13 @@ struct ParakeetTDTDecoderTests {
         var context = try ParakeetDecoderContext.initial(engine: engine)
         var tokens: [ParakeetDecodedToken] = []
         let stop = try ParakeetTDTDecoder(maxSymbolsPerFrame: 3).decode(
-            encoder, from: 0, to: 3, context: &context, engine: engine, into: &tokens)
+            encoder,
+            from: 0,
+            to: 3,
+            context: &context,
+            engine: engine,
+            into: &tokens
+        )
         #expect(tokens.map(\.id) == [5, 5, 5, 6, 6, 6])
         #expect(tokens.map(\.frame) == [0, 0, 0, 2, 2, 2])
         #expect(stop == 3)
@@ -106,7 +138,13 @@ struct ParakeetTDTDecoderTests {
         var context = try ParakeetDecoderContext.initial(engine: engine)
         var tokens: [ParakeetDecodedToken] = []
         let stop = try decoder.decode(
-            encoder, from: 0, to: 6, context: &context, engine: engine, into: &tokens)
+            encoder,
+            from: 0,
+            to: 6,
+            context: &context,
+            engine: engine,
+            into: &tokens
+        )
         // Frames 1 and 2 reach the limit, and the context returns to the one after token 1.
         #expect(tokens.map(\.id) == [1, 2, 3])
         #expect(tokens.map(\.frame) == [0, 3, 4])
@@ -125,7 +163,14 @@ struct ParakeetTDTDecoderTests {
         ])
         let initial = try ParakeetDecoderContext.initial(engine: engine)
         let decoding = try ParakeetTDTDecoder().decodeWindow(
-            encoder, from: 0, commit: 4, end: 8, context: initial, engine: engine, frameOffset: 0)
+            encoder,
+            from: 0,
+            commit: 4,
+            end: 8,
+            context: initial,
+            engine: engine,
+            frameOffset: 0
+        )
         #expect(decoding.committed.map(\.id) == [1, 2])
         // The duration of token 2 crosses the commit frame.
         #expect(decoding.overshoot == 1)
@@ -134,7 +179,13 @@ struct ParakeetTDTDecoderTests {
         var expected = initial
         var tokens: [ParakeetDecodedToken] = []
         _ = try ParakeetTDTDecoder().decode(
-            encoder, from: 0, to: 4, context: &expected, engine: engine, into: &tokens)
+            encoder,
+            from: 0,
+            to: 4,
+            context: &expected,
+            engine: engine,
+            into: &tokens
+        )
         #expect(decoding.context == expected)
         #expect(decoding.context.lastToken == 2)
     }
@@ -149,11 +200,23 @@ struct ParakeetTDTDecoderTests {
         var context = try ParakeetDecoderContext.initial(engine: engine)
         var tokens: [ParakeetDecodedToken] = []
         _ = try decoder.decode(
-            encoder, from: 0, to: 3, context: &context, engine: engine, into: &tokens)
+            encoder,
+            from: 0,
+            to: 3,
+            context: &context,
+            engine: engine,
+            into: &tokens
+        )
         // Tokens 1 and 2 no longer affect the context after token 6.
         #expect(context == restarted)
         _ = try decoder.decode(
-            encoder, from: 3, to: 5, context: &context, engine: engine, into: &tokens)
+            encoder,
+            from: 3,
+            to: 5,
+            context: &context,
+            engine: engine,
+            into: &tokens
+        )
         #expect(tokens.map(\.id) == [1, 2, 6, 3])
         #expect(context.state.hidden == [restarted.state.hidden[0] + 1])
         #expect(context.lastToken == 3)
@@ -162,8 +225,14 @@ struct ParakeetTDTDecoderTests {
     @Test func reportsOvershootWhenDecodingStartsAfterTheCommitFrame() throws {
         let encoder = ScriptedEngine.frames([(-1, 1), (-1, 1), (-1, 1), (7, 1), (-1, 1)])
         let decoding = try ParakeetTDTDecoder().decodeWindow(
-            encoder, from: 3, commit: 2, end: 5,
-            context: try .initial(engine: engine), engine: engine, frameOffset: 0)
+            encoder,
+            from: 3,
+            commit: 2,
+            end: 5,
+            context: try .initial(engine: engine),
+            engine: engine,
+            frameOffset: 0
+        )
         #expect(decoding.committed.isEmpty)
         #expect(decoding.overshoot == 1)
         #expect(decoding.lookahead.map(\.id) == [7])

@@ -17,7 +17,8 @@ struct Status: CancellableCommand {
     @concurrent func execute() async throws {
         let model = model.model()
         let request = SpeechRecognitionRequest.transcription(
-            .init(reportingOptions: results.reportingOptions))
+            .init(reportingOptions: results.reportingOptions)
+        )
         print(String(describing: await model.availability(for: request)))
         if let diarizer = diarizer.diarizer(live: results.live) {
             print(String(describing: await diarizer.model.availability(for: .init())))

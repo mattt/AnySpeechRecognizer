@@ -145,20 +145,32 @@ final class ParakeetRecognizer {
         /// The largest chunk the window allows: 2 s of right context, and 0.64 to 4 s of left
         /// context that starts at the quietest frame, for chunks of 8.96 to 12.32 s.
         static let file = Configuration(
-            leftContextFrames: 25, chunkFrames: .max, rightContextFrames: 25,
-            reportsVolatileResults: false, quietStartFrames: 8...50,
-            recoversGapsAfterAFailure: true)
+            leftContextFrames: 25,
+            chunkFrames: .max,
+            rightContextFrames: 25,
+            reportsVolatileResults: false,
+            quietStartFrames: 8 ... 50,
+            recoversGapsAfterAFailure: true
+        )
         /// Commits 0.96 s chunks after 2 s of right context, with 12 s of left context.
         static let live = Configuration(
-            leftContextFrames: 150, chunkFrames: 12, rightContextFrames: 25,
-            reportsVolatileResults: true, discardsFramesAtSymbolLimit: true,
-            reusesMelFrames: true)
+            leftContextFrames: 150,
+            chunkFrames: 12,
+            rightContextFrames: 25,
+            reportsVolatileResults: true,
+            discardsFramesAtSymbolLimit: true,
+            reusesMelFrames: true
+        )
         /// Commits 0.96 s chunks after 0.96 s of right context, for lower latency.
         /// In testing, 1 s of right context caused occasional inserted words.
         static let fast = Configuration(
-            leftContextFrames: 150, chunkFrames: 12, rightContextFrames: 12,
-            reportsVolatileResults: true, discardsFramesAtSymbolLimit: true,
-            reusesMelFrames: true)
+            leftContextFrames: 150,
+            chunkFrames: 12,
+            rightContextFrames: 12,
+            reportsVolatileResults: true,
+            discardsFramesAtSymbolLimit: true,
+            reusesMelFrames: true
+        )
 
         /// The left context of a window shorter than ``live`` needs: 63 frames (5.04 s).
         /// With the 8 s encoder, 63 frames had the lowest error in the conversion tool's
@@ -197,7 +209,9 @@ final class ParakeetRecognizer {
                 0,
                 min(
                     Self.shortWindowLeftContextFrames,
-                    windowFrames - chunkFrames - rightContextFrames))
+                    windowFrames - chunkFrames - rightContextFrames
+                )
+            )
             configuration.decoderHistoryFrames = Self.shortWindowDecoderHistoryFrames
             configuration.sentenceScopedHistory = false
             return configuration
@@ -225,8 +239,7 @@ final class ParakeetRecognizer {
     private var history: [(id: Int, frame: Int)] = []
     /// The last context that ``recentContext()`` built: the sentence-final token it started
     /// from, if any, the tokens it predicted after that, and the resulting context.
-    private var replayed:
-        (base: Int?, tokens: [(id: Int, frame: Int)], context: ParakeetDecoderContext)?
+    private var replayed: (base: Int?, tokens: [(id: Int, frame: Int)], context: ParakeetDecoderContext)?
     private var volatile: [ParakeetToken] = []
     private var volatileCoverage = 0
     /// The frame where the duration of the last committed token ends.
@@ -280,7 +293,8 @@ final class ParakeetRecognizer {
     }
 
     init(
-        engine: any ParakeetInferenceEngine, vocabulary: ParakeetVocabulary,
+        engine: any ParakeetInferenceEngine,
+        vocabulary: ParakeetVocabulary,
         configuration: Configuration
     ) throws {
         let model = engine.model
@@ -294,7 +308,8 @@ final class ParakeetRecognizer {
             configuration.leftContextFrames + configuration.rightContextFrames < windowFrames
         else {
             throw SpeechRecognitionError.unsupportedConfiguration(
-                "Parakeet window context must leave room for a chunk.")
+                "Parakeet window context must leave room for a chunk."
+            )
         }
         self.engine = engine
         self.vocabulary = vocabulary
@@ -303,9 +318,10 @@ final class ParakeetRecognizer {
         forcedCommitWindow = engine.forcedCommitModel.map(EncoderWindow.init)
         decoder = ParakeetTDTDecoder(
             maxSymbolsPerFrame: configuration.maxSymbolsPerFrame,
-            discardsFramesAtSymbolLimit: configuration.discardsFramesAtSymbolLimit)
+            discardsFramesAtSymbolLimit: configuration.discardsFramesAtSymbolLimit
+        )
         initialContext = try .initial(engine: engine)
-        for id in 0..<vocabulary.count
+        for id in 0 ..< vocabulary.count
         where configuration.sentenceScopedHistory && vocabulary.isSentenceFinal(id) {
             var context = initialContext
             try engine.predict(token: id, state: &context.state, output: &context.output)
@@ -350,21 +366,29 @@ final class ParakeetRecognizer {
         var lookahead: (tokens: [ParakeetToken], coverage: Int)?
         while committedFrame < availableFrames {
             let preferred = quietestStart(
-                default: max(retainedFrame, committedFrame - configuration.leftContextFrames))
+                default: max(retainedFrame, committedFrame - configuration.leftContextFrames)
+            )
             let regular = min(
                 preferred + windowFrames - configuration.rightContextFrames,
-                committedFrame + min(configuration.chunkFrames, windowFrames))
+                committedFrame + min(configuration.chunkFrames, windowFrames)
+            )
             let result: (committed: [ParakeetToken], lookahead: [ParakeetToken], coverage: Int)
             if (regular + configuration.rightContextFrames) * frameSamples <= available {
                 result = try runWindow(
-                    start: preferred, commit: regular,
-                    margin: configuration.boundaryMarginFrames)
+                    start: preferred,
+                    commit: regular,
+                    margin: configuration.boundaryMarginFrames
+                )
             } else if let target, target > committedFrame {
                 result = try runWindow(
                     start: windowStart(
                         availableFrames: availableFrames,
-                        frames: forcedCommitWindow?.frames ?? windowFrames),
-                    commit: target, margin: 0, forced: forcedCommitWindow != nil)
+                        frames: forcedCommitWindow?.frames ?? windowFrames
+                    ),
+                    commit: target,
+                    margin: 0,
+                    forced: forcedCommitWindow != nil
+                )
             } else {
                 break
             }
@@ -402,20 +426,26 @@ final class ParakeetRecognizer {
         guard let range = configuration.quietStartFrames else { return preferred }
         // The window must still commit frames after the boundary margin.
         let lower = max(
-            retainedFrame, committedFrame - range.upperBound,
+            retainedFrame,
+            committedFrame - range.upperBound,
             committedFrame + configuration.rightContextFrames
-                + configuration.boundaryMarginFrames + 1 - windowFrames)
+                + configuration.boundaryMarginFrames + 1 - windowFrames
+        )
         let upper = committedFrame - range.lowerBound
         guard lower < upper else { return preferred }
         var best = preferred
         var bestEnergy = Float.infinity
         samples.withUnsafeBufferPointer { samples in
-            for frame in lower...upper {
+            for frame in lower ... upper {
                 let offset = frame * frameSamples - retainedStart
                 guard offset >= 0, offset + frameSamples <= samples.count else { continue }
                 var energy: Float = 0
                 vDSP_svesq(
-                    samples.baseAddress! + offset, 1, &energy, vDSP_Length(frameSamples))
+                    samples.baseAddress! + offset,
+                    1,
+                    &energy,
+                    vDSP_Length(frameSamples)
+                )
                 // Prefer the default start when frames are equally quiet.
                 if energy < bestEnergy
                     || (energy == bestEnergy && abs(frame - preferred) < abs(best - preferred))
@@ -447,26 +477,39 @@ final class ParakeetRecognizer {
         -> (committed: [ParakeetToken], lookahead: [ParakeetToken], coverage: Int)
     {
         let (encoded, count, decodable) = try encode(
-            start: start, forced: forced, reusesMelFrames: configuration.reusesMelFrames)
+            start: start,
+            forced: forced,
+            reusesMelFrames: configuration.reusesMelFrames
+        )
         let startSample = start * frameSamples
         let localCommit = min(commit - start, decodable)
         let commits = margin != nil
         guard !commits || start + localCommit > committedFrame else {
             throw SpeechRecognitionError.invalidResult(
-                "The Parakeet encoder reported too few valid frames.")
+                "The Parakeet encoder reported too few valid frames."
+            )
         }
         var decoding = try decoder.decodeWindow(
-            encoded, from: committedFrame - start, commit: localCommit,
+            encoded,
+            from: committedFrame - start,
+            commit: localCommit,
             end: configuration.reportsVolatileResults || !commits ? decodable : localCommit,
-            context: try recentContext(), engine: engine, frameOffset: start,
-            previousTokenEnd: lastTokenEnd - start)
+            context: try recentContext(),
+            engine: engine,
+            frameOffset: start,
+            previousTokenEnd: lastTokenEnd - start
+        )
         if commits, let gapFrames = configuration.blankRecoveryFrames {
             var after = max(lastTokenEnd, recoveryFrame)
-            for _ in 0..<Self.maximumRecoveries {
+            for _ in 0 ..< Self.maximumRecoveries {
                 guard
                     let recovered = try recoverBlankGap(
-                        in: decoding, commit: start + localCommit, forced: forced, after: after,
-                        gapFrames: gapFrames)
+                        in: decoding,
+                        commit: start + localCommit,
+                        forced: forced,
+                        after: after,
+                        gapFrames: gapFrames
+                    )
                 else { break }
                 decoding = recovered.decoding
                 after = recovered.next
@@ -487,7 +530,8 @@ final class ParakeetRecognizer {
             }
             history.removeFirst(
                 history.prefix { $0.frame < committedFrame - configuration.decoderHistoryFrames }
-                    .count)
+                    .count
+            )
             discardAudio()
         }
         return (committed, decoding.lookahead.map(token), startSample + count)
@@ -505,22 +549,28 @@ final class ParakeetRecognizer {
         precondition(startSample >= retainedStart && count > 0)
         // Zero padding to a whole encoder frame counts as audio, as FluidAudio declares it.
         let validSamples = min(
-            window.samples, (count + frameSamples - 1) / frameSamples * frameSamples)
+            window.samples,
+            (count + frameSamples - 1) / frameSamples * frameSamples
+        )
         let offset = startSample - retainedStart
         let melFrames = samples.withUnsafeBufferPointer { samples in
             window.mel.withUnsafeMutableBufferPointer { mel in
                 window.frontend.compute(
-                    UnsafeBufferPointer(rebasing: samples[offset..<(offset + count)]),
+                    UnsafeBufferPointer(rebasing: samples[offset ..< (offset + count)]),
                     validSampleCount: validSamples,
                     startHop: reusesMelFrames && !forced
                         ? startSample / ParakeetMelFrontend.hopLength : nil,
-                    into: mel)
+                    into: mel
+                )
             }
         }
         try window.mel.withUnsafeBufferPointer {
             if forced {
                 try engine.encodeForcedCommit(
-                    mel: $0, validFrameCount: melFrames, into: &window.encoded)
+                    mel: $0,
+                    validFrameCount: melFrames,
+                    into: &window.encoded
+                )
             } else {
                 try engine.encode(mel: $0, validFrameCount: melFrames, into: &window.encoded)
             }
@@ -543,7 +593,10 @@ final class ParakeetRecognizer {
     ///   has no speech-level audio, or the new window does not find more tokens with enough
     ///   probability.
     private func recoverBlankGap(
-        in decoding: ParakeetWindowDecoding, commit: Int, forced: Bool, after: Int,
+        in decoding: ParakeetWindowDecoding,
+        commit: Int,
+        forced: Bool,
+        after: Int,
         gapFrames: Int
     ) throws -> (decoding: ParakeetWindowDecoding, next: Int)? {
         var anchor = after
@@ -571,7 +624,8 @@ final class ParakeetRecognizer {
         // A pause has nothing to recover; the initial context can decode text there.
         guard
             hasSpeech(
-                in: from..<(commit - 1 + longestDuration + Self.speechMarginFrames))
+                in: from ..< (commit - 1 + longestDuration + Self.speechMarginFrames)
+            )
         else {
             return failure(gap: gap, in: decoding, commit: commit)
         }
@@ -584,18 +638,29 @@ final class ParakeetRecognizer {
         let start = min(
             from,
             max(
-                retainedFrame, commit + reach - window.frames,
-                min(gap.start, availableFrames - configuration.rightContextFrames)))
+                retainedFrame,
+                commit + reach - window.frames,
+                min(gap.start, availableFrames - configuration.rightContextFrames)
+            )
+        )
         let (encoded, _, decodable) = try encode(
-            start: start, forced: forced, reusesMelFrames: false)
+            start: start,
+            forced: forced,
+            reusesMelFrames: false
+        )
         let localCommit = min(commit - start, decodable)
         var recovered =
             localCommit > from - start
             ? try decoder.decodeWindow(
-                encoded, from: from - start, commit: localCommit,
+                encoded,
+                from: from - start,
+                commit: localCommit,
                 end: configuration.reportsVolatileResults ? decodable : localCommit,
-                context: initialContext, engine: engine, frameOffset: start,
-                previousTokenEnd: previousEnd - start) : nil
+                context: initialContext,
+                engine: engine,
+                frameOffset: start,
+                previousTokenEnd: previousEnd - start
+            ) : nil
         // A window that starts inside the audio of the token before the gap can emit it again.
         if let first = recovered?.committed.first, let previous, first.id == previous.id,
             first.frame - previous.frame <= engine.model.durations.max() ?? 4
@@ -618,7 +683,9 @@ final class ParakeetRecognizer {
     /// token that ends the gap, from which to look for the next gap; otherwise `nil`, and later
     /// windows measure gaps from the commit frame.
     private func failure(
-        gap: (start: Int, kept: Int), in decoding: ParakeetWindowDecoding, commit: Int
+        gap: (start: Int, kept: Int),
+        in decoding: ParakeetWindowDecoding,
+        commit: Int
     ) -> (decoding: ParakeetWindowDecoding, next: Int)? {
         if configuration.recoversGapsAfterAFailure, gap.kept < decoding.committed.count {
             return (decoding, decoding.committed[gap.kept].frame)
@@ -685,10 +752,16 @@ final class ParakeetRecognizer {
     private func token(_ decoded: ParakeetDecodedToken) -> ParakeetToken {
         let start = decoded.frame * frameSamples
         let end = min(
-            (decoded.frame + max(1, decoded.duration)) * frameSamples, receivedSampleCount)
+            (decoded.frame + max(1, decoded.duration)) * frameSamples,
+            receivedSampleCount
+        )
         return ParakeetToken(
-            id: decoded.id, piece: vocabulary.piece(for: decoded.id), startSample: start,
-            endSample: max(end, start + 1), probability: decoded.probability)
+            id: decoded.id,
+            piece: vocabulary.piece(for: decoded.id),
+            startSample: start,
+            endSample: max(end, start + 1),
+            probability: decoded.probability
+        )
     }
 
     /// Discards audio more than one window, the longest one, before the commit frame.
@@ -718,6 +791,8 @@ private final class EncoderWindow {
         frontend = ParakeetMelFrontend(windowSamples: model.windowSamples)
         mel = [Float](repeating: 0, count: model.melBinCount * model.melFrameCount)
         encoded = ParakeetEncoderOutput(
-            hiddenSize: model.encoderHiddenSize, frameCount: model.encoderFrameCount)
+            hiddenSize: model.encoderHiddenSize,
+            frameCount: model.encoderFrameCount
+        )
     }
 }

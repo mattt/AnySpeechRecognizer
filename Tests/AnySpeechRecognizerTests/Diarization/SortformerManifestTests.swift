@@ -27,11 +27,13 @@ struct SortformerManifestTests {
 
         let store = ModelAssetStore(
             cache: HubCache(cacheDirectory: URL(filePath: "/cache")),
-            markerDirectory: URL(filePath: "/verified"))
+            markerDirectory: URL(filePath: "/verified")
+        )
         #expect(
             store.directory(for: latest).path
                 == "/cache/models--mattt--diar-streaming-sortformer-4spk-v2.1-coreml/snapshots/"
-                + latest.revision)
+                + latest.revision
+        )
         #expect(store.directory(for: v2) != store.directory(for: latest))
     }
 
@@ -46,7 +48,8 @@ struct SortformerManifestTests {
         let decoder = JSONDecoder()
         #expect(
             try decoder.decode(SortformerDiarizationModel.Version.self, from: Data("\"v2\"".utf8))
-                == .v2)
+                == .v2
+        )
         #expect(throws: DecodingError.self) {
             try decoder.decode(SortformerDiarizationModel.Version.self, from: Data("\"v3\"".utf8))
         }
@@ -64,17 +67,23 @@ struct SortformerManifestTests {
         // Section 3.1 of the NVIDIA Open Model License requires this notice verbatim.
         #expect(
             latest.attribution.contains(
-                "Licensed by NVIDIA Corporation under the NVIDIA Open Model License"))
+                "Licensed by NVIDIA Corporation under the NVIDIA Open Model License"
+            )
+        )
         #expect(latest.attribution.contains("diar_streaming_sortformer_4spk-v2.1"))
         #expect(
             latest.attribution.contains(
                 "https://www.nvidia.com/en-us/agreements/enterprise-software/"
-                    + "nvidia-open-model-license/"))
+                    + "nvidia-open-model-license/"
+            )
+        )
         #expect(!latest.attribution.contains("\n"))
 
         // A staged model of either version reports that version's identifier.
         let staged = SortformerDiarizationModel(
-            version: .v2_1, assets: .compiledModel(URL(filePath: "/staged/Model.mlmodelc")))
+            version: .v2_1,
+            assets: .compiledModel(URL(filePath: "/staged/Model.mlmodelc"))
+        )
         #expect(staged.modelID == "diar-streaming-sortformer-4spk-v2.1")
         let diagnostics = await staged.diagnostics()
         #expect(diagnostics.modelID == "diar-streaming-sortformer-4spk-v2.1")
@@ -82,7 +91,8 @@ struct SortformerManifestTests {
         let builtIn = await latest.diagnostics()
         #expect(
             builtIn.modelRepository
-                == "mattt/diar-streaming-sortformer-4spk-v2.1-coreml/SortformerLowLatency.mlmodelc")
+                == "mattt/diar-streaming-sortformer-4spk-v2.1-coreml/SortformerLowLatency.mlmodelc"
+        )
         #expect(builtIn.modelRevision == SortformerModelManifest.v2_1.revision)
     }
 }

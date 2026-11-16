@@ -27,9 +27,10 @@ struct ParakeetVocabularyTests {
         let words = vocabulary.words(for: [1, 2, 3, 6, 4, 5])
         #expect(
             words == [
-                .init(text: "The", tokens: 0..<1), .init(text: "quick,", tokens: 1..<4),
-                .init(text: "fox.", tokens: 4..<6),
-            ])
+                .init(text: "The", tokens: 0 ..< 1), .init(text: "quick,", tokens: 1 ..< 4),
+                .init(text: "fox.", tokens: 4 ..< 6),
+            ]
+        )
         // A sequence can start inside a word; its first piece starts a word.
         #expect(vocabulary.words(for: [3, 4]).map(\.text) == ["ick", "fox"])
         // Control pieces belong to no word and do not start one.
@@ -41,7 +42,7 @@ struct ParakeetVocabularyTests {
         let vocabulary = ParakeetVocabulary(pieces: [
             ".", "\u{2581}?", " !", "\u{3002}", ",", "a.", "\u{2581}Mr", "...",
         ])
-        #expect((0..<9).filter(vocabulary.isSentenceFinal) == [0, 1, 2, 3])
+        #expect((0 ..< 9).filter(vocabulary.isSentenceFinal) == [0, 1, 2, 3])
     }
 
     @Test func keepsCombiningMarksAndScriptsInsideWords() {
@@ -52,7 +53,8 @@ struct ParakeetVocabularyTests {
 
     @Test func loadsObjectAndArrayFiles() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "parakeet-vocabulary-\(UUID())")
+            "parakeet-vocabulary-\(UUID())"
+        )
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let object = directory.appendingPathComponent("object.json")

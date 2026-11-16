@@ -32,9 +32,12 @@ public final class DictationTranscriber: LocaleDependentSpeechModule, AnalyzerMo
     ///   - preset: The native preset.
     public convenience init(locale: Locale, preset: Preset) {
         self.init(
-            locale: locale, contentHints: preset.contentHints,
+            locale: locale,
+            contentHints: preset.contentHints,
             transcriptionOptions: preset.transcriptionOptions,
-            reportingOptions: preset.reportingOptions, attributeOptions: preset.attributeOptions)
+            reportingOptions: preset.reportingOptions,
+            attributeOptions: preset.attributeOptions
+        )
     }
 
     /// Creates an Apple-backed dictation transcriber.
@@ -45,14 +48,19 @@ public final class DictationTranscriber: LocaleDependentSpeechModule, AnalyzerMo
     ///   - reportingOptions: Options that affect result delivery.
     ///   - attributeOptions: Attributes to include in result text.
     public convenience init(
-        locale: Locale, contentHints: Set<ContentHint>,
-        transcriptionOptions: Set<TranscriptionOption>, reportingOptions: Set<ReportingOption>,
+        locale: Locale,
+        contentHints: Set<ContentHint>,
+        transcriptionOptions: Set<TranscriptionOption>,
+        reportingOptions: Set<ReportingOption>,
         attributeOptions: Set<ResultAttributeOption>
     ) {
         self.init(
-            model: SystemSpeechModel(locale: locale), contentHints: contentHints,
-            transcriptionOptions: transcriptionOptions, reportingOptions: reportingOptions,
-            attributeOptions: attributeOptions)
+            model: SystemSpeechModel(locale: locale),
+            contentHints: contentHints,
+            transcriptionOptions: transcriptionOptions,
+            reportingOptions: reportingOptions,
+            attributeOptions: attributeOptions
+        )
     }
 
     /// Creates a dictation transcriber with an explicit recognition provider.
@@ -65,20 +73,27 @@ public final class DictationTranscriber: LocaleDependentSpeechModule, AnalyzerMo
     ///   - reportingOptions: Options that affect result delivery.
     ///   - attributeOptions: Attributes to include in result text.
     public init(
-        model: any SpeechRecognitionModel, contentHints: Set<ContentHint> = [],
+        model: any SpeechRecognitionModel,
+        contentHints: Set<ContentHint> = [],
         transcriptionOptions: Set<TranscriptionOption> = [],
         reportingOptions: Set<ReportingOption> = [],
         attributeOptions: Set<ResultAttributeOption> = []
     ) {
         self.model = model
         self.configuration = .init(
-            contentHints: contentHints, transcriptionOptions: transcriptionOptions,
-            reportingOptions: reportingOptions, attributeOptions: attributeOptions)
+            contentHints: contentHints,
+            transcriptionOptions: transcriptionOptions,
+            reportingOptions: reportingOptions,
+            attributeOptions: attributeOptions
+        )
         self.native = (model as? SystemSpeechModel).map {
             Speech.DictationTranscriber(
-                locale: $0.locale, contentHints: contentHints,
-                transcriptionOptions: transcriptionOptions, reportingOptions: reportingOptions,
-                attributeOptions: attributeOptions)
+                locale: $0.locale,
+                contentHints: contentHints,
+                transcriptionOptions: transcriptionOptions,
+                reportingOptions: reportingOptions,
+                attributeOptions: attributeOptions
+            )
         }
     }
 
@@ -116,15 +131,23 @@ public final class DictationTranscriber: LocaleDependentSpeechModule, AnalyzerMo
         let channel = channel
         let native = native
         return .transcription(
-            owner: self, channel: channel, native: native, model: model,
-            request: .dictation(configuration), convert: Result.init(_:)
+            owner: self,
+            channel: channel,
+            native: native,
+            model: model,
+            request: .dictation(configuration),
+            convert: Result.init(_:)
         ) {
             guard let native else { return }
             for try await result in native.results {
                 try channel.publish(
                     Result(
-                        text: result.text, alternatives: result.alternatives, range: result.range,
-                        resultsFinalizationTime: result.resultsFinalizationTime))
+                        text: result.text,
+                        alternatives: result.alternatives,
+                        range: result.range,
+                        resultsFinalizationTime: result.resultsFinalizationTime
+                    )
+                )
             }
         }
     }
@@ -149,7 +172,9 @@ public final class DictationTranscriber: LocaleDependentSpeechModule, AnalyzerMo
         ///   - range: The source audio range.
         ///   - resultsFinalizationTime: The finalized audio boundary after this result.
         public init(
-            text: AttributedString, alternatives: [AttributedString] = [], range: CMTimeRange,
+            text: AttributedString,
+            alternatives: [AttributedString] = [],
+            range: CMTimeRange,
             resultsFinalizationTime: CMTime
         ) {
             self.text = text
@@ -160,8 +185,11 @@ public final class DictationTranscriber: LocaleDependentSpeechModule, AnalyzerMo
 
         init(_ result: SpeechRecognitionResult) {
             self.init(
-                text: result.text, alternatives: result.alternatives, range: result.range,
-                resultsFinalizationTime: result.resultsFinalizationTime)
+                text: result.text,
+                alternatives: result.alternatives,
+                range: result.range,
+                resultsFinalizationTime: result.resultsFinalizationTime
+            )
         }
 
         public var description: String { String(text.characters) }

@@ -34,7 +34,10 @@ extension ParakeetModelManifest {
     /// Checks a repository, revision, and file list, and that files provide each component.
     /// - Throws: `ModelAssetError.invalidManifest` with the first problem found.
     static func validatePinnedFiles(
-        identifier: String, repository: String, revision: String, files: [File],
+        identifier: String,
+        repository: String,
+        revision: String,
+        files: [File],
         components: [String]
     ) throws {
         func fail(_ reason: String) -> ModelAssetError {

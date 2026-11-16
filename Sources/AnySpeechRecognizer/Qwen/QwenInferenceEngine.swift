@@ -20,8 +20,10 @@ protocol QwenInferenceEngine: AnyObject {
     ///   - validFrameCount: The number of valid frames, from 1 to `windowFrames`.
     ///   - output: `[windowTokens × hiddenSize]` embeddings in token-major order.
     func encode(
-        window: UnsafeBufferPointer<Float>, validFrameCount: Int,
-        into output: UnsafeMutableBufferPointer<Float>) throws
+        window: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
+        into output: UnsafeMutableBufferPointer<Float>
+    ) throws
 
     /// Empties the decoder's cache for a new prompt.
     func resetDecoder() throws
@@ -68,8 +70,10 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
 
     /// Loads the models from a directory without downloading.
     init(
-        directory: URL, configuration: QwenModelConfiguration,
-        encoderComputeUnits: MLComputeUnits, decoderComputeUnits: MLComputeUnits
+        directory: URL,
+        configuration: QwenModelConfiguration,
+        encoderComputeUnits: MLComputeUnits,
+        decoderComputeUnits: MLComputeUnits
     ) throws {
         func load(_ name: String, units: MLComputeUnits) throws -> MLModel {
             let url = directory.appending(path: name)
@@ -88,7 +92,8 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
         let block = NSNumber(value: configuration.blockLength)
         mel = try MLMultiArray(
             shape: [1, NSNumber(value: audio.melBins), NSNumber(value: audio.windowFrames)],
-            dataType: .float32)
+            dataType: .float32
+        )
         melLength = try MLMultiArray(shape: [1], dataType: .int32)
         encoderInput = try MLDictionaryFeatureProvider(dictionary: [
             "mel": MLFeatureValue(multiArray: mel),
@@ -96,10 +101,14 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
         ])
         inputIds = try MLMultiArray(shape: [1, block], dataType: .int32)
         audioEmbeddings = try MLMultiArray(
-            shape: [1, block, NSNumber(value: configuration.hiddenSize)], dataType: .float32)
+            shape: [1, block, NSNumber(value: configuration.hiddenSize)],
+            dataType: .float32
+        )
         positionIds = try MLMultiArray(shape: [block], dataType: .int32)
         causalMask = try MLMultiArray(
-            shape: [1, 1, block, NSNumber(value: configuration.contextLength)], dataType: .float32)
+            shape: [1, 1, block, NSNumber(value: configuration.contextLength)],
+            dataType: .float32
+        )
         decoderInput = try MLDictionaryFeatureProvider(dictionary: [
             "input_ids": MLFeatureValue(multiArray: inputIds),
             "audio_embeddings": MLFeatureValue(multiArray: audioEmbeddings),
@@ -110,7 +119,8 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
     }
 
     func encode(
-        window: UnsafeBufferPointer<Float>, validFrameCount: Int,
+        window: UnsafeBufferPointer<Float>,
+        validFrameCount: Int,
         into output: UnsafeMutableBufferPointer<Float>
     ) throws {
         let audio = configuration.audio
@@ -147,31 +157,37 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
         }
         guard position + tokens.count <= context else {
             throw SpeechRecognitionError.invalidResult(
-                "The Qwen3-ASR prompt and output exceed the \(context)-token context.")
+                "The Qwen3-ASR prompt and output exceed the \(context)-token context."
+            )
         }
         var prediction = QwenPrediction(
-            token: configuration.specialTokens.endOfText, logProbability: 0)
+            token: configuration.specialTokens.endOfText,
+            logProbability: 0
+        )
         var start = 0
         while start < tokens.count {
             let count = min(block, tokens.count - start)
             inputIds.withUnsafeMutableBufferPointer(ofType: Int32.self) { ids, _ in
-                for row in 0..<block {
+                for row in 0 ..< block {
                     ids[row] = Int32(
-                        row < count ? tokens[start + row] : configuration.specialTokens.endOfText)
+                        row < count ? tokens[start + row] : configuration.specialTokens.endOfText
+                    )
                 }
             }
             audioEmbeddings.withUnsafeMutableBufferPointer(ofType: Float.self) { values, _ in
                 values.update(repeating: 0)
                 if let audio {
                     values.baseAddress!.update(
-                        from: audio.baseAddress! + start * hidden, count: count * hidden)
+                        from: audio.baseAddress! + start * hidden,
+                        count: count * hidden
+                    )
                 }
             }
             positionIds.withUnsafeMutableBufferPointer(ofType: Int32.self) { positions, _ in
-                for row in 0..<block { positions[row] = Int32(min(position + row, context - 1)) }
+                for row in 0 ..< block { positions[row] = Int32(min(position + row, context - 1)) }
             }
             causalMask.withUnsafeMutableBufferPointer(ofType: Float.self) { mask, _ in
-                for row in 0..<block {
+                for row in 0 ..< block {
                     let allowed = min(position + row, context - 1) + 1
                     let values = mask.baseAddress! + row * context
                     values.update(repeating: 0, count: allowed)
@@ -184,14 +200,17 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
                 ids.count == block, logProbabilities.count == block
             else {
                 throw SpeechRecognitionError.invalidResult(
-                    "The Qwen3-ASR decoder output is invalid.")
+                    "The Qwen3-ASR decoder output is invalid."
+                )
             }
             let token = MLShapedArray<Int32>(converting: ids).scalars[count - 1]
             let logProbability = MLShapedArray<Float>(converting: logProbabilities).scalars[
-                count - 1]
-            guard (0..<configuration.vocabularySize).contains(Int(token)) else {
+                count - 1
+            ]
+            guard (0 ..< configuration.vocabularySize).contains(Int(token)) else {
                 throw SpeechRecognitionError.invalidResult(
-                    "The Qwen3-ASR decoder returned an invalid token.")
+                    "The Qwen3-ASR decoder returned an invalid token."
+                )
             }
             prediction = QwenPrediction(token: Int(token), logProbability: logProbability)
             position += count
@@ -213,7 +232,8 @@ final class CoreMLQwenEngine: QwenInferenceEngine {
             shape(decoder, input: "causal_mask") == [1, 1, block, configuration.contextLength]
         else {
             throw SpeechRecognitionError.missingAssets(
-                "The Qwen3-ASR models do not match the shapes in \(Self.configurationName).")
+                "The Qwen3-ASR models do not match the shapes in \(Self.configurationName)."
+            )
         }
     }
 }
