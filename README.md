@@ -190,13 +190,16 @@ The package has its own analyzer, module, and result types that match Apple's,
 and it reuses Speech value types such as `AnalyzerInput` and `AnalysisContext`.
 Package modules do not conform to `Speech.SpeechModule`,
 so the package analyzer does not accept Apple's module instances.
-If a file imports both modules, qualify ambiguous names,
+Import only AnySpeechRecognizer, which re-exports Speech.
+Don't import both modules in one file,
+because names that both declare, such as `SpeechAnalyzer`, are ambiguous there.
+If a file must import both, qualify the shared names,
 such as `AnySpeechRecognizer.SpeechAnalyzer`.
-To read word timing and confidence, import Speech for its attribute keys:
+To use one of Apple's types, qualify its name, such as `Speech.SpeechTranscriber`;
+this doesn't need a second import.
+Read word timing and confidence with Speech's attribute keys:
 
 ```swift
-import Speech
-
 let range = run[AttributeScopes.SpeechAttributes.TimeRangeAttribute.self]
 let confidence = run[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self]
 ```
