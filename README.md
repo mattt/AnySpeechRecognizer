@@ -193,12 +193,9 @@ so the package analyzer does not accept Apple's module instances.
 
 > [!IMPORTANT]
 > Import only AnySpeechRecognizer, which re-exports Speech.
-> Don't import both modules in one file.
-> Depending on the Swift version,
-> names that both modules declare, such as `SpeechAnalyzer`,
-> are either ambiguous in that file or resolve to this package's types.
-> If a file must import both, qualify the shared names,
-> such as `AnySpeechRecognizer.SpeechAnalyzer`.
+> In a file that imports both modules,
+> names such as `SpeechAnalyzer` can be ambiguous,
+> so qualify them: `AnySpeechRecognizer.SpeechAnalyzer`.
 
 To use one of Apple's types, qualify its name, such as `Speech.SpeechTranscriber`;
 this doesn't need a second import.

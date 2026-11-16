@@ -73,8 +73,8 @@ for fixture in Tests/Fixtures/Compatibility/*.swift; do
     "$fixture_dir/$name$member_import_suffix"
 done
 
-# The README says that names both modules declare are ambiguous in a file that imports both,
-# or resolve to this package's types, depending on the compiler.
+# Depending on the compiler, names that both modules declare are ambiguous in a file
+# that imports both, or resolve to this package's types.
 # The typed line compiles only if SpeechAnalyzer resolves to the package's type.
 echo "Checking a file that imports Speech and AnySpeechRecognizer"
 mkdir -p "$package_dir/Sources/BothImports"
