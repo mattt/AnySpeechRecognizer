@@ -17,20 +17,49 @@ public protocol SpeechRecognitionModel: Sendable {
     func compatibleAudioFormats(for request: SpeechRecognitionRequest) async -> [AVAudioFormat]
     /// Checks hardware, language, and the local assets that every request needs,
     /// without downloading.
+    ///
+    /// Version 0.3.0 removes this requirement,
+    /// and nothing calls an implementation that remains.
+    /// A provider should implement ``availability(for:)``, ``assetStatus(for:)``,
+    /// and ``assetInstallationRequest(supporting:)`` instead.
     func availability() async -> SpeechRecognitionAvailability
     /// Checks hardware, language, and the local assets that one request uses,
     /// without downloading.
     ///
-    /// ``AssetInventory/status(forModules:)`` and analyzer preparation call this method.
+    /// Analyzer preparation calls this method.
     /// A model can report ``SpeechRecognitionAvailability/missingAssets`` for assets that
     /// only improve a request; analysis still proceeds when ``availability()``
     /// reports ``SpeechRecognitionAvailability/ready``, and the executor runs without them.
+    /// In version 0.3.0, this method reports whether analysis of the request can start now,
+    /// and assets that only improve the request do not affect it.
     /// The default implementation returns ``availability()``.
     /// - Parameter request: A module's request.
     func availability(for request: SpeechRecognitionRequest) async -> SpeechRecognitionAvailability
+    /// Reports how complete the asset installation for one request is, without downloading.
+    ///
+    /// ``AssetInventory/status(forModules:)`` calls this method.
+    /// The status includes assets that only improve the request,
+    /// so it can be ``AssetInventory/Status/supported`` while analysis can start.
+    /// In version 0.3.0, this method is the only source of asset status,
+    /// and ``availability(for:)`` reports only whether analysis can start.
+    /// The default implementation maps ``availability(for:)``:
+    /// ``SpeechRecognitionAvailability/ready`` to ``AssetInventory/Status/installed``,
+    /// ``SpeechRecognitionAvailability/missingAssets`` to ``AssetInventory/Status/supported``,
+    /// ``SpeechRecognitionAvailability/preparing`` to ``AssetInventory/Status/downloading``,
+    /// and the unsupported cases to ``AssetInventory/Status/unsupported``.
+    ///
+    /// - Note: This API is exclusive to AnySpeechRecognizer
+    ///   and using it means your code is no longer drop-in compatible with the Speech framework.
+    /// - Parameter request: A module's request.
+    func assetStatus(for request: SpeechRecognitionRequest) async -> AssetInventory.Status
     /// Creates an explicit installation request for the assets that every request needs,
     /// or returns `nil` when they exist.
     /// The returned request performs network work only when its download method is called.
+    ///
+    /// Version 0.3.0 removes this requirement,
+    /// and nothing calls an implementation that remains.
+    /// A provider should implement ``availability(for:)``, ``assetStatus(for:)``,
+    /// and ``assetInstallationRequest(supporting:)`` instead.
     func assetInstallationRequest() async throws -> AssetInstallationRequest?
     /// Creates one explicit installation request for the assets that a set of requests use,
     /// or returns `nil` when they exist.
@@ -213,7 +242,7 @@ public enum SpeechRecognitionRequest: Sendable, Hashable {
 }
 
 /// The hardware, language, and local asset state of a model.
-public enum SpeechRecognitionAvailability: Sendable, Equatable {
+public enum SpeechRecognitionAvailability: Sendable, Hashable {
     /// The model can prepare local resources.
     case ready
     /// Assets must be installed explicitly.
@@ -224,6 +253,45 @@ public enum SpeechRecognitionAvailability: Sendable, Equatable {
     case unsupportedHardware
     /// The selected locale is unsupported.
     case unsupportedLanguage
+
+    /// Why a model is not ready. More reasons can be added,
+    /// so a `switch` over them needs an `@unknown default`.
+    ///
+    /// - Note: This API is exclusive to AnySpeechRecognizer
+    ///   and using it means your code is no longer drop-in compatible with the Speech framework.
+    #if hasAttribute(nonexhaustive)
+        @nonexhaustive
+    #endif
+    public enum UnavailableReason: Sendable, Hashable {
+        /// Assets must be installed explicitly.
+        case assetsNotInstalled
+        /// An installation or shared model load is in progress.
+        case assetsInstalling
+        /// The device cannot run this provider.
+        case unsupportedHardware
+        /// The selected locale is unsupported.
+        case unsupportedLanguage
+    }
+
+    /// A Boolean value that indicates whether the model is ready.
+    ///
+    /// - Note: This API is exclusive to AnySpeechRecognizer
+    ///   and using it means your code is no longer drop-in compatible with the Speech framework.
+    public var isAvailable: Bool { self == .ready }
+
+    /// Why the model is not ready, or `nil` when it is ready.
+    ///
+    /// - Note: This API is exclusive to AnySpeechRecognizer
+    ///   and using it means your code is no longer drop-in compatible with the Speech framework.
+    public var unavailableReason: UnavailableReason? {
+        switch self {
+        case .ready: nil
+        case .missingAssets: .assetsNotInstalled
+        case .preparing: .assetsInstalling
+        case .unsupportedHardware: .unsupportedHardware
+        case .unsupportedLanguage: .unsupportedLanguage
+        }
+    }
 }
 
 /// The modules, options, and input modes a provider supports.
@@ -567,6 +635,11 @@ extension SpeechRecognitionModel {
         -> SpeechRecognitionAvailability
     {
         await availability()
+    }
+    public func assetStatus(for request: SpeechRecognitionRequest) async
+        -> AssetInventory.Status
+    {
+        AssetInventory.Status(await availability(for: request))
     }
     public func assetInstallationRequest() async throws -> AssetInstallationRequest? { nil }
     public func assetInstallationRequest(supporting requests: [SpeechRecognitionRequest])

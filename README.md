@@ -418,12 +418,14 @@ and publishes results through a sink that validates their timing.
 Capabilities declare the options the provider supports;
 other requests fail before the analyzer reads audio.
 
-This provider reports placeholder text instead of recognizing speech:
+This provider reports placeholder text instead of recognizing speech,
+and installs an empty file in place of model weights:
 
 ```swift
 import AVFoundation
 import AnySpeechRecognizer
 import CoreMedia
+import Foundation
 
 struct ExampleModel: SpeechRecognitionModel {
     let modelID = "example/placeholder"
@@ -431,7 +433,34 @@ struct ExampleModel: SpeechRecognitionModel {
         transcription: .init(reportingOptions: [.volatileResults], attributeOptions: []),
         liveInput: true
     )
+    let weights = URL.applicationSupportDirectory.appending(path: "Example/weights.bin")
+
     func makeExecutor() -> any SpeechRecognitionExecutor { ExampleExecutor() }
+
+    func availability(for request: SpeechRecognitionRequest) async
+        -> SpeechRecognitionAvailability
+    {
+        FileManager.default.fileExists(atPath: weights.path) ? .ready : .missingAssets
+    }
+
+    func assetStatus(for request: SpeechRecognitionRequest) async -> AssetInventory.Status {
+        FileManager.default.fileExists(atPath: weights.path) ? .installed : .supported
+    }
+
+    func assetInstallationRequest(supporting requests: [SpeechRecognitionRequest])
+        async throws -> AssetInstallationRequest?
+    {
+        guard !FileManager.default.fileExists(atPath: weights.path) else { return nil }
+        let weights = weights
+        let progress = Progress(totalUnitCount: 1)
+        return AssetInstallationRequest(progress: progress) {
+            try FileManager.default.createDirectory(
+                at: weights.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try Data().write(to: weights)
+            progress.completedUnitCount = 1
+        }
+    }
 }
 
 actor ExampleExecutor: SpeechRecognitionExecutor {
@@ -475,8 +504,14 @@ let transcriber = SpeechTranscriber(model: ExampleModel(), reportingOptions: [.v
 
 `finalize(through:)` and other controls refer to source times,
 so the executor applies them when its input reaches them.
-A provider whose assets depend on the request can implement
-`availability(for:)` and `assetInstallationRequest(supporting:)`.
+
+`availability(for:)` tells the analyzer whether it can start a request,
+`assetStatus(for:)` tells `AssetInventory` how complete the request's assets are,
+and `assetInstallationRequest(supporting:)` installs the assets that are missing.
+Version 0.3.0 removes `availability()` and `assetInstallationRequest()`.
+A provider that implements only those methods will still compile,
+but nothing will call them, so its assets will never install.
+Until then, a provider can keep its old methods and call them from the new ones.
 
 ## Command-line tool
 

@@ -148,6 +148,15 @@ struct ParakeetOnDemandAssetTests {
             #expect(await AssetInventory.status(forModules: [live]) == .supported)
             #expect(await AssetInventory.status(forModules: [fast]) == .supported)
             #expect(await AssetInventory.status(forModules: [file, live]) == .supported)
+            // The live encoder only improves volatile and fast results,
+            // so their asset status stays supported while analysis can start.
+            #expect(await model.assetStatus(for: .transcription(.init())) == .installed)
+            for option in [SpeechTranscriber.ReportingOption.volatileResults, .fastResults] {
+                let request = SpeechRecognitionRequest.transcription(
+                    .init(reportingOptions: [option])
+                )
+                #expect(await model.assetStatus(for: request) == .supported)
+            }
             #expect(await model.availability() == .ready)
             #expect(await model.availability(for: .transcription(.init())) == .ready)
             #expect(

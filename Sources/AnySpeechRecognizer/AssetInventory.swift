@@ -47,8 +47,9 @@ public enum AssetInventory {
 
     /// Checks asset state without starting a download.
     ///
-    /// Model-backed modules report the assets that their own request uses,
-    /// such as the Parakeet live encoder for volatile or fast results.
+    /// Model-backed modules and diarizers report the assets that their own request uses,
+    /// such as the Parakeet live encoder for volatile or fast results,
+    /// through their model's `assetStatus(for:)` method.
     /// - Parameter modules: Package modules.
     /// - Returns: The least-ready state among the modules.
     public static func status(forModules modules: [any SpeechModule]) async -> Status {
@@ -64,13 +65,13 @@ public enum AssetInventory {
             guard (try? request.validate(for: model.capabilities)) != nil else {
                 return .unsupported
             }
-            status = min(status, Status(await model.availability(for: request)))
+            status = min(status, await model.assetStatus(for: request))
         }
         for member in groups.diarizers {
             guard (try? member.request.validate(for: member.model.capabilities)) != nil else {
                 return .unsupported
             }
-            status = min(status, Status(await member.model.availability(for: member.request)))
+            status = min(status, await member.model.assetStatus(for: member.request))
         }
         return status
     }

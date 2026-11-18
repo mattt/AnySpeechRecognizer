@@ -17,9 +17,27 @@ public protocol SpeakerDiarizationModel: Sendable {
     /// The analyzer converts input to the first format unless the source already matches one.
     func compatibleAudioFormats(for request: SpeakerDiarizationRequest) async -> [AVAudioFormat]
     /// Checks hardware and the local assets that a request uses, without downloading.
+    ///
+    /// Analyzer preparation calls this method.
+    /// In version 0.3.0, this method reports whether diarization of the request can start now.
     /// The default implementation returns ``SpeechRecognitionAvailability/ready``.
     /// - Parameter request: A diarizer's request.
     func availability(for request: SpeakerDiarizationRequest) async -> SpeechRecognitionAvailability
+    /// Reports how complete the asset installation for one request is, without downloading.
+    ///
+    /// ``AssetInventory/status(forModules:)`` calls this method.
+    /// In version 0.3.0, this method is the only source of asset status,
+    /// and ``availability(for:)`` reports only whether diarization can start.
+    /// The default implementation maps ``availability(for:)``:
+    /// ``SpeechRecognitionAvailability/ready`` to ``AssetInventory/Status/installed``,
+    /// ``SpeechRecognitionAvailability/missingAssets`` to ``AssetInventory/Status/supported``,
+    /// ``SpeechRecognitionAvailability/preparing`` to ``AssetInventory/Status/downloading``,
+    /// and the unsupported cases to ``AssetInventory/Status/unsupported``.
+    ///
+    /// - Note: This API is exclusive to AnySpeechRecognizer
+    ///   and using it means your code is no longer drop-in compatible with the Speech framework.
+    /// - Parameter request: A diarizer's request.
+    func assetStatus(for request: SpeakerDiarizationRequest) async -> AssetInventory.Status
     /// Creates one explicit installation request for the assets that a set of requests use,
     /// or returns `nil` when they exist.
     /// The returned request performs network work only when its download method is called.
@@ -86,6 +104,11 @@ extension SpeakerDiarizationModel {
         -> SpeechRecognitionAvailability
     {
         .ready
+    }
+    public func assetStatus(for request: SpeakerDiarizationRequest) async
+        -> AssetInventory.Status
+    {
+        AssetInventory.Status(await availability(for: request))
     }
     public func assetInstallationRequest(supporting requests: [SpeakerDiarizationRequest])
         async throws -> AssetInstallationRequest?
