@@ -78,6 +78,27 @@ private let kindDescriptions: [(SpeechRecognitionError.Kind, String)] = [
     #expect(typedFailure(UpstreamError()).underlyingError is UpstreamError)
     #expect(untypedFailure(UpstreamError()).kind == .backendFailure)
 
+    let unsupportedConfiguration = SpeechRecognitionError.unsupportedConfiguration
+    let unavailableProvider = SpeechRecognitionError.unavailableProvider
+    let unsupportedLanguage = SpeechRecognitionError.unsupportedLanguage
+    let assetVerificationFailed = SpeechRecognitionError.assetVerificationFailed
+    let invalidAudio = SpeechRecognitionError.invalidAudio
+    let invalidSessionState = SpeechRecognitionError.invalidSessionState
+    let invalidResult = SpeechRecognitionError.invalidResult
+    let untypedResults: [(SpeechRecognitionError, SpeechRecognitionError.Kind)] = [
+        (unsupportedConfiguration("c"), .unsupportedConfiguration),
+        (unavailableProvider("c"), .unavailableProvider),
+        (unsupportedLanguage("c"), .unsupportedLanguage),
+        (assetVerificationFailed("c"), .assetVerificationFailed),
+        (invalidAudio("c"), .invalidAudio),
+        (invalidSessionState("c"), .invalidSessionState),
+        (invalidResult("c"), .invalidResult),
+    ]
+    for (error, kind) in untypedResults {
+        #expect(error.kind == kind)
+        #expect(error.message == "c")
+    }
+
     let constructors: [(String) -> SpeechRecognitionError] = [
         SpeechRecognitionError.unsupportedConfiguration,
         SpeechRecognitionError.unavailableProvider,
