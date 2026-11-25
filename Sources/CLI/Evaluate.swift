@@ -35,7 +35,7 @@ struct Evaluate: CancellableCommand {
 
     @Option(
         help: ArgumentHelp(
-            "Reference speaker segments for the diarization error rate.",
+            "Reference speaker segments for a single recording in RTTM format.",
             valueName: "file"
         )
     )
@@ -56,6 +56,7 @@ struct Evaluate: CancellableCommand {
     }
 
     @concurrent func execute() async throws {
+        let referenceSegments = try rttm.map(RTTM.read)
         let analysis = try await Analysis.run(
             file,
             model: model,
@@ -67,9 +68,9 @@ struct Evaluate: CancellableCommand {
         let text = String(analysis.transcript.characters)
         let reference = try reference.map { try String(contentsOfFile: $0, encoding: .utf8) }
         let wer = reference.map { wordErrorRate(reference: $0, hypothesis: text) }
-        let diarization = try rttm.map { path in
+        let diarization = referenceSegments.map { segments in
             DiarizationScore(
-                reference: try RTTM.read(path),
+                reference: segments,
                 hypothesis: analysis.speakers?.segments ?? [],
                 collar: collar
             )
