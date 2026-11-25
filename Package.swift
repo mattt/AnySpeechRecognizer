@@ -32,6 +32,7 @@ let package = Package(
                 "AnySpeechRecognizer", .product(name: "HuggingFace", package: "swift-huggingface"),
             ]
         ),
+        .testTarget(name: "HearTests", dependencies: ["hear", "AnySpeechRecognizer"]),
     ],
     swiftLanguageModes: [.v6]
 )

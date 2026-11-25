@@ -12,13 +12,21 @@ enum RTTM {
 
     /// Reads `SPEAKER` lines: `SPEAKER <file> <channel> <start> <duration> ... <speaker> ...`.
     static func read(_ path: String) throws -> [Segment] {
-        try String(contentsOfFile: path, encoding: .utf8).split(whereSeparator: \.isNewline)
+        var recordingID: String?
+        return try String(contentsOfFile: path, encoding: .utf8).split(whereSeparator: \.isNewline)
             .compactMap { line in
                 let fields = line.split(whereSeparator: \.isWhitespace).map(String.init)
                 guard fields.first == "SPEAKER" else { return nil }
                 guard fields.count >= 8, let start = Double(fields[3]),
                     let duration = Double(fields[4])
                 else { throw CLIError("Malformed RTTM line: \(line)") }
+                if let recordingID, recordingID != fields[1] {
+                    throw CLIError(
+                        "RTTM contains multiple recording IDs ('\(recordingID)' and '\(fields[1])'). "
+                            + "Supply SPEAKER lines for only the recording being evaluated."
+                    )
+                }
+                recordingID = fields[1]
                 return Segment(speaker: fields[7], start: start, end: start + duration)
             }
     }
@@ -42,7 +50,7 @@ struct DiarizationScore: Encodable {
     let referenceSpeakerCount: Int
     let hypothesisSpeakerCount: Int
     let collarSeconds: Double
-    /// The reference speaker of each hypothesis speaker, from the optimal mapping.
+    /// The optimal hypothesis-to-reference mapping for the score without a collar.
     let mapping: [String: String]
     let withCollar: Components
     let withoutCollar: Components
@@ -83,21 +91,6 @@ struct DiarizationScore: Encodable {
             speakers: hypothesisSpeakers.count
         )
 
-        // Overlap of each hypothesis and reference speaker, for the optimal mapping.
-        var overlap = Array(
-            repeating: [Int](repeating: 0, count: referenceSpeakers.count),
-            count: hypothesisSpeakers.count
-        )
-        for h in hypothesisSpeakers.indices {
-            for r in referenceSpeakers.indices {
-                for frame in 0 ..< frames
-                where hypothesisActivity[h][frame] && referenceActivity[r][frame] {
-                    overlap[h][r] += 1
-                }
-            }
-        }
-        let assignment = Self.bestAssignment(overlap, references: referenceSpeakers.count)
-
         var unscored = [Bool](repeating: false, count: frames)
         for segment in reference {
             for boundary in [segment.start, segment.end] {
@@ -106,24 +99,33 @@ struct DiarizationScore: Encodable {
                 for frame in first ..< max(first, last) { unscored[frame] = true }
             }
         }
-        func score(skipping skipped: [Bool]) -> Components {
+        func score(skipping skipped: [Bool]) -> (components: Components, assignment: [Int?]) {
+            var overlap = Array(
+                repeating: [Int](repeating: 0, count: referenceSpeakers.count),
+                count: hypothesisSpeakers.count
+            )
             var total = 0
             var missed = 0
             var falseAlarm = 0
-            var confusion = 0
+            var paired = 0
             for frame in 0 ..< frames where !skipped[frame] {
                 let references = referenceSpeakers.indices.filter { referenceActivity[$0][frame] }
                 let hypotheses = hypothesisSpeakers.indices.filter { hypothesisActivity[$0][frame] }
-                let correct = hypotheses.filter { h in
-                    assignment[h].map { references.contains($0) } ?? false
-                }.count
+                for h in hypotheses {
+                    for r in references { overlap[h][r] += 1 }
+                }
                 total += references.count
                 missed += max(0, references.count - hypotheses.count)
                 falseAlarm += max(0, hypotheses.count - references.count)
-                confusion += min(references.count, hypotheses.count) - correct
+                paired += min(references.count, hypotheses.count)
+            }
+            let assignment = Self.bestAssignment(overlap, references: referenceSpeakers.count)
+            var confusion = paired
+            for (h, r) in assignment.enumerated() {
+                if let r { confusion -= overlap[h][r] }
             }
             let seconds = { (frames: Int) -> Double in Double(frames) * Self.frameSeconds }
-            return Components(
+            let components = Components(
                 scoredSpeakerSeconds: seconds(total),
                 missedSeconds: seconds(missed),
                 falseAlarmSeconds: seconds(falseAlarm),
@@ -131,14 +133,16 @@ struct DiarizationScore: Encodable {
                 diarizationErrorRate: Double(missed + falseAlarm + confusion)
                     / Double(max(total, 1))
             )
+            return (components, assignment)
         }
         referenceSpeakerCount = referenceSpeakers.count
         hypothesisSpeakerCount = hypothesisSpeakers.count
         collarSeconds = collar
-        withCollar = score(skipping: unscored)
-        withoutCollar = score(skipping: [Bool](repeating: false, count: frames))
+        let full = score(skipping: [Bool](repeating: false, count: frames))
+        withoutCollar = full.components
+        withCollar = collar == 0 ? full.components : score(skipping: unscored).components
         var mapping: [String: String] = [:]
-        for (h, r) in assignment.enumerated() {
+        for (h, r) in full.assignment.enumerated() {
             if let r { mapping["\(hypothesisSpeakers[h])"] = referenceSpeakers[r] }
         }
         self.mapping = mapping
